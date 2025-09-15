@@ -1,0 +1,14 @@
+# Ignore everything by default
+/*
+
+# But keep these two folders
+!/Assets/
+!/ProjectSettings/
+
+# Inside Assets, ignore everything except Scripts folder
+/Assets/*
+!/Assets/Scripts/
+!/Assets/Scripts/*.meta
+
+# Keep .gitignore itself
+!.gitignore
