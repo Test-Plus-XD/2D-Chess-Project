@@ -5,10 +5,10 @@
 !/Assets/
 !/ProjectSettings/
 
-# Inside Assets, ignore everything except Scripts folder
+# Inside Assets, ignore everything except Script folder
 /Assets/*
-!/Assets/Scripts/
-!/Assets/Scripts/*.meta
+!/Assets/Script/
+!/Assets/Script/*.meta
 
 # Keep .gitignore itself
 !.gitignore
