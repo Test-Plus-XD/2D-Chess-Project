@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -22,12 +23,30 @@ public class FollowCamera : MonoBehaviour
     // When true the camera recalculates every frame; set false to recalc only when ForceRecalculate() is called.
     public bool continuousUpdate = true;
 
+    // Zoom pulse configuration.
+    public float pulseDefaultMultiplier = 2f; // Default multiplier when triggered with no args
+    public float pulseDefaultDuration = 0.9f; // Default total pulse time in seconds
+    public float pulseHoldFraction = 0.2f; // Fraction of total duration spent holding at max size
+
+    // Singleton instance for easy calls from other scripts.
+    public static FollowCamera Instance { get; private set; }
+
     // Cached camera reference.
     private Camera cam;
     // Velocity vector used by SmoothDamp for position smoothing.
     private Vector3 positionVelocity = Vector3.zero;
     // Velocity float used by SmoothDamp for size smoothing.
     private float sizeVelocity = 0f;
+    // Pulse state.
+    private bool isPulseActive = false;
+
+    // Initialise and optionally perform the first recalc.
+    private void Awake()
+    {
+        // Singleton assignment
+        if (Instance != null && Instance != this) { Destroy(this.gameObject); return; }
+        Instance = this;
+    }
 
     // Initialise and optionally perform the first recalc.
     private void Start()
@@ -59,7 +78,7 @@ public class FollowCamera : MonoBehaviour
     // Public method to force a recalculation and apply new camera transform immediately (or smoothly depending on settings).
     public void ForceRecalculate()
     {
-        // refresh discovery if auto-find enabled
+        // Refresh discovery if auto-find enabled
         if (autoFindGrids) AutoDiscoverGridContainers();
         RecalculateAndApply();
     }
@@ -82,15 +101,14 @@ public class FollowCamera : MonoBehaviour
     {
         // Compute combined bounds from containers. If nothing found, use a tiny bounds at origin.
         Bounds combined = ComputeCombinedBounds();
-        if (combined.size == Vector3.zero)
-        {
-            // Provide a minimal bounds to avoid division by zero later.
-            combined = new Bounds(Vector3.zero, Vector3.one * 0.1f);
-        }
+        // Provide a minimal bounds to avoid division by zero later.
+        if (combined.size == Vector3.zero) combined = new Bounds(Vector3.zero, Vector3.one * 0.1f);
         // Desired camera world position is the centre of the combined bounds.
         Vector3 targetPos = combined.center;
         // Preserve current camera Z so the orthographic camera remains at its original depth.
         targetPos.z = transform.position.z;
+        // Size handling (skip automatic size updates while pulse is active so pulse coroutine can control size).
+        if (isPulseActive) return;
 
         // Determine required orthographic half-height (orthographicSize) so bounds fits vertically.
         // requiredHalfHeight is half of the combined vertical span plus padding.
@@ -161,5 +179,63 @@ public class FollowCamera : MonoBehaviour
             }
         }
         return combined;
+    }
+
+    // Public API: trigger a temporary zoom-out pulse.
+    // multiplier: how much to multiply the current size (eg 2f => double). duration: total seconds of the pulse.
+    public void ZoomOutPulse(float multiplier = -1f, float duration = -1f)
+    {
+        // Use defaults when negative args passed.
+        float mult = (multiplier <= 0f) ? pulseDefaultMultiplier : multiplier;
+        float dur = (duration <= 0f) ? pulseDefaultDuration : duration;
+        // Start coroutine (will no-op if another pulse is active).
+        StartCoroutine(ZoomPulseCoroutine(mult, dur));
+    }
+
+    // Coroutine that eases orthographicSize to multiplier * current, holds, then eases back.
+    private IEnumerator ZoomPulseCoroutine(float multiplier, float totalDuration)
+    {
+        if (isPulseActive) yield break;
+        if (cam == null) yield break;
+
+        isPulseActive = true;
+
+        // Compute timings: easeOut, hold, easeIn fractions.
+        float hold = Mathf.Clamp01(pulseHoldFraction) * totalDuration;
+        float half = (totalDuration - hold) * 0.5f;
+        float expandDuration = Mathf.Max(0.01f, half);
+        float contractDuration = expandDuration;
+
+        // Record original size and clamp target against min/max.
+        float originalSize = cam.orthographicSize;
+        float targetSize = Mathf.Clamp(originalSize * multiplier, minOrthographicSize, maxOrthographicSize);
+
+        // Expand (ease)
+        float t = 0f;
+        while (t < expandDuration)
+        {
+            t += Time.deltaTime;
+            float a = Mathf.Clamp01(t / expandDuration);
+            float ease = a * a * (3f - 2f * a); // smoothstep
+            cam.orthographicSize = Mathf.Lerp(originalSize, targetSize, ease);
+            yield return null;
+        }
+        cam.orthographicSize = targetSize;
+
+        // Hold at max
+        if (hold > 0f) yield return new WaitForSeconds(hold);
+
+        // Contract back (ease)
+        t = 0f;
+        while (t < contractDuration)
+        {
+            t += Time.deltaTime;
+            float a = Mathf.Clamp01(t / contractDuration);
+            float ease = a * a * (3f - 2f * a);
+            cam.orthographicSize = Mathf.Lerp(targetSize, originalSize, ease);
+            yield return null;
+        }
+        cam.orthographicSize = originalSize;
+        isPulseActive = false;
     }
 }
