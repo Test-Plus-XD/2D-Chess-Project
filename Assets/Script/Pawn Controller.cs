@@ -233,7 +233,7 @@ public class PawnController : MonoBehaviour
     // Utility: update GameObject name to include axial coords for debugging.
     private void UpdateNameWithCoords()
     {
-        // Use aiType for readable label; you can swap to prefab name if you stored it earlier.
+        // Use aiType for readable label
         this.gameObject.name = $"Opponent {aiType}: {q}_{r}";
     }
 

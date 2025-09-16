@@ -147,7 +147,7 @@ public class FollowCamera : MonoBehaviour
                 }
                 else combined.Encapsulate(pc.bounds);
             }
-            // As a fallback, include child transforms positions so single-point tiles without renderers still contribute.
+            // Fallback: include child transforms positions so single-point tiles without renderers still contribute.
             Transform[] children = container.GetComponentsInChildren<Transform>(includeInactive: true);
             foreach (var t in children)
             {
