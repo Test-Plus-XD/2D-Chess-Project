@@ -131,7 +131,7 @@ public class FollowCamera : MonoBehaviour
             {
                 if (!hasAny)
                 {
-                    combined = sr.bounds; // initialise with first found renderer bounds
+                    combined = sr.bounds; // Initialise with first found renderer bounds
                     hasAny = true;
                 }
                 else combined.Encapsulate(sr.bounds);
@@ -142,7 +142,7 @@ public class FollowCamera : MonoBehaviour
             {
                 if (!hasAny)
                 {
-                    combined = pc.bounds; // initialise if no renderer was found yet
+                    combined = pc.bounds; // Initialise if no renderer was found yet
                     hasAny = true;
                 }
                 else combined.Encapsulate(pc.bounds);
