@@ -2,15 +2,20 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// Per-pawn AI behaviour, combined weighting logic and an executable AI move.
-/// Each pawn tracks its own axial coordinates q,r and sets public bool Moved when finished.
+/// Per-pawn AI behaviour in both Chess and Standoff modes.
+/// Chess mode: Weighted movement on hex grid based on AI type.
+/// Standoff mode: 2D platformer AI with jumping and shooting.
+[RequireComponent(typeof(Rigidbody2D))]
 public class PawnController : MonoBehaviour
 {
+    #region Enums and Types
     // AI types available for this pawn.
     public enum AIType { Basic, Handcannon, Shotgun, Sniper }
     // Placeholder modifier for future extension.
     public enum Modifier { None }
+    #endregion
 
+    #region Chess Mode Fields
     // Public fields.
     public AIType aiType = AIType.Basic;
     public Modifier modifier = Modifier.None;
@@ -25,21 +30,307 @@ public class PawnController : MonoBehaviour
 
     // Keep the original prefab/type label for nicer names (optional).
     private string typeLabel = "";
+    #endregion
+
+    #region Standoff Mode Fields
+    [Header("Standoff Mode Settings")]
+    [Tooltip("Movement speed in Standoff mode")]
+    public float standoffMoveSpeed = 3f;
+    [Tooltip("Jump force for AI")]
+    public float jumpForce = 8f;
+    [Tooltip("Ground check distance")]
+    public float groundCheckDistance = 0.1f;
+    [Tooltip("Layer mask for ground detection")]
+    public LayerMask groundLayer;
+    [Tooltip("Decision update interval (seconds)")]
+    public float aiThinkInterval = 0.5f;
+
+    // Standoff mode state
+    private bool isStandoffMode = false;
+    private Rigidbody2D rb;
+    private bool isGrounded = false;
+    private float lastThinkTime = 0f;
+    private float currentMoveDirection = 0f; // -1 = left, 0 = none, 1 = right
+    private Transform playerTransform;
+    private Firearm firearm;
+    private GunAiming gunAiming;
+    private SpriteRenderer spriteRenderer;
+    #endregion
 
     // Data-holder for neighbour candidates.
     private class Candidate { public int q, r, index; public float weight = 1f; public int distToPlayer; }
+
+    #region Unity Lifecycle
 
     // Notify Checkerboard when this pawn is created/destroyed.
     private void Start()
     {
         // Attempt to pick a grid generator if not assigned.
         if (gridGenerator == null) gridGenerator = FindFirstObjectByType<HexGridGenerator>();
+
+        // Get components
+        rb = GetComponent<Rigidbody2D>();
+        firearm = GetComponent<Firearm>();
+        gunAiming = GetComponent<GunAiming>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+
+        // Configure Rigidbody2D for Chess mode by default
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.gravityScale = 0f;
+        }
+
         // Lightweight label for naming.
         typeLabel = this.gameObject.name.Split('(')[0].Trim();
         if (Checkerboard.Instance != null) Checkerboard.Instance.RegisterOpponent(this);
         Debug.Log($"[PawnController] Spawned {typeLabel} at {q}_{r}");
+
+        // Find player
+        FindPlayer();
     }
-    private void OnDestroy() { if (Checkerboard.Instance != null) Checkerboard.Instance.DeregisterOpponent(this); }
+
+    private void Update()
+    {
+        if (isStandoffMode)
+        {
+            UpdateStandoffMode();
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (isStandoffMode)
+        {
+            FixedUpdateStandoffMode();
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (Checkerboard.Instance != null) Checkerboard.Instance.DeregisterOpponent(this);
+    }
+
+    #endregion
+
+    #region Mode Switching
+
+    /// <summary>
+    /// Switch between Chess and Standoff modes
+    /// </summary>
+    public void SetStandoffMode(bool standoffMode)
+    {
+        isStandoffMode = standoffMode;
+
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
+
+        if (isStandoffMode)
+        {
+            // Configure for Standoff mode (platformer physics)
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.gravityScale = 2f;
+                rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+            }
+
+            // Configure firearm and gun aiming
+            if (firearm != null)
+            {
+                firearm.SetStandoffMode(true);
+            }
+            if (gunAiming != null)
+            {
+                gunAiming.SetStandoffMode(true);
+            }
+        }
+        else
+        {
+            // Configure for Chess mode (kinematic movement)
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.gravityScale = 0f;
+                rb.velocity = Vector2.zero;
+            }
+
+            // Configure firearm and gun aiming
+            if (firearm != null)
+            {
+                firearm.SetStandoffMode(false);
+            }
+            if (gunAiming != null)
+            {
+                gunAiming.SetStandoffMode(false);
+            }
+        }
+    }
+
+    #endregion
+
+    #region Standoff Mode AI
+
+    private void FindPlayer()
+    {
+        PlayerController player = FindObjectOfType<PlayerController>();
+        if (player != null)
+        {
+            playerTransform = player.transform;
+        }
+    }
+
+    private void UpdateStandoffMode()
+    {
+        if (playerTransform == null)
+        {
+            FindPlayer();
+            return;
+        }
+
+        // Check ground status
+        CheckGroundStatus();
+
+        // AI thinking at intervals
+        if (Time.time >= lastThinkTime + aiThinkInterval)
+        {
+            lastThinkTime = Time.time;
+            MakeStandoffDecision();
+        }
+
+        // Sprite flipping
+        if (spriteRenderer != null && Mathf.Abs(currentMoveDirection) > 0.1f)
+        {
+            spriteRenderer.flipX = currentMoveDirection < 0;
+        }
+    }
+
+    private void FixedUpdateStandoffMode()
+    {
+        if (rb == null) return;
+
+        // Apply horizontal movement
+        rb.velocity = new Vector2(currentMoveDirection * standoffMoveSpeed, rb.velocity.y);
+    }
+
+    private void MakeStandoffDecision()
+    {
+        if (playerTransform == null) return;
+
+        Vector2 toPlayer = playerTransform.position - transform.position;
+        float distance = toPlayer.magnitude;
+
+        // Decide movement and jumping based on AI type (matches Chess mode personalities)
+        switch (aiType)
+        {
+            case AIType.Basic:
+            case AIType.Shotgun:
+                // Aggressive: Always move toward player (matches Chess mode behavior)
+                if (distance > 1.5f)
+                {
+                    currentMoveDirection = Mathf.Sign(toPlayer.x);
+                    TryJumpIfObstacle();
+                }
+                else
+                {
+                    currentMoveDirection = 0f;
+                }
+                break;
+
+            case AIType.Handcannon:
+                // Mid-range: Maintain 2-4 unit distance (matches Chess mode preference)
+                if (distance > 4f)
+                {
+                    // Too far, move closer
+                    currentMoveDirection = Mathf.Sign(toPlayer.x);
+                    TryJumpIfObstacle();
+                }
+                else if (distance < 2f)
+                {
+                    // Too close, back up
+                    currentMoveDirection = -Mathf.Sign(toPlayer.x);
+                    TryJumpIfObstacle();
+                }
+                else
+                {
+                    // In optimal range, stop moving
+                    currentMoveDirection = 0f;
+                }
+                break;
+
+            case AIType.Sniper:
+                // Long-range: Keep distance, move away if too close (matches Chess mode behavior)
+                if (distance < 6f)
+                {
+                    // Too close, retreat
+                    currentMoveDirection = -Mathf.Sign(toPlayer.x);
+                    TryJumpIfObstacle();
+                }
+                else
+                {
+                    // Far enough, stop moving
+                    currentMoveDirection = 0f;
+                }
+                break;
+        }
+    }
+
+    private void CheckGroundStatus()
+    {
+        if (rb == null) return;
+
+        // Raycast downward to check for ground
+        Vector2 position = transform.position;
+        RaycastHit2D hit = Physics2D.Raycast(position, Vector2.down, groundCheckDistance, groundLayer);
+
+        isGrounded = hit.collider != null;
+    }
+
+    private void TryJumpIfObstacle()
+    {
+        if (!isGrounded || rb == null) return;
+
+        // Check for obstacle ahead
+        Vector2 position = transform.position;
+        Vector2 checkDirection = new Vector2(currentMoveDirection, 0f);
+        RaycastHit2D hit = Physics2D.Raycast(position, checkDirection, 1f, groundLayer);
+
+        // If obstacle detected, try to jump
+        if (hit.collider != null)
+        {
+            // Check if obstacle is jumpable (not too high)
+            if (hit.point.y - position.y < 2f)
+            {
+                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            }
+        }
+
+        // Also jump if at edge (to avoid falling)
+        Vector2 edgeCheck = position + new Vector2(currentMoveDirection * 0.5f, -0.5f);
+        RaycastHit2D edgeHit = Physics2D.Raycast(edgeCheck, Vector2.down, 1f, groundLayer);
+
+        if (edgeHit.collider == null)
+        {
+            // No ground ahead, stop moving or jump gap
+            float gapDistance = 2f; // Max jumpable gap
+            Vector2 farCheck = position + new Vector2(currentMoveDirection * gapDistance, -0.5f);
+            RaycastHit2D farHit = Physics2D.Raycast(farCheck, Vector2.down, 2f, groundLayer);
+
+            if (farHit.collider != null)
+            {
+                // Ground exists after gap, jump it
+                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            }
+            else
+            {
+                // No ground ahead, don't move forward
+                currentMoveDirection = 0f;
+            }
+        }
+    }
+
+    #endregion
+
+    #region Chess Mode Methods (Existing)
 
     // Choose a neighbor target using this pawn's q,r and the given player's q,r.
     // Returns true and out coords if a target was chosen.
@@ -68,7 +359,7 @@ public class PawnController : MonoBehaviour
         // Compute distances to player for all candidates (axial distance via cube coords).
         foreach (var c in candidates) c.distToPlayer = AxialDistance(c.q, c.r, playerQ, playerR);
         // Apply the single combined weight logic for this pawn's AI type.
-        ApplyCombinedWeights(candidates, aiType);
+        ApplyCombinedWeights(candidates, aiType, playerQ, playerR);
 
         // Debug: log candidate list and weights for transparency.
         string debugLine = $"[PawnController] {typeLabel} @{q}_{r} Candidates:";
@@ -108,7 +399,7 @@ public class PawnController : MonoBehaviour
     }
 
     // Combined weight application for all AI types in one place.
-    private void ApplyCombinedWeights(List<Candidate> candidates, AIType type)
+    private void ApplyCombinedWeights(List<Candidate> candidates, AIType type, int playerQ, int playerR)
     {
         if (candidates == null || candidates.Count == 0) return;
         // Find min/max distances among candidates.
@@ -118,11 +409,43 @@ public class PawnController : MonoBehaviour
         switch (type)
         {
             case AIType.Basic:
-                // Allowed only bottom, bottom-right and bottom-left relative to pawn.
-                // Determine allowed directions by comparing dirQ/dirR (robust against index reordering).
+                // Like chess pawns: only move forward (down in world space), never backward (up)
+                // Allowed only bottom 3 directions, and must not move upward in world space (y)
                 foreach (var c in candidates) c.weight = 0f;
+
+                // Get current tile world position
+                Vector3 currentWorldPos;
+                if (!TryGetTileWorldCentre(q, r, out currentWorldPos))
+                {
+                    // Fallback to allowing all 3 directions if can't get world pos
+                    foreach (var c in candidates)
+                    {
+                        int dq = c.q - q; int dr = c.r - r;
+                        if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
+                        {
+                            c.weight = 1f;
+                        }
+                    }
+                    break;
+                }
+
                 foreach (var c in candidates)
                 {
+                    // Get candidate tile world position
+                    Vector3 candidateWorldPos;
+                    if (!TryGetTileWorldCentre(c.q, c.r, out candidateWorldPos))
+                    {
+                        c.weight = 0f;
+                        continue;
+                    }
+
+                    // Block any move that increases y (moving backward/upward in world space)
+                    if (candidateWorldPos.y > currentWorldPos.y)
+                    {
+                        c.weight = 0f;
+                        continue;
+                    }
+
                     int dq = c.q - q; int dr = c.r - r;
                     // bottom = (0,-1); bottom-left = (-1,0); bottom-right = (1,-1)
                     if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
@@ -142,12 +465,47 @@ public class PawnController : MonoBehaviour
                 break;
 
             case AIType.Shotgun:
-                // All 6 allowed; closest weight 3, farthest weight 0, others weight1.
+                // Aggressive toward player with directional preferences
+                // 4 weight: toward player (closest)
+                // 3 weight: top-right and top-left
+                // 2 weight: bottom-right and bottom-left
+                // 1 weight: farthest from player or other directions
                 foreach (var c in candidates)
                 {
-                    if (c.distToPlayer == minDist) c.weight = 3f;
-                    else if (c.distToPlayer == maxDist) c.weight = 0f;
-                    else c.weight = 1f;
+                    // Determine hex direction index by calculating offset
+                    int dq = c.q - q;
+                    int dr = c.r - r;
+                    int dirIndex = -1;
+                    for (int i = 0; i < 6; i++)
+                    {
+                        if (dirQ[i] == dq && dirR[i] == dr)
+                        {
+                            dirIndex = i;
+                            break;
+                        }
+                    }
+
+                    // Assign weights with priority
+                    if (c.distToPlayer == minDist)
+                    {
+                        c.weight = 4f; // Closest to player (highest priority)
+                    }
+                    else if (c.distToPlayer == maxDist)
+                    {
+                        c.weight = 1f; // Farthest from player (lowest priority)
+                    }
+                    else if (dirIndex == 1 || dirIndex == 2) // Top-right (1,-1) or top-left (0,-1)
+                    {
+                        c.weight = 3f;
+                    }
+                    else if (dirIndex == 4 || dirIndex == 5) // Bottom-left (-1,1) or bottom-right (0,1)
+                    {
+                        c.weight = 2f;
+                    }
+                    else // Right (1,0) or left (-1,0)
+                    {
+                        c.weight = 1f;
+                    }
                 }
                 break;
 
@@ -271,4 +629,6 @@ public class PawnController : MonoBehaviour
 
     // Helper to reset Moved (used by Checkerboard between turns).
     public void ResetMovedFlag() { Moved = false; }
+
+    #endregion
 }

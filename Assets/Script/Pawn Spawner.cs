@@ -196,4 +196,54 @@ public class PawnSpawner : MonoBehaviour
         centre = tile.position;
         return true;
     }
+
+    #region Public Setters for Level Manager
+
+    /// <summary>
+    /// Set pawn counts for all types at once
+    /// </summary>
+    public void SetPawnCount(int basic, int handcannon, int shotgun, int sniper)
+    {
+        pawnCount = Mathf.Max(0, basic);
+        handcannonCount = Mathf.Max(0, handcannon);
+        shotgunCount = Mathf.Max(0, shotgun);
+        sniperCount = Mathf.Max(0, sniper);
+    }
+
+    /// <summary>
+    /// Spawn all pawns (clears existing first)
+    /// </summary>
+    public void SpawnAllPawns()
+    {
+        // Clear existing spawned pawns
+        ClearSpawnedPawns();
+
+        // Spawn all types
+        SpawnType(pawnPrefab, pawnCount, PawnController.AIType.Basic);
+        SpawnType(handcannonPrefab, handcannonCount, PawnController.AIType.Handcannon);
+        SpawnType(shotgunPrefab, shotgunCount, PawnController.AIType.Shotgun);
+        SpawnType(sniperPrefab, sniperCount, PawnController.AIType.Sniper);
+    }
+
+    /// <summary>
+    /// Clear all spawned pawns
+    /// </summary>
+    private void ClearSpawnedPawns()
+    {
+        // Find all opponent pawns and destroy them
+        PawnController[] pawns = FindObjectsOfType<PawnController>();
+        foreach (var pawn in pawns)
+        {
+            if (Application.isPlaying)
+            {
+                Destroy(pawn.gameObject);
+            }
+            else
+            {
+                DestroyImmediate(pawn.gameObject);
+            }
+        }
+    }
+
+    #endregion
 }
