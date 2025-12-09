@@ -1,33 +1,30 @@
 using UnityEngine;
 using System.Collections;
-using System.Collections.Generic;
 
-/// <summary>
-/// Handles shooting mechanics for opponent pawns in both Chess and Standoff stages.
-/// Supports multiple fire modes and modifiers.
-/// </summary>
-public class Firearm : MonoBehaviour
+// Unified weapon system handling shooting, projectiles, and gun aiming.
+// Consolidates Firearm, Projectile, and GunAiming functionality.
+public class WeaponSystem : MonoBehaviour
 {
     #region Enums
 
     public enum FireMode
     {
-        Manual,             // Fires on command
-        OnLineOfSight,      // Fires when piece enters line of sight
-        TrackPlayer,        // Fires in direction closest to player
-        Timed               // Fires at regular intervals
+        Manual,
+        OnLineOfSight,
+        TrackPlayer,
+        Timed
     }
 
     public enum ProjectileType
     {
-        Single,             // Single bullet
-        Spread,             // Multiple bullets in a cone
-        Beam                // Continuous beam
+        Single,
+        Spread,
+        Beam
     }
 
     #endregion
 
-    #region Inspector Fields
+    #region Inspector Fields - Firearm Settings
 
     [Header("Firearm Settings")]
     [Tooltip("The fire mode this firearm uses")]
@@ -48,12 +45,20 @@ public class Firearm : MonoBehaviour
     [Tooltip("Speed of projectiles")]
     [SerializeField] private float projectileSpeed = 10f;
 
-    [Header("Spread Settings (for Spread projectile type)")]
+    #endregion
+
+    #region Inspector Fields - Spread Settings
+
+    [Header("Spread Settings")]
     [Tooltip("Number of bullets in spread shot")]
     [SerializeField] private int spreadCount = 3;
 
     [Tooltip("Angle between spread bullets in degrees")]
     [SerializeField] private float spreadAngle = 30f;
+
+    #endregion
+
+    #region Inspector Fields - Line of Sight
 
     [Header("Line of Sight Settings")]
     [Tooltip("Detection range for line of sight mode")]
@@ -65,6 +70,10 @@ public class Firearm : MonoBehaviour
     [Tooltip("Layer mask for obstacles blocking line of sight")]
     [SerializeField] private LayerMask obstacleLayer;
 
+    #endregion
+
+    #region Inspector Fields - Visuals
+
     [Header("Projectile Visuals")]
     [Tooltip("Projectile prefab to spawn")]
     [SerializeField] private GameObject projectilePrefab;
@@ -74,6 +83,30 @@ public class Firearm : MonoBehaviour
 
     [Tooltip("Point where projectiles spawn")]
     [SerializeField] private Transform firePoint;
+
+    #endregion
+
+    #region Inspector Fields - Gun Aiming
+
+    [Header("Gun Aiming")]
+    [Tooltip("The gun transform to rotate")]
+    [SerializeField] private Transform gunTransform;
+
+    [Tooltip("Gun offset from pawn center")]
+    [SerializeField] private Vector2 gunOffset = new Vector2(0.2f, 0f);
+
+    [Tooltip("Aim tracking speed (lower = more delay)")]
+    [SerializeField][Range(1f, 20f)] private float aimTrackingSpeed = 10f;
+
+    [Tooltip("Time to stop tracking before shooting")]
+    [SerializeField] private float stopTrackingBeforeShotTime = 0.5f;
+
+    [Tooltip("Smoothing for rotation")]
+    [SerializeField] private bool smoothRotation = true;
+
+    #endregion
+
+    #region Inspector Fields - Audio & Animation
 
     [Header("Audio & Animation")]
     [Tooltip("Sound played when firing")]
@@ -88,6 +121,10 @@ public class Firearm : MonoBehaviour
     [Tooltip("Name of fire animation trigger")]
     [SerializeField] private string fireAnimationTrigger = "Fire";
 
+    #endregion
+
+    #region Inspector Fields - Recoil
+
     [Header("Recoil (Standoff Mode)")]
     [Tooltip("Enable physical recoil when shooting")]
     [SerializeField] private bool enableRecoil = true;
@@ -95,9 +132,13 @@ public class Firearm : MonoBehaviour
     [Tooltip("Recoil force magnitude")]
     [SerializeField] private float recoilForce = 3f;
 
+    #endregion
+
+    #region Inspector Fields - Debug
+
     [Header("Debug")]
-    [Tooltip("Show debug lines for line of sight")]
-    [SerializeField] private bool showDebugLines = true;
+    [Tooltip("Show debug lines")]
+    [SerializeField] private bool showDebug = false;
 
     #endregion
 
@@ -108,10 +149,10 @@ public class Firearm : MonoBehaviour
     private Transform playerTransform;
     private bool isInStandoffMode = false;
     private Vector2 currentAimDirection = Vector2.right;
+    private Vector2 targetAimDirection = Vector2.right;
+    private float lastShotTime = -999f;
     private Rigidbody2D rb;
-    private GunAiming gunAiming;
-
-    // Hex direction vectors (for chess mode)
+    private PawnController pawnController;
     private Vector2[] hexDirections = new Vector2[6];
 
     #endregion
@@ -120,21 +161,17 @@ public class Firearm : MonoBehaviour
 
     private void Awake()
     {
-        // Setup audio
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
         }
 
-        // Get components
         rb = GetComponent<Rigidbody2D>();
-        gunAiming = GetComponent<GunAiming>();
+        pawnController = GetComponent<PawnController>();
 
-        // Initialize hex directions
         InitializeHexDirections();
 
-        // Create fire point if not assigned
         if (firePoint == null)
         {
             GameObject firePointObj = new GameObject("FirePoint");
@@ -142,14 +179,19 @@ public class Firearm : MonoBehaviour
             firePointObj.transform.localPosition = Vector3.zero;
             firePoint = firePointObj.transform;
         }
+
+        if (gunTransform == null)
+        {
+            GameObject gunObj = new GameObject("Gun");
+            gunObj.transform.SetParent(transform);
+            gunObj.transform.localPosition = gunOffset;
+            gunTransform = gunObj.transform;
+        }
     }
 
     private void Start()
     {
-        // Find player
         FindPlayer();
-
-        // Initialize fire timer
         lastFireTime = -fireRate;
     }
 
@@ -161,10 +203,193 @@ public class Firearm : MonoBehaviour
             return;
         }
 
-        // Update aim direction based on fire mode
         UpdateAimDirection();
+        ApplyGunRotation();
+        HandleFireModes();
+    }
 
-        // Handle fire modes
+    private void OnDrawGizmos()
+    {
+        if (!showDebug || firePoint == null) return;
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawRay(firePoint.position, currentAimDirection * maxRange);
+
+        if (fireMode == FireMode.OnLineOfSight)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(transform.position, detectionRange);
+        }
+    }
+
+    #endregion
+
+    #region Public Methods
+
+    public void ManualFire()
+    {
+        if (Time.time >= lastFireTime + fireRate)
+        {
+            Fire();
+        }
+    }
+
+    public void SetAimDirection(Vector2 direction)
+    {
+        if (direction.sqrMagnitude > 0.01f)
+        {
+            currentAimDirection = direction.normalized;
+        }
+    }
+
+    public void SetStandoffMode(bool standoffMode)
+    {
+        isInStandoffMode = standoffMode;
+    }
+
+    public void SetFireMode(FireMode mode)
+    {
+        fireMode = mode;
+    }
+
+    public float GetTimeToNextShot()
+    {
+        float timeSinceLastShot = Time.time - lastFireTime;
+        return Mathf.Max(0f, fireRate - timeSinceLastShot);
+    }
+
+    public Vector2 GetAimDirection()
+    {
+        return currentAimDirection;
+    }
+
+    public void OnShotFired()
+    {
+        lastShotTime = Time.time;
+    }
+
+    #endregion
+
+    #region Private Methods - Initialization
+
+    private void InitializeHexDirections()
+    {
+        float angle = 0f;
+        for (int i = 0; i < 6; i++)
+        {
+            float rad = angle * Mathf.Deg2Rad;
+            hexDirections[i] = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+            angle += 60f;
+        }
+    }
+
+    private void FindPlayer()
+    {
+        PlayerController player = FindObjectOfType<PlayerController>();
+        if (player != null)
+        {
+            playerTransform = player.transform;
+        }
+    }
+
+    #endregion
+
+    #region Private Methods - Aiming
+
+    private void UpdateAimDirection()
+    {
+        if (playerTransform == null) return;
+
+        Vector2 toPlayer = (playerTransform.position - transform.position).normalized;
+
+        if (isInStandoffMode)
+        {
+            UpdateStandoffAiming(toPlayer);
+        }
+        else
+        {
+            UpdateChessAiming(toPlayer);
+        }
+    }
+
+    private void UpdateChessAiming(Vector2 toPlayer)
+    {
+        targetAimDirection = GetNearestHexDirection(toPlayer);
+        currentAimDirection = targetAimDirection;
+    }
+
+    private void UpdateStandoffAiming(Vector2 toPlayer)
+    {
+        bool shouldStopTracking = false;
+        float timeToNextShot = GetTimeToNextShot();
+
+        if (timeToNextShot <= stopTrackingBeforeShotTime && timeToNextShot > 0f)
+        {
+            shouldStopTracking = true;
+        }
+
+        if (!shouldStopTracking)
+        {
+            targetAimDirection = toPlayer;
+
+            if (smoothRotation)
+            {
+                currentAimDirection = Vector2.Lerp(
+                    currentAimDirection,
+                    targetAimDirection,
+                    Time.deltaTime * aimTrackingSpeed
+                ).normalized;
+            }
+            else
+            {
+                currentAimDirection = targetAimDirection;
+            }
+        }
+    }
+
+    private Vector2 GetNearestHexDirection(Vector2 targetDirection)
+    {
+        int bestIndex = 0;
+        float bestDot = -1f;
+
+        for (int i = 0; i < hexDirections.Length; i++)
+        {
+            float dot = Vector2.Dot(targetDirection, hexDirections[i]);
+            if (dot > bestDot)
+            {
+                bestDot = dot;
+                bestIndex = i;
+            }
+        }
+
+        return hexDirections[bestIndex];
+    }
+
+    private void ApplyGunRotation()
+    {
+        if (gunTransform == null) return;
+
+        float angle = Mathf.Atan2(currentAimDirection.y, currentAimDirection.x) * Mathf.Rad2Deg;
+        gunTransform.rotation = Quaternion.Euler(0f, 0f, angle);
+
+        Vector3 scale = gunTransform.localScale;
+        if (currentAimDirection.x < 0)
+        {
+            scale.y = -Mathf.Abs(scale.y);
+        }
+        else
+        {
+            scale.y = Mathf.Abs(scale.y);
+        }
+        gunTransform.localScale = scale;
+    }
+
+    #endregion
+
+    #region Private Methods - Firing
+
+    private void HandleFireModes()
+    {
         switch (fireMode)
         {
             case FireMode.Timed:
@@ -190,134 +415,6 @@ public class Firearm : MonoBehaviour
         }
     }
 
-    private void OnDrawGizmos()
-    {
-        if (!showDebugLines || firePoint == null) return;
-
-        // Draw aim direction
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawRay(firePoint.position, currentAimDirection * maxRange);
-
-        // Draw detection range for line of sight mode
-        if (fireMode == FireMode.OnLineOfSight)
-        {
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawWireSphere(transform.position, detectionRange);
-        }
-    }
-
-    #endregion
-
-    #region Public Methods
-
-    /// <summary>
-    /// Manually trigger a fire action
-    /// </summary>
-    public void ManualFire()
-    {
-        if (Time.time >= lastFireTime + fireRate)
-        {
-            Fire();
-        }
-    }
-
-    /// <summary>
-    /// Set the aim direction manually (for Standoff mode)
-    /// </summary>
-    public void SetAimDirection(Vector2 direction)
-    {
-        if (direction.sqrMagnitude > 0.01f)
-        {
-            currentAimDirection = direction.normalized;
-        }
-    }
-
-    /// <summary>
-    /// Switch between Chess and Standoff modes
-    /// </summary>
-    public void SetStandoffMode(bool standoffMode)
-    {
-        isInStandoffMode = standoffMode;
-    }
-
-    /// <summary>
-    /// Set fire mode at runtime
-    /// </summary>
-    public void SetFireMode(FireMode mode)
-    {
-        fireMode = mode;
-    }
-
-    /// <summary>
-    /// Get time until next shot is ready
-    /// </summary>
-    public float GetTimeToNextShot()
-    {
-        float timeSinceLastShot = Time.time - lastFireTime;
-        return Mathf.Max(0f, fireRate - timeSinceLastShot);
-    }
-
-    #endregion
-
-    #region Private Methods
-
-    private void InitializeHexDirections()
-    {
-        // Flat-top hex directions (adjust for pointy-top if needed)
-        float angle = 0f;
-        for (int i = 0; i < 6; i++)
-        {
-            float rad = angle * Mathf.Deg2Rad;
-            hexDirections[i] = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
-            angle += 60f;
-        }
-    }
-
-    private void FindPlayer()
-    {
-        PlayerController player = FindObjectOfType<PlayerController>();
-        if (player != null)
-        {
-            playerTransform = player.transform;
-        }
-    }
-
-    private void UpdateAimDirection()
-    {
-        if (playerTransform == null) return;
-
-        Vector2 toPlayer = (playerTransform.position - transform.position).normalized;
-
-        if (isInStandoffMode)
-        {
-            // In Standoff mode, aim directly at player
-            currentAimDirection = toPlayer;
-        }
-        else
-        {
-            // In Chess mode, snap to nearest hex direction
-            currentAimDirection = GetNearestHexDirection(toPlayer);
-        }
-    }
-
-    private Vector2 GetNearestHexDirection(Vector2 targetDirection)
-    {
-        int bestIndex = 0;
-        float bestDot = -1f;
-
-        for (int i = 0; i < hexDirections.Length; i++)
-        {
-            float dot = Vector2.Dot(targetDirection, hexDirections[i]);
-            if (dot > bestDot)
-            {
-                bestDot = dot;
-                bestIndex = i;
-            }
-        }
-
-        return hexDirections[bestIndex];
-    }
-
     private bool HasLineOfSight()
     {
         if (playerTransform == null) return false;
@@ -325,10 +422,8 @@ public class Firearm : MonoBehaviour
         Vector2 toPlayer = playerTransform.position - transform.position;
         float distance = toPlayer.magnitude;
 
-        // Check if player is in range
         if (distance > detectionRange) return false;
 
-        // Check if line of sight is blocked
         RaycastHit2D hit = Physics2D.Raycast(
             transform.position,
             toPlayer.normalized,
@@ -336,7 +431,7 @@ public class Firearm : MonoBehaviour
             obstacleLayer
         );
 
-        if (showDebugLines)
+        if (showDebug)
         {
             Debug.DrawRay(transform.position, toPlayer, hit.collider != null ? Color.red : Color.green);
         }
@@ -347,39 +442,29 @@ public class Firearm : MonoBehaviour
     private void Fire()
     {
         lastFireTime = Time.time;
+        lastShotTime = Time.time;
 
-        // Play sound
         if (fireSound != null && audioSource != null)
         {
             audioSource.PlayOneShot(fireSound, fireVolume);
         }
 
-        // Trigger animation
         if (gunAnimator != null && !string.IsNullOrEmpty(fireAnimationTrigger))
         {
             gunAnimator.SetTrigger(fireAnimationTrigger);
         }
 
-        // Spawn muzzle flash
         if (muzzleFlashPrefab != null)
         {
             GameObject flash = Instantiate(muzzleFlashPrefab, firePoint.position, Quaternion.identity);
             Destroy(flash, 0.1f);
         }
 
-        // Apply recoil in Standoff mode
         if (isInStandoffMode && enableRecoil && rb != null)
         {
             ApplyRecoil();
         }
 
-        // Notify GunAiming that shot was fired
-        if (gunAiming != null)
-        {
-            gunAiming.OnShotFired();
-        }
-
-        // Fire projectiles based on type
         switch (projectileType)
         {
             case ProjectileType.Single:
@@ -399,8 +484,6 @@ public class Firearm : MonoBehaviour
     private void ApplyRecoil()
     {
         if (rb == null) return;
-
-        // Apply force opposite to aim direction
         Vector2 recoilDirection = -currentAimDirection.normalized;
         rb.AddForce(recoilDirection * recoilForce, ForceMode2D.Impulse);
     }
@@ -419,7 +502,6 @@ public class Firearm : MonoBehaviour
 
     private void FireBeam()
     {
-        // Raycast to find hit point
         RaycastHit2D hit = Physics2D.Raycast(
             firePoint.position,
             currentAimDirection,
@@ -429,17 +511,15 @@ public class Firearm : MonoBehaviour
 
         float beamDistance = hit.collider != null ? hit.distance : maxRange;
 
-        // Check if hit player
         if (hit.collider != null)
         {
-            PlayerPawn playerPawn = hit.collider.GetComponent<PlayerPawn>();
-            if (playerPawn != null)
+            PawnHealth playerHealth = hit.collider.GetComponent<PawnHealth>();
+            if (playerHealth != null && playerHealth.pawnType == PawnHealth.PawnType.Player)
             {
-                playerPawn.TakeDamage(damage, gameObject.name);
+                playerHealth.TakeDamage(damage, gameObject.name);
             }
         }
 
-        // Visual beam effect (you'll need to create a beam prefab or line renderer)
         if (projectilePrefab != null)
         {
             GameObject beam = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
@@ -459,15 +539,13 @@ public class Firearm : MonoBehaviour
 
         GameObject projectile = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
 
-        // Orient projectile
         float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
         projectile.transform.rotation = Quaternion.Euler(0, 0, angle);
 
-        // Setup projectile component
-        Projectile proj = projectile.GetComponent<Projectile>();
+        ProjectileBehavior proj = projectile.GetComponent<ProjectileBehavior>();
         if (proj == null)
         {
-            proj = projectile.AddComponent<Projectile>();
+            proj = projectile.AddComponent<ProjectileBehavior>();
         }
 
         proj.Initialize(direction, projectileSpeed, maxRange, damage, gameObject.name);
@@ -485,4 +563,67 @@ public class Firearm : MonoBehaviour
     }
 
     #endregion
+}
+
+// Projectile behavior component (nested for consolidation).
+[RequireComponent(typeof(Rigidbody2D))]
+public class ProjectileBehavior : MonoBehaviour
+{
+    private Vector2 direction;
+    private float speed;
+    private float maxRange;
+    private int damage;
+    private string sourceTag;
+    private Vector2 startPosition;
+    private Rigidbody2D rb;
+    private bool isInitialized = false;
+
+    private void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            rb.gravityScale = 0f;
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (!isInitialized) return;
+
+        rb.linearVelocity = direction * speed;
+
+        float traveledDistance = Vector2.Distance(startPosition, transform.position);
+        if (traveledDistance >= maxRange)
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        PawnHealth playerHealth = collision.GetComponent<PawnHealth>();
+        if (playerHealth != null && playerHealth.pawnType == PawnHealth.PawnType.Player)
+        {
+            playerHealth.TakeDamage(damage, sourceTag);
+            Destroy(gameObject);
+            return;
+        }
+
+        if (collision.CompareTag("Tile") || collision.CompareTag("Wall") || collision.CompareTag("Obstacle"))
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    public void Initialize(Vector2 moveDirection, float moveSpeed, float range, int damageAmount, string source)
+    {
+        direction = moveDirection.normalized;
+        speed = moveSpeed;
+        maxRange = range;
+        damage = damageAmount;
+        sourceTag = source;
+        startPosition = transform.position;
+        isInitialized = true;
+    }
 }

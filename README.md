@@ -2,13 +2,24 @@
 
 A tactical 2D mobile game combining hexagonal chess mechanics with side-scrolling platformer action and SUPERHOT-style time manipulation.
 
-![Unity](https://img.shields.io/badge/Unity-2021.3+-black?logo=unity)
+![Unity](https://img.shields.io/badge/Unity-6000.4.0a4-black?logo=unity)
 ![Platform](https://img.shields.io/badge/Platform-Mobile%20%7C%20Desktop-blue)
 ![License](https://img.shields.io/badge/License-Educational-green)
 
 ---
 
-## 🎮 Game Overview
+## Game Inspirations
+
+This project draws inspiration from several amazing games:
+
+- **Shotgun King: The Final Checkmate** - Chess + Shooting mechanics (reversed concept - player is the shotgun king)
+- **Fights in Tight Spaces** - Enemy modifiers and tactical card-based combat
+- **SUPERHOT** - Time manipulation mechanics (time moves when you move)
+- **Terraria** - Side-scrolling platformer combat style
+
+---
+
+## Game Overview
 
 Experience a unique blend of strategic chess and fast-paced action in this 2D mobile game prototype.
 
@@ -26,13 +37,13 @@ Experience a unique blend of strategic chess and fast-paced action in this 2D mo
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🎯 Dual Game Modes
+### Dual Game Modes
 - **Chess Mode**: Turn-based tactical movement on hexagonal grid
 - **Standoff Mode**: Real-time 2D platformer with time manipulation
 
-### 🤖 Smart AI
+### Smart AI
 - **4 AI Types**:
   - **Basic**: Aggressive, chess pawn-like (can only move forward, never backward)
   - **Handcannon**: Mid-range specialist
@@ -42,30 +53,30 @@ Experience a unique blend of strategic chess and fast-paced action in this 2D mo
 - **Consistent Personalities**: AI behavior matches across both Chess and Standoff modes
 - **Platformer AI**: Opponents can jump over obstacles, avoid edges, and maintain optimal distance
 
-### 🎨 Dynamic Gameplay
+### Dynamic Gameplay
 - **SUPERHOT Time Mechanics**: Time flows normally when moving, slows when idle
 - **Procedural Arena Generation**: Each Standoff stage is uniquely generated with symmetrical platforms
 - **Health System**: Visual HP representation with sprite swapping
 
-### 📱 Mobile-First Design
+### Mobile-First Design
 - **Virtual Joystick**: Smooth on-screen controls
 - **Swipe Movement**: Intuitive gesture-based controls in Chess mode
 - **Responsive UI**: Adapts to different screen sizes
 - **Desktop Support**: Keyboard/mouse fallback for testing
 
-### 🎵 Complete Audio System
+### Complete Audio System
 - Background music with fade transitions
 - Sound effects for movement, shooting, and victories
 - Volume controls (Master, Music, SFX)
 
-### 🏆 3 Challenging Levels
+### 3 Challenging Levels
 - Progressive difficulty
 - Configurable via ScriptableObjects
 - Different opponent compositions per level
 
 ---
 
-## 🕹️ Controls
+## Controls
 
 ### Chess Mode
 | Input | Action |
@@ -88,10 +99,10 @@ Experience a unique blend of strategic chess and fast-paced action in this 2D mo
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Unity 2021.3 or later
+- **Unity Version**: 6000.4.0a4 (Unity 6 Alpha)
 - TextMeshPro package
 - Unity Input System (new)
 - 2D Physics package
@@ -107,7 +118,7 @@ cd 2D-Chess-Project
 2. **Open in Unity**
 - Launch Unity Hub
 - Click "Add" and select the project folder
-- Open the project with Unity 2021.3+
+- Open the project with Unity 6000.4.0a4
 
 3. **Install Required Packages**
 - Unity will auto-import required packages
@@ -119,7 +130,7 @@ cd 2D-Chess-Project
 
 ---
 
-## 🎮 How to Play
+## How to Play
 
 ### Starting a Game
 1. Launch the game from Main Menu
@@ -140,16 +151,15 @@ cd 2D-Chess-Project
 
 ---
 
-## 📊 Project Structure
+## Project Structure
 
 ```
 Assets/
-├── Script/               # All C# scripts (25+ files)
-│   ├── Core/            # Managers and systems
-│   ├── Chess/           # Chess mode controllers
-│   ├── Standoff/        # Standoff mode systems
-│   ├── UI/              # All UI screens
-│   └── Input/           # Mobile input system
+├── Script/               # 15 Consolidated Scripts
+│   ├── Core/            # GameManager, AudioManager, TimeController
+│   ├── Gameplay/        # Controllers, Health, Spawning, Weapons
+│   ├── Input & UI/      # InputSystem, UIManager
+│   └── Utilities/       # FollowCamera
 │
 ├── Prefab/              # Game object prefabs
 │   ├── Tiles/
@@ -160,13 +170,30 @@ Assets/
 └── Main Scene.unity     # Main gameplay scene
 ```
 
+### Consolidated Script List (15 Scripts)
+1. `GameManager.cs` - Game state + Level management
+2. `LevelData.cs` - ScriptableObject for level presets
+3. `AudioManager.cs` - Music and SFX
+4. `TimeController.cs` - SUPERHOT time mechanics
+5. `PawnHealth.cs` - Player + Opponent health
+6. `SpawnerSystem.cs` - Player + Opponent spawning
+7. `WeaponSystem.cs` - Firearm + Projectile + GunAiming
+8. `InputSystem.cs` - Mobile + Desktop input
+9. `UIManager.cs` - All UI screens
+10. `Player Controller.cs` - Player movement
+11. `Pawn Controller.cs` - Opponent AI
+12. `Chequerboard.cs` - Turn management
+13. `HexGrid Generator.cs` - Procedural grid
+14. `Platform.cs` - Arena generation
+15. `Follow Camera.cs` - Camera with zoom effects
+
 ---
 
-## 🎯 Technical Highlights
+## Technical Highlights
 
 ### Core Systems
-- **Game State Manager**: Handles flow between menus, Chess, and Standoff modes
-- **Level Manager**: Configures and loads levels from ScriptableObjects
+- **GameManager**: Handles flow between menus, Chess, and Standoff modes
+- **Unified Health System**: Single PawnHealth script for both player and opponents
 - **Time Controller**: Manages SUPERHOT-style time manipulation
 - **Audio Manager**: Centralized sound and music management
 
@@ -176,10 +203,11 @@ Assets/
 - Procedural platform generation
 - Real-time physics-based platforming
 - Mobile-first input system
+- Consolidated codebase (27 → 15 scripts, 44% reduction)
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 - **CLAUDE.md**: Comprehensive technical documentation for AI agents and developers
 - **README.md**: This file - project overview and user guide
@@ -187,23 +215,23 @@ Assets/
 
 ---
 
-## 📝 Credits & Inspiration
+## Credits & Inspiration
 
 ### Game Inspirations
-- **Shotgun King: The Final Checkmate**: Chess + shooting mechanics
-- **Fights in Tight Spaces**: Enemy modifiers and tactical gameplay
-- **SUPERHOT**: Time manipulation mechanics
-- **Terraria**: Side-scrolling platformer style
+- **Shotgun King: The Final Checkmate** - Chess + shooting mechanics (reversed concept)
+- **Fights in Tight Spaces** - Enemy modifiers and tactical gameplay
+- **SUPERHOT** - Time manipulation mechanics (time moves when you move)
+- **Terraria** - Side-scrolling platformer style
 
 ---
 
-## 📄 License
+## License
 
 This project is created for educational purposes as part of a mobile game development course.
 
 ---
 
-## 📞 Contact
+## Contact
 
 For questions or feedback about this project:
 - **Repository**: [2D-Chess-Project](https://github.com/Test-Plus-XD/2D-Chess-Project)
@@ -211,6 +239,6 @@ For questions or feedback about this project:
 
 ---
 
-**Built with ❤️ for 2D Mobile Game Development**
+**Built with Unity 6000.4.0a4**
 
 *Last Updated: 2025-12-09*
