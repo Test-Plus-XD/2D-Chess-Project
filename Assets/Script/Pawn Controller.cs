@@ -219,11 +219,12 @@ public class PawnController : MonoBehaviour
         Vector2 toPlayer = playerTransform.position - transform.position;
         float distance = toPlayer.magnitude;
 
-        // Decide movement and jumping based on AI type
+        // Decide movement and jumping based on AI type (matches Chess mode personalities)
         switch (aiType)
         {
             case AIType.Basic:
-                // Aggressive: Always move toward player
+            case AIType.Shotgun:
+                // Aggressive: Always move toward player (matches Chess mode behavior)
                 if (distance > 1.5f)
                 {
                     currentMoveDirection = Mathf.Sign(toPlayer.x);
@@ -235,9 +236,8 @@ public class PawnController : MonoBehaviour
                 }
                 break;
 
-            case AIType.Shotgun:
             case AIType.Handcannon:
-                // Mid-range: Maintain 2-4 unit distance
+                // Mid-range: Maintain 2-4 unit distance (matches Chess mode preference)
                 if (distance > 4f)
                 {
                     // Too far, move closer
@@ -258,7 +258,7 @@ public class PawnController : MonoBehaviour
                 break;
 
             case AIType.Sniper:
-                // Long-range: Keep distance, move away if too close
+                // Long-range: Keep distance, move away if too close (matches Chess mode behavior)
                 if (distance < 6f)
                 {
                     // Too close, retreat
