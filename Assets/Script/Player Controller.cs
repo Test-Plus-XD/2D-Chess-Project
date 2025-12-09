@@ -5,10 +5,13 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
-/// Controls pawn movement driven by swipe anywhere on the board using EnhancedTouch.
-/// Arrows are fixed on the pawn and selected based on swipe direction while the pointer is held.
+/// Controls pawn movement in both Chess mode (swipe) and Standoff mode (platformer).
+/// Chess mode: Arrows are fixed on the pawn and selected based on swipe direction.
+/// Standoff mode: Joystick/keyboard controls for 2D platformer movement with jumping.
+[RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour
 {
+    #region Chess Mode Fields
     // Current axial coordinates for this pawn.
     public int q, r;
     // Movement animation duration in seconds.
@@ -21,8 +24,6 @@ public class PlayerController : MonoBehaviour
     public Checkerboard checkerboard;
     // Array of 6 arrow GameObjects in clockwise order starting from 12 o'clock.
     public GameObject[] directionArrows = new GameObject[6];
-    // Cached camera reference for screen->world conversion.
-    private Camera cam;
     // Neighbour axial directions for axial coords (axial deltas must match your axial system).
     private readonly int[] dirQ = { 1, 1, 0, -1, -1, 0 };
     private readonly int[] dirR = { 0, -1, -1, 0, 1, 1 };
@@ -30,6 +31,35 @@ public class PlayerController : MonoBehaviour
     private Vector2 swipeStartScreen;
     private Vector3 swipeStartWorld;
     private bool isPointerDown = false;
+    #endregion
+
+    #region Standoff Mode Fields
+    [Header("Standoff Mode Settings")]
+    [Tooltip("Movement speed in Standoff mode")]
+    public float standoffMoveSpeed = 5f;
+    [Tooltip("Jump force")]
+    public float jumpForce = 10f;
+    [Tooltip("Maximum fall speed")]
+    public float maxFallSpeed = 15f;
+    [Tooltip("Ground check distance")]
+    public float groundCheckDistance = 0.1f;
+    [Tooltip("Layer mask for ground detection")]
+    public LayerMask groundLayer;
+    [Tooltip("Air control multiplier (0-1)")]
+    [Range(0f, 1f)]
+    public float airControl = 0.8f;
+
+    // Standoff mode state
+    private bool isStandoffMode = false;
+    private Rigidbody2D rb;
+    private bool isGrounded = false;
+    private bool canJump = true;
+    private SpriteRenderer spriteRenderer;
+    #endregion
+
+    #region Shared Fields
+    // Cached camera reference for screen->world conversion.
+    private Camera cam;
 
     // Enable EnhancedTouch when this component is enabled to get reliable touch phases.
     private void OnEnable()
@@ -75,10 +105,91 @@ public class PlayerController : MonoBehaviour
     private void Start()
     {
         if (cam == null) cam = Camera.main;
+        rb = GetComponent<Rigidbody2D>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+
+        // Configure Rigidbody2D for Chess mode by default
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.gravityScale = 0f;
+        }
+
         HideAllArrows();
     }
 
     private void Update()
+    {
+        if (isStandoffMode)
+        {
+            UpdateStandoffMode();
+        }
+        else
+        {
+            UpdateChessMode();
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (isStandoffMode)
+        {
+            FixedUpdateStandoffMode();
+        }
+    }
+
+    #region Mode Switching
+
+    /// <summary>
+    /// Switch between Chess and Standoff modes
+    /// </summary>
+    public void SetStandoffMode(bool standoffMode)
+    {
+        isStandoffMode = standoffMode;
+
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
+
+        if (isStandoffMode)
+        {
+            // Configure for Standoff mode (platformer physics)
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.gravityScale = 2f;
+                rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+            }
+
+            HideAllArrows();
+
+            // Enable TimeController slow motion
+            if (TimeController.Instance != null)
+            {
+                TimeController.Instance.SetSlowMotionEnabled(true);
+            }
+        }
+        else
+        {
+            // Configure for Chess mode (kinematic movement)
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.gravityScale = 0f;
+                rb.velocity = Vector2.zero;
+            }
+
+            // Disable TimeController slow motion
+            if (TimeController.Instance != null)
+            {
+                TimeController.Instance.SetSlowMotionEnabled(false);
+            }
+        }
+    }
+
+    #endregion
+
+    #region Chess Mode Update
+
+    private void UpdateChessMode()
     {
         // Prefer EnhancedTouch active touches for mobile.
         var active = Touch.activeTouches;
@@ -113,6 +224,122 @@ public class PlayerController : MonoBehaviour
             if (mouse.leftButton.wasReleasedThisFrame) EndPointer(mouse.position.ReadValue());
         }
     }
+
+    #endregion
+
+    #region Standoff Mode Update
+
+    private void UpdateStandoffMode()
+    {
+        // Check ground status
+        CheckGroundStatus();
+
+        // Handle jump input
+        if (MobileInputManager.Instance != null)
+        {
+            if (MobileInputManager.Instance.JumpPressed && isGrounded && canJump)
+            {
+                Jump();
+            }
+        }
+
+        // Sprite flipping based on movement direction
+        float horizontal = GetHorizontalInput();
+        if (Mathf.Abs(horizontal) > 0.1f && spriteRenderer != null)
+        {
+            spriteRenderer.flipX = horizontal < 0;
+        }
+    }
+
+    private void FixedUpdateStandoffMode()
+    {
+        if (rb == null) return;
+
+        // Get horizontal input
+        float horizontal = GetHorizontalInput();
+
+        // Calculate movement
+        float moveSpeed = standoffMoveSpeed;
+        if (!isGrounded)
+        {
+            moveSpeed *= airControl;
+        }
+
+        // Apply horizontal movement
+        rb.velocity = new Vector2(horizontal * moveSpeed, rb.velocity.y);
+
+        // Clamp fall speed
+        if (rb.velocity.y < -maxFallSpeed)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, -maxFallSpeed);
+        }
+    }
+
+    private float GetHorizontalInput()
+    {
+        if (MobileInputManager.Instance != null)
+        {
+            return MobileInputManager.Instance.Horizontal;
+        }
+        return Input.GetAxisRaw("Horizontal");
+    }
+
+    private void CheckGroundStatus()
+    {
+        if (rb == null) return;
+
+        // Raycast downward to check for ground
+        Vector2 position = transform.position;
+        RaycastHit2D hit = Physics2D.Raycast(position, Vector2.down, groundCheckDistance, groundLayer);
+
+        isGrounded = hit.collider != null;
+
+        // Reset jump permission when grounded
+        if (isGrounded)
+        {
+            canJump = true;
+        }
+    }
+
+    private void Jump()
+    {
+        if (rb == null) return;
+
+        rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        canJump = false;
+
+        if (AudioManager.Instance != null)
+        {
+            // Play jump sound (you can add this to AudioManager)
+        }
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (!isStandoffMode) return;
+
+        // Check for opponent collision in Standoff mode
+        PawnController opponent = collision.gameObject.GetComponent<PawnController>();
+        if (opponent != null)
+        {
+            // Win condition: capture opponent in Standoff mode
+            OpponentPawn opPawn = opponent.GetComponent<OpponentPawn>();
+            if (opPawn != null)
+            {
+                opPawn.TakeDamage(opPawn.HP, "Player Capture");
+            }
+
+            // Trigger victory
+            if (GameStateManager.Instance != null)
+            {
+                GameStateManager.Instance.TriggerVictory();
+            }
+        }
+    }
+
+    #endregion
+
+    #region Chess Mode Methods (Existing)
 
     // Called on pointer/touch start.
     private void BeginPointer(Vector2 screenPos)
@@ -372,4 +599,6 @@ public class PlayerController : MonoBehaviour
             directionArrows[i].SetActive(false);
         }
     }
+
+    #endregion
 }

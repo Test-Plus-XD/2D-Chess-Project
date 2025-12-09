@@ -126,6 +126,27 @@ public class PlayerPawn : MonoBehaviour
         return (float)HP / (float)MaxHP;
     }
 
+    // Get current HP value.
+    public int GetCurrentHP()
+    {
+        return HP;
+    }
+
+    // Get maximum HP value.
+    public int GetMaxHP()
+    {
+        return MaxHP;
+    }
+
+    // Set maximum HP value.
+    public void SetMaxHP(int newMaxHP)
+    {
+        MaxHP = Mathf.Max(1, newMaxHP);
+        HP = Mathf.Clamp(HP, 0, MaxHP);
+        UpdateSpriteForHP();
+        OnHPChanged?.Invoke(HP);
+    }
+
     // Update method for testing HP sprite changes via keyboard input.
     // Supports the new Input System if present, otherwise falls back to legacy Input.
     /* private void LateUpdate()
