@@ -75,12 +75,25 @@ public class Firearm : MonoBehaviour
     [Tooltip("Point where projectiles spawn")]
     [SerializeField] private Transform firePoint;
 
-    [Header("Audio")]
+    [Header("Audio & Animation")]
     [Tooltip("Sound played when firing")]
     [SerializeField] private AudioClip fireSound;
 
     [Tooltip("Volume of fire sound")]
     [SerializeField][Range(0f, 1f)] private float fireVolume = 0.7f;
+
+    [Tooltip("Animator for gun animations")]
+    [SerializeField] private Animator gunAnimator;
+
+    [Tooltip("Name of fire animation trigger")]
+    [SerializeField] private string fireAnimationTrigger = "Fire";
+
+    [Header("Recoil (Standoff Mode)")]
+    [Tooltip("Enable physical recoil when shooting")]
+    [SerializeField] private bool enableRecoil = true;
+
+    [Tooltip("Recoil force magnitude")]
+    [SerializeField] private float recoilForce = 3f;
 
     [Header("Debug")]
     [Tooltip("Show debug lines for line of sight")]
@@ -95,6 +108,8 @@ public class Firearm : MonoBehaviour
     private Transform playerTransform;
     private bool isInStandoffMode = false;
     private Vector2 currentAimDirection = Vector2.right;
+    private Rigidbody2D rb;
+    private GunAiming gunAiming;
 
     // Hex direction vectors (for chess mode)
     private Vector2[] hexDirections = new Vector2[6];
@@ -111,6 +126,10 @@ public class Firearm : MonoBehaviour
         {
             audioSource = gameObject.AddComponent<AudioSource>();
         }
+
+        // Get components
+        rb = GetComponent<Rigidbody2D>();
+        gunAiming = GetComponent<GunAiming>();
 
         // Initialize hex directions
         InitializeHexDirections();
@@ -229,6 +248,15 @@ public class Firearm : MonoBehaviour
         fireMode = mode;
     }
 
+    /// <summary>
+    /// Get time until next shot is ready
+    /// </summary>
+    public float GetTimeToNextShot()
+    {
+        float timeSinceLastShot = Time.time - lastFireTime;
+        return Mathf.Max(0f, fireRate - timeSinceLastShot);
+    }
+
     #endregion
 
     #region Private Methods
@@ -326,11 +354,29 @@ public class Firearm : MonoBehaviour
             audioSource.PlayOneShot(fireSound, fireVolume);
         }
 
+        // Trigger animation
+        if (gunAnimator != null && !string.IsNullOrEmpty(fireAnimationTrigger))
+        {
+            gunAnimator.SetTrigger(fireAnimationTrigger);
+        }
+
         // Spawn muzzle flash
         if (muzzleFlashPrefab != null)
         {
             GameObject flash = Instantiate(muzzleFlashPrefab, firePoint.position, Quaternion.identity);
             Destroy(flash, 0.1f);
+        }
+
+        // Apply recoil in Standoff mode
+        if (isInStandoffMode && enableRecoil && rb != null)
+        {
+            ApplyRecoil();
+        }
+
+        // Notify GunAiming that shot was fired
+        if (gunAiming != null)
+        {
+            gunAiming.OnShotFired();
         }
 
         // Fire projectiles based on type
@@ -348,6 +394,15 @@ public class Firearm : MonoBehaviour
                 FireBeam();
                 break;
         }
+    }
+
+    private void ApplyRecoil()
+    {
+        if (rb == null) return;
+
+        // Apply force opposite to aim direction
+        Vector2 recoilDirection = -currentAimDirection.normalized;
+        rb.AddForce(recoilDirection * recoilForce, ForceMode2D.Impulse);
     }
 
     private void FireSpread()

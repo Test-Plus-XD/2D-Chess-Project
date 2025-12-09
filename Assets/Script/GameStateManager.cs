@@ -415,23 +415,56 @@ public class GameStateManager : MonoBehaviour
 
         if (floorTiles.Count < 2) return;
 
-        // Position player on left side
-        if (playerController != null)
+        // Find left-most and right-most floor tiles by x-coordinate
+        Platform.TileData leftMostTile = floorTiles[0];
+        Platform.TileData rightMostTile = floorTiles[0];
+
+        foreach (var tile in floorTiles)
         {
-            Vector3 playerPos = floorTiles[0].position;
-            playerPos.y += 0.5f; // Slight offset above tile
-            playerController.transform.position = playerPos;
+            if (tile.position.x < leftMostTile.position.x)
+            {
+                leftMostTile = tile;
+            }
+            if (tile.position.x > rightMostTile.position.x)
+            {
+                rightMostTile = tile;
+            }
         }
 
-        // Position opponent(s) on right side
+        // Get tile height from LevelManager if available, otherwise use default
+        float tileHeight = 1f;
+        if (LevelManager.Instance != null && LevelManager.Instance.CurrentLevel != null)
+        {
+            tileHeight = LevelManager.Instance.CurrentLevel.TileSize;
+        }
+
+        // Position player above middle of left-most tile, one tile height above
+        if (playerController != null)
+        {
+            Vector3 playerPos = leftMostTile.position;
+            playerPos.y += tileHeight; // One tile height above
+            playerController.transform.position = playerPos;
+
+            if (showDebug)
+            {
+                Debug.Log($"Player positioned at {playerPos} (left-most tile)");
+            }
+        }
+
+        // Position opponent above middle of right-most tile, one tile height above
         if (checkerboard != null)
         {
             var opponents = checkerboard.GetOpponentControllers();
             if (opponents.Count > 0)
             {
-                Vector3 opponentPos = floorTiles[floorTiles.Count - 1].position;
-                opponentPos.y += 0.5f;
+                Vector3 opponentPos = rightMostTile.position;
+                opponentPos.y += tileHeight; // One tile height above
                 opponents[0].transform.position = opponentPos;
+
+                if (showDebug)
+                {
+                    Debug.Log($"Opponent positioned at {opponentPos} (right-most tile)");
+                }
             }
         }
     }

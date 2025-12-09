@@ -53,6 +53,7 @@ public class PawnController : MonoBehaviour
     private float currentMoveDirection = 0f; // -1 = left, 0 = none, 1 = right
     private Transform playerTransform;
     private Firearm firearm;
+    private GunAiming gunAiming;
     private SpriteRenderer spriteRenderer;
     #endregion
 
@@ -70,6 +71,7 @@ public class PawnController : MonoBehaviour
         // Get components
         rb = GetComponent<Rigidbody2D>();
         firearm = GetComponent<Firearm>();
+        gunAiming = GetComponent<GunAiming>();
         spriteRenderer = GetComponent<SpriteRenderer>();
 
         // Configure Rigidbody2D for Chess mode by default
@@ -132,10 +134,14 @@ public class PawnController : MonoBehaviour
                 rb.constraints = RigidbodyConstraints2D.FreezeRotation;
             }
 
-            // Configure firearm
+            // Configure firearm and gun aiming
             if (firearm != null)
             {
                 firearm.SetStandoffMode(true);
+            }
+            if (gunAiming != null)
+            {
+                gunAiming.SetStandoffMode(true);
             }
         }
         else
@@ -148,10 +154,14 @@ public class PawnController : MonoBehaviour
                 rb.velocity = Vector2.zero;
             }
 
-            // Configure firearm
+            // Configure firearm and gun aiming
             if (firearm != null)
             {
                 firearm.SetStandoffMode(false);
+            }
+            if (gunAiming != null)
+            {
+                gunAiming.SetStandoffMode(false);
             }
         }
     }
@@ -209,13 +219,12 @@ public class PawnController : MonoBehaviour
         Vector2 toPlayer = playerTransform.position - transform.position;
         float distance = toPlayer.magnitude;
 
-        // Decide movement and jumping based on AI type and gun type
+        // Decide movement and jumping based on AI type
         switch (aiType)
         {
             case AIType.Basic:
-            case AIType.Handcannon:
-                // Aggressive: Move closer to player
-                if (distance > 2f)
+                // Aggressive: Always move toward player
+                if (distance > 1.5f)
                 {
                     currentMoveDirection = Mathf.Sign(toPlayer.x);
                     TryJumpIfObstacle();
@@ -227,32 +236,38 @@ public class PawnController : MonoBehaviour
                 break;
 
             case AIType.Shotgun:
-                // Medium range: Maintain medium distance
+            case AIType.Handcannon:
+                // Mid-range: Maintain 2-4 unit distance
                 if (distance > 4f)
                 {
+                    // Too far, move closer
                     currentMoveDirection = Mathf.Sign(toPlayer.x);
                     TryJumpIfObstacle();
                 }
                 else if (distance < 2f)
                 {
+                    // Too close, back up
                     currentMoveDirection = -Mathf.Sign(toPlayer.x);
                     TryJumpIfObstacle();
                 }
                 else
                 {
+                    // In optimal range, stop moving
                     currentMoveDirection = 0f;
                 }
                 break;
 
             case AIType.Sniper:
-                // Keep distance: Move away if too close
-                if (distance < 5f)
+                // Long-range: Keep distance, move away if too close
+                if (distance < 6f)
                 {
+                    // Too close, retreat
                     currentMoveDirection = -Mathf.Sign(toPlayer.x);
                     TryJumpIfObstacle();
                 }
                 else
                 {
+                    // Far enough, stop moving
                     currentMoveDirection = 0f;
                 }
                 break;
