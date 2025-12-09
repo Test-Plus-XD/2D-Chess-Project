@@ -409,17 +409,38 @@ public class PawnController : MonoBehaviour
         switch (type)
         {
             case AIType.Basic:
-                // Like chess pawns: only move forward (toward player), never backward
-                // Allowed only bottom 3 directions, and must not increase distance from player
+                // Like chess pawns: only move forward (down in world space), never backward (up)
+                // Allowed only bottom 3 directions, and must not move upward in world space (y)
                 foreach (var c in candidates) c.weight = 0f;
 
-                // Calculate current distance to player
-                int currentDistToPlayer = AxialDistance(q, r, playerQ, playerR);
+                // Get current tile world position
+                Vector3 currentWorldPos;
+                if (!TryGetTileWorldCentre(q, r, out currentWorldPos))
+                {
+                    // Fallback to allowing all 3 directions if can't get world pos
+                    foreach (var c in candidates)
+                    {
+                        int dq = c.q - q; int dr = c.r - r;
+                        if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
+                        {
+                            c.weight = 1f;
+                        }
+                    }
+                    break;
+                }
 
                 foreach (var c in candidates)
                 {
-                    // Block any move that increases distance (moving backward)
-                    if (c.distToPlayer > currentDistToPlayer)
+                    // Get candidate tile world position
+                    Vector3 candidateWorldPos;
+                    if (!TryGetTileWorldCentre(c.q, c.r, out candidateWorldPos))
+                    {
+                        c.weight = 0f;
+                        continue;
+                    }
+
+                    // Block any move that increases y (moving backward/upward in world space)
+                    if (candidateWorldPos.y > currentWorldPos.y)
                     {
                         c.weight = 0f;
                         continue;

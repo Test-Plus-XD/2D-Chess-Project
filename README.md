@@ -33,8 +33,13 @@ Experience a unique blend of strategic chess and fast-paced action in this 2D mo
 - **Standoff Mode**: Real-time 2D platformer with time manipulation
 
 ### 🤖 Smart AI
-- **4 AI Types**: Basic (aggressive), Handcannon (close-range), Shotgun (medium-range), Sniper (long-range)
-- **Intelligent Behavior**: Chess mode uses weighted decision-making
+- **4 AI Types**:
+  - **Basic**: Aggressive, chess pawn-like (can only move forward, never backward)
+  - **Handcannon**: Mid-range specialist
+  - **Shotgun**: Highly aggressive attacker (strongly prefers moving toward player)
+  - **Sniper**: Defensive long-range
+- **Intelligent Behavior**: Chess mode uses weighted decision-making with directional preferences
+- **Consistent Personalities**: AI behavior matches across both Chess and Standoff modes
 - **Platformer AI**: Opponents can jump over obstacles, avoid edges, and maintain optimal distance
 
 ### 🎨 Dynamic Gameplay

@@ -91,9 +91,9 @@ Victory/Defeat Screen
 - `PawnController.cs`: AI decision-making
 - `OpponentPawn.cs`: Health, death effects, physics expulsion
 - 4 AI types:
-  - **Basic**: Moves toward player (limited to 3 bottom directions)
-  - **Handcannon**: Aggressive, prefers closest tiles
-  - **Shotgun**: Medium range, avoids farthest tiles
+  - **Basic**: Moves toward player (limited to 3 bottom directions, cannot move backward/upward in world space)
+  - **Handcannon**: Mid-range specialist, prefers closest tiles
+  - **Shotgun**: Aggressive attacker with directional preferences (strongly prefers moving toward player)
   - **Sniper**: Defensive, prefers farthest tiles
 
 **Shooting Mechanics:**
@@ -125,9 +125,9 @@ Victory/Defeat Screen
 - Modified `PawnController.cs` with platformer AI
 - Intelligent jumping (obstacles, gaps, platforms)
 - Distance-based behavior:
-  - Basic/Handcannon: Aggressive (approach)
-  - Shotgun: Medium range (maintain distance)
-  - Sniper: Defensive (retreat)
+  - Basic/Shotgun: Aggressive (always approach player)
+  - Handcannon: Mid-range (maintain 2-4 unit distance)
+  - Sniper: Defensive (retreat when too close)
 - Edge detection to avoid falling
 
 **Time Mechanics:**
@@ -284,35 +284,42 @@ PointyTop:
 ### Chess Mode AI Weights
 
 **Basic:**
-- Allowed directions: (0,-1), (-1,0), (1,-1)
+- Allowed directions: (0,-1), (-1,0), (1,-1) - bottom 3 directions only
+- **Cannot move backward** (upward in world space y-axis)
 - Closest to player: weight 5
 - Others: weight 1
+- Behaves like chess pawns (forward only, never backward)
 
 **Handcannon:**
 - All 6 directions allowed
 - Closest: weight 3
 - Others: weight 1
+- Mid-range specialist
 
 **Shotgun:**
-- All 6 directions
-- Closest: weight 3
-- Farthest: weight 0
-- Others: weight 1
+- All 6 directions allowed
+- **Aggressive directional weighting:**
+  - Closest to player: weight 4 (highest priority)
+  - Top-right and top-left: weight 3
+  - Bottom-right and bottom-left: weight 2
+  - Farthest from player: weight 1
+- Strongly favors moving toward player
 
 **Sniper:**
 - All 6 directions
 - Farthest: weight 4
 - Closest: weight 1
 - Others: weight 2
+- Defensive positioning
 
 ### Standoff Mode AI Behavior
 
 **Decision-making (0.5s intervals):**
 1. Calculate distance to player
-2. Choose movement direction based on AI type:
-   - Basic/Handcannon: Approach if distance > 2
-   - Shotgun: Maintain 2-4 unit range
-   - Sniper: Retreat if distance < 5
+2. Choose movement direction based on AI type (matches Chess mode personalities):
+   - **Basic/Shotgun**: Aggressive - always approach player (distance > 1.5 units)
+   - **Handcannon**: Mid-range - maintain 2-4 unit distance (approach if too far, retreat if too close)
+   - **Sniper**: Defensive - retreat when player gets too close (distance < 6 units)
 3. Perform jump checks:
    - Obstacle detection (forward raycast)
    - Edge detection (downward raycast)
@@ -473,7 +480,10 @@ Create new levels using ScriptableObjects:
 - **Naming**: PascalCase for public fields and methods
 - **Tooltips**: All public Inspector fields have tooltips
 - **Regions**: Code organized with `#region` blocks
-- **Comments**: Comprehensive XML-style documentation
+- **Comments**: Inline comments for clarity
+  - **DO NOT use `/// <summary>` XML documentation comments**
+  - Use regular `//` comments for code explanations
+  - Keep comments concise and focused on the "why" rather than the "what"
 
 ---
 
