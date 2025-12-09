@@ -76,8 +76,8 @@ public class OpponentPawn : MonoBehaviour
 
         // Start the delayed expulsion to show a brief pause before launch.
         StartCoroutine(ExpelAfterDelayCoroutine());
-        // Trigger camera zoom pulse when this pawn dies (optional).
-        if (FollowCamera.Instance != null) FollowCamera.Instance.ZoomOutPulse(2f, 0.9f);
+        // Trigger camera zoom pulse when this pawn dies.
+        if (FollowCamera.Instance != null) FollowCamera.Instance.RegisterKillAndPulseAggregated();
         // Determine board minX/maxX by scanning children of the grid's parent container.
         float minX = float.PositiveInfinity;
         float maxX = float.NegativeInfinity;

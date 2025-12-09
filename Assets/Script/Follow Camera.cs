@@ -27,6 +27,10 @@ public class FollowCamera : MonoBehaviour
     public float pulseDefaultMultiplier = 2f; // Default multiplier when triggered with no args
     public float pulseDefaultDuration = 0.9f; // Default total pulse time in seconds
     public float pulseHoldFraction = 0.2f; // Fraction of total duration spent holding at max size
+    // Pulse scaling configuration.
+    public float pulseMultiplierPerKill = 0.5f; // Extra multiplier added per kill (linear)
+    public float pulseMaxMultiplier = 4f; // Maximum multiplier clamp for safety
+    public float killWindow = 0.2f; // Seconds to wait for additional kills before firing the pulse
 
     // Singleton instance for easy calls from other scripts.
     public static FollowCamera Instance { get; private set; }
@@ -39,6 +43,9 @@ public class FollowCamera : MonoBehaviour
     private float sizeVelocity = 0f;
     // Pulse state.
     private bool isPulseActive = false;
+    // Aggregation window to combine several kills into one larger pulse.
+    private int pendingKills = 0; // Accumulator inside the aggregation window
+    private Coroutine killWindowCoroutine = null; // Coroutine handle for kill aggregation
 
     // Initialise and optionally perform the first recalc.
     private void Awake()
@@ -181,7 +188,39 @@ public class FollowCamera : MonoBehaviour
         return combined;
     }
 
+    // Register a kill event; pulses will be aggregated within killWindow seconds into one larger pulse.
+    public void RegisterKillAndPulseAggregated()
+    {
+        pendingKills++;
+        // Start aggregation timer if not running
+        if (killWindowCoroutine == null) killWindowCoroutine = StartCoroutine(KillWindowCoroutine());
+    }
+
+    // Coroutine that waits for killWindow seconds then fires a single pulse sized for the accumulated kills.
+    private IEnumerator KillWindowCoroutine()
+    {
+        yield return new WaitForSeconds(killWindow);
+        int kills = pendingKills;
+        pendingKills = 0;
+        killWindowCoroutine = null;
+        // Fire the aggregated pulse (duration uses default)
+        ZoomOutPulseForKillCount(kills);
+    }
+
     // Public API: trigger a temporary zoom-out pulse.
+    // Trigger a pulse sized by number of kills. clamps multiplier to pulseMaxMultiplier.
+    public void ZoomOutPulseForKillCount(int killCount, float duration = -1f)
+    {
+        // Minimum 1 kill yields at least the default multiplier.
+        int k = Mathf.Max(0, killCount);
+        // Compute multiplier: default + per-kill increment (minus one because default already represents 1x event)
+        float mult = pulseDefaultMultiplier + (k - 1) * pulseMultiplierPerKill;
+        // Clamp to maximum allowed multiplier
+        mult = Mathf.Clamp(mult, 1f, pulseMaxMultiplier);
+        // Start a pulse with the chosen multiplier
+        ZoomOutPulse(mult, duration);
+    }
+
     // multiplier: how much to multiply the current size (eg 2f => double). duration: total seconds of the pulse.
     public void ZoomOutPulse(float multiplier = -1f, float duration = -1f)
     {
