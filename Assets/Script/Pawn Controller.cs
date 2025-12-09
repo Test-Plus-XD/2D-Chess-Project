@@ -359,7 +359,7 @@ public class PawnController : MonoBehaviour
         // Compute distances to player for all candidates (axial distance via cube coords).
         foreach (var c in candidates) c.distToPlayer = AxialDistance(c.q, c.r, playerQ, playerR);
         // Apply the single combined weight logic for this pawn's AI type.
-        ApplyCombinedWeights(candidates, aiType);
+        ApplyCombinedWeights(candidates, aiType, playerQ, playerR);
 
         // Debug: log candidate list and weights for transparency.
         string debugLine = $"[PawnController] {typeLabel} @{q}_{r} Candidates:";
@@ -399,7 +399,7 @@ public class PawnController : MonoBehaviour
     }
 
     // Combined weight application for all AI types in one place.
-    private void ApplyCombinedWeights(List<Candidate> candidates, AIType type)
+    private void ApplyCombinedWeights(List<Candidate> candidates, AIType type, int playerQ, int playerR)
     {
         if (candidates == null || candidates.Count == 0) return;
         // Find min/max distances among candidates.
@@ -409,11 +409,22 @@ public class PawnController : MonoBehaviour
         switch (type)
         {
             case AIType.Basic:
-                // Allowed only bottom, bottom-right and bottom-left relative to pawn.
-                // Determine allowed directions by comparing dirQ/dirR (robust against index reordering).
+                // Like chess pawns: only move forward (toward player), never backward
+                // Allowed only bottom 3 directions, and must not increase distance from player
                 foreach (var c in candidates) c.weight = 0f;
+
+                // Calculate current distance to player
+                int currentDistToPlayer = AxialDistance(q, r, playerQ, playerR);
+
                 foreach (var c in candidates)
                 {
+                    // Block any move that increases distance (moving backward)
+                    if (c.distToPlayer > currentDistToPlayer)
+                    {
+                        c.weight = 0f;
+                        continue;
+                    }
+
                     int dq = c.q - q; int dr = c.r - r;
                     // bottom = (0,-1); bottom-left = (-1,0); bottom-right = (1,-1)
                     if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
