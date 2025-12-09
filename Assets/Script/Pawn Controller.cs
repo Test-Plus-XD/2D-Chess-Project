@@ -433,12 +433,47 @@ public class PawnController : MonoBehaviour
                 break;
 
             case AIType.Shotgun:
-                // All 6 allowed; closest weight 3, farthest weight 0, others weight1.
+                // Aggressive toward player with directional preferences
+                // 4 weight: toward player (closest)
+                // 3 weight: top-right and top-left
+                // 2 weight: bottom-right and bottom-left
+                // 1 weight: farthest from player or other directions
                 foreach (var c in candidates)
                 {
-                    if (c.distToPlayer == minDist) c.weight = 3f;
-                    else if (c.distToPlayer == maxDist) c.weight = 0f;
-                    else c.weight = 1f;
+                    // Determine hex direction index by calculating offset
+                    int dq = c.q - q;
+                    int dr = c.r - r;
+                    int dirIndex = -1;
+                    for (int i = 0; i < 6; i++)
+                    {
+                        if (dirQ[i] == dq && dirR[i] == dr)
+                        {
+                            dirIndex = i;
+                            break;
+                        }
+                    }
+
+                    // Assign weights with priority
+                    if (c.distToPlayer == minDist)
+                    {
+                        c.weight = 4f; // Closest to player (highest priority)
+                    }
+                    else if (c.distToPlayer == maxDist)
+                    {
+                        c.weight = 1f; // Farthest from player (lowest priority)
+                    }
+                    else if (dirIndex == 1 || dirIndex == 2) // Top-right (1,-1) or top-left (0,-1)
+                    {
+                        c.weight = 3f;
+                    }
+                    else if (dirIndex == 4 || dirIndex == 5) // Bottom-left (-1,1) or bottom-right (0,1)
+                    {
+                        c.weight = 2f;
+                    }
+                    else // Right (1,0) or left (-1,0)
+                    {
+                        c.weight = 1f;
+                    }
                 }
                 break;
 
