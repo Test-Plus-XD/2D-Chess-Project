@@ -8,7 +8,6 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class PawnController : MonoBehaviour
 {
-    #region Enums and Types
     // AI types available for this pawn.
     public enum AIType { Basic, Handcannon, Shotgun, Sniper }
 
@@ -22,16 +21,28 @@ public class PawnController : MonoBehaviour
         Observant,   // Bullets only damage player (chess), -50% firing delay (standoff)
         Reflexive    // Recalculate aim after player move (chess), fixed on player (standoff), -25% firing delay
     }
-    #endregion
 
-    #region Chess Mode Fields
-    // Public fields.
+    [Header("AI Configuration")]
+    [Tooltip("ScriptableObject containing AI behavior and modifier configurations")]
+    // Reference to PawnCustomiser for accessing AI behavior parameters and modifier effects.
+    public PawnCustomiser pawnCustomiser;
+    [Tooltip("AI type for this pawn")]
+    // AI type determining movement strategy and shooting behavior.
     public AIType aiType = AIType.Basic;
+    [Tooltip("Modifier enhancing this pawn's capabilities")]
+    // Modifier applied to this pawn for enhanced abilities.
     public Modifier modifier = Modifier.None;
+
+    [Header("Chess Mode Settings")]
+    [Tooltip("Reference to the hex grid generator")]
+    // Hex grid generator for tile lookup and coordinate conversion.
     public HexGridGenerator gridGenerator;
-    public float aiMoveDuration = 0.12f; // Duration of AI movement animation.
-    public bool Moved = false; // Set true after pawn completes its AI move.
-    public int q, r; // Axial coordinates tracked by this pawn.
+    [Tooltip("Set true after pawn completes its AI move")]
+    // Movement completion flag used by Checkerboard for turn management.
+    public bool Moved = false;
+    [Tooltip("Axial coordinates (q, r) tracked by this pawn")]
+    // Current axial coordinates on hex grid.
+    public int q, r;
 
     [Header("Modifier Visual")]
     [Tooltip("UI image displaying the modifier icon at top-right of pawn")]
@@ -50,27 +61,13 @@ public class PawnController : MonoBehaviour
     // Neighbour axial deltas (must match your project's convention).
     private readonly int[] DIR_Q = { 1, 1, 0, -1, -1, 0 };
     private readonly int[] DIR_R = { 0, -1, -1, 0, 1, 1 };
-
     // Keep the original prefab/type label for nicer names (optional).
     private string typeLabel = "";
-    #endregion
 
     [Header("Standoff Mode Settings")]
-    [Tooltip("Movement speed in Standoff mode")]
-    // Movement speed for AI in platformer mode.
-    public float standoffMoveSpeed = 3f;
-    [Tooltip("Jump force for AI")]
-    // Jump velocity for AI platformer jumping.
-    public float jumpForce = 8f;
-    [Tooltip("Ground check distance")]
-    // Distance for ground detection raycast.
-    public float groundCheckDistance = 0.1f;
     [Tooltip("Layer mask for ground detection")]
     // Layer mask for detecting ground in platformer mode.
     public LayerMask groundLayer;
-    [Tooltip("Decision update interval (seconds)")]
-    // Interval at which AI makes movement decisions.
-    public float aiThinkInterval = 0.5f;
 
     // Standoff mode state
     // Whether pawn is currently in standoff platformer mode.
@@ -92,8 +89,6 @@ public class PawnController : MonoBehaviour
 
     // Data-holder for neighbour candidates.
     private class Candidate { public int q, r, index; public float weight = 1f; public int distToPlayer; }
-
-    #region Unity Lifecycle
 
     // Notify Checkerboard when this pawn is created/destroyed.
     private void Start()
@@ -143,10 +138,6 @@ public class PawnController : MonoBehaviour
         if (Checkerboard.Instance != null) Checkerboard.Instance.DeregisterOpponent(this);
     }
 
-    #endregion
-
-    #region Mode Switching
-
     /// Switch between Chess and Standoff modes
     public void SetStandoffMode(bool standoffMode)
     {
@@ -188,8 +179,6 @@ public class PawnController : MonoBehaviour
         }
     }
 
-    #endregion
-
     #region Standoff Mode AI
 
     private void FindPlayer()
@@ -213,7 +202,8 @@ public class PawnController : MonoBehaviour
         CheckGroundStatus();
 
         // AI thinking at intervals
-        if (Time.time >= lastThinkTime + aiThinkInterval)
+        float thinkInterval = pawnCustomiser != null ? pawnCustomiser.aiThinking.standoffThinkInterval : 0.5f;
+        if (Time.time >= lastThinkTime + thinkInterval)
         {
             lastThinkTime = Time.time;
             MakeStandoffDecision();
@@ -230,8 +220,10 @@ public class PawnController : MonoBehaviour
     {
         if (rigidBody == null) return;
 
-        // Apply horizontal movement
-        rigidBody.linearVelocity = new Vector2(currentMoveDirection * standoffMoveSpeed, rigidBody.linearVelocity.y);
+        // Apply horizontal movement with customiser values
+        float moveSpeed = pawnCustomiser != null ? pawnCustomiser.platformerMovement.baseMoveSpeed : 3f;
+        float speedMultiplier = pawnCustomiser != null ? pawnCustomiser.GetMoveSpeedMultiplier(modifier) : 1f;
+        rigidBody.linearVelocity = new Vector2(currentMoveDirection * moveSpeed * speedMultiplier, rigidBody.linearVelocity.y);
     }
 
     private void MakeStandoffDecision()
@@ -241,13 +233,19 @@ public class PawnController : MonoBehaviour
         Vector2 toPlayer = playerTransform.position - transform.position;
         float distance = toPlayer.magnitude;
 
+        // Get distance thresholds from customiser or use defaults
+        float aggressiveDistance = pawnCustomiser != null ? pawnCustomiser.standoffDistances.aggressiveApproachDistance : 1.5f;
+        float handcannonMin = pawnCustomiser != null ? pawnCustomiser.standoffDistances.handcannonMinDistance : 2f;
+        float handcannonMax = pawnCustomiser != null ? pawnCustomiser.standoffDistances.handcannonMaxDistance : 4f;
+        float sniperRetreat = pawnCustomiser != null ? pawnCustomiser.standoffDistances.sniperRetreatDistance : 6f;
+
         // Decide movement and jumping based on AI type (matches Chess mode personalities)
         switch (aiType)
         {
             case AIType.Basic:
             case AIType.Shotgun:
                 // Aggressive: Always move toward player (matches Chess mode behavior)
-                if (distance > 1.5f)
+                if (distance > aggressiveDistance)
                 {
                     currentMoveDirection = Mathf.Sign(toPlayer.x);
                     TryJumpIfObstacle();
@@ -259,14 +257,14 @@ public class PawnController : MonoBehaviour
                 break;
 
             case AIType.Handcannon:
-                // Mid-range: Maintain 2-4 unit distance (matches Chess mode preference)
-                if (distance > 4f)
+                // Mid-range: Maintain optimal distance (matches Chess mode preference)
+                if (distance > handcannonMax)
                 {
                     // Too far, move closer
                     currentMoveDirection = Mathf.Sign(toPlayer.x);
                     TryJumpIfObstacle();
                 }
-                else if (distance < 2f)
+                else if (distance < handcannonMin)
                 {
                     // Too close, back up
                     currentMoveDirection = -Mathf.Sign(toPlayer.x);
@@ -281,7 +279,7 @@ public class PawnController : MonoBehaviour
 
             case AIType.Sniper:
                 // Long-range: Keep distance, move away if too close (matches Chess mode behavior)
-                if (distance < 6f)
+                if (distance < sniperRetreat)
                 {
                     // Too close, retreat
                     currentMoveDirection = -Mathf.Sign(toPlayer.x);
@@ -301,8 +299,9 @@ public class PawnController : MonoBehaviour
         if (rigidBody == null) return;
 
         // Raycast downward to check for ground
+        float checkDistance = pawnCustomiser != null ? pawnCustomiser.platformerMovement.groundCheckDistance : 0.1f;
         Vector2 position = transform.position;
-        RaycastHit2D hit = Physics2D.Raycast(position, Vector2.down, groundCheckDistance, groundLayer);
+        RaycastHit2D hit = Physics2D.Raycast(position, Vector2.down, checkDistance, groundLayer);
 
         isGrounded = hit.collider != null;
     }
@@ -310,6 +309,15 @@ public class PawnController : MonoBehaviour
     private void TryJumpIfObstacle()
     {
         if (!isGrounded || rigidBody == null) return;
+
+        // Get jump parameters from customiser or use defaults
+        float jumpForceValue = pawnCustomiser != null ? pawnCustomiser.platformerMovement.jumpForce : 8f;
+        float maxJumpHeight = pawnCustomiser != null ? pawnCustomiser.platformerMovement.maxJumpableHeight : 2f;
+        float edgeOffset = pawnCustomiser != null ? pawnCustomiser.platformerMovement.edgeCheckOffset : 0.5f;
+        float edgeVertical = pawnCustomiser != null ? pawnCustomiser.platformerMovement.edgeCheckVerticalOffset : 0.5f;
+        float edgeRayDist = pawnCustomiser != null ? pawnCustomiser.platformerMovement.edgeRaycastDistance : 1f;
+        float maxGapDist = pawnCustomiser != null ? pawnCustomiser.platformerMovement.maxJumpableGap : 2f;
+        float farCheckDist = pawnCustomiser != null ? pawnCustomiser.platformerMovement.farGroundCheckDistance : 2f;
 
         // Check for obstacle ahead
         Vector2 position = transform.position;
@@ -320,27 +328,26 @@ public class PawnController : MonoBehaviour
         if (hit.collider != null)
         {
             // Check if obstacle is jumpable (not too high)
-            if (hit.point.y - position.y < 2f)
+            if (hit.point.y - position.y < maxJumpHeight)
             {
-                rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, jumpForce);
+                rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, jumpForceValue);
             }
         }
 
         // Also jump if at edge (to avoid falling)
-        Vector2 edgeCheck = position + new Vector2(currentMoveDirection * 0.5f, -0.5f);
-        RaycastHit2D edgeHit = Physics2D.Raycast(edgeCheck, Vector2.down, 1f, groundLayer);
+        Vector2 edgeCheck = position + new Vector2(currentMoveDirection * edgeOffset, -edgeVertical);
+        RaycastHit2D edgeHit = Physics2D.Raycast(edgeCheck, Vector2.down, edgeRayDist, groundLayer);
 
         if (edgeHit.collider == null)
         {
             // No ground ahead, stop moving or jump gap
-            float gapDistance = 2f; // Max jumpable gap
-            Vector2 farCheck = position + new Vector2(currentMoveDirection * gapDistance, -0.5f);
-            RaycastHit2D farHit = Physics2D.Raycast(farCheck, Vector2.down, 2f, groundLayer);
+            Vector2 farCheck = position + new Vector2(currentMoveDirection * maxGapDist, -edgeVertical);
+            RaycastHit2D farHit = Physics2D.Raycast(farCheck, Vector2.down, farCheckDist, groundLayer);
 
             if (farHit.collider != null)
             {
                 // Ground exists after gap, jump it
-                rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, jumpForce);
+                rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, jumpForceValue);
             }
             else
             {
@@ -428,6 +435,10 @@ public class PawnController : MonoBehaviour
         int minDist = int.MaxValue; int maxDist = int.MinValue;
         foreach (var c in candidates) { minDist = Mathf.Min(minDist, c.distToPlayer); maxDist = Mathf.Max(maxDist, c.distToPlayer); }
 
+        // Get weights from customiser or use defaults
+        float basicClosest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.basicClosestWeight : 5f;
+        float basicOther = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.basicOtherWeight : 1f;
+
         switch (type)
         {
             case AIType.Basic:
@@ -477,23 +488,26 @@ public class PawnController : MonoBehaviour
                         c.weight = 1f;
                     }
                 }
-                // Give extra weight (5x) to allowed tile(s) that are closest to player (prioritize approaching)
+                // Give extra weight to allowed tile(s) that are closest to player (prioritize approaching)
                 float bestDist = float.PositiveInfinity;
                 foreach (var c in candidates) if (c.weight > 0f) bestDist = Mathf.Min(bestDist, c.distToPlayer);
-                foreach (var c in candidates) if (c.weight > 0f && c.distToPlayer == bestDist) c.weight = 5f;
+                foreach (var c in candidates) if (c.weight > 0f && c.distToPlayer == bestDist) c.weight = basicClosest;
                 break;
 
             case AIType.Handcannon:
-                // All 6 allowed; closest to player has weight 3, others 1.
-                foreach (var c in candidates) c.weight = (c.distToPlayer == minDist) ? 3f : 1f;
+                // All 6 allowed; closest to player has higher weight, others lower.
+                float handcannonClosest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.handcannonClosestWeight : 3f;
+                float handcannonOther = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.handcannonOtherWeight : 1f;
+                foreach (var c in candidates) c.weight = (c.distToPlayer == minDist) ? handcannonClosest : handcannonOther;
                 break;
 
             case AIType.Shotgun:
                 // Aggressive toward player with directional preferences (tries to get close)
-                // 4 weight: closest to player (highest priority - aggressive pursuit)
-                // 3 weight: top-right and top-left diagonal moves (flanking positioning)
-                // 2 weight: bottom-right and bottom-left (side positioning)
-                // 1 weight: side/horizontal moves and farthest away (avoids retreating)
+                float shotgunClosest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.shotgunClosestWeight : 4f;
+                float shotgunDiagonal = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.shotgunDiagonalWeight : 3f;
+                float shotgunSide = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.shotgunSideWeight : 2f;
+                float shotgunFarthest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.shotgunFarthestWeight : 1f;
+
                 foreach (var c in candidates)
                 {
                     // Determine hex direction index by calculating offset from current position
@@ -512,42 +526,43 @@ public class PawnController : MonoBehaviour
                     // Assign weights with distance and directional priority
                     if (c.distToPlayer == minDist)
                     {
-                        // Closest to player = aggressive pursuit (4x weight, highest priority)
-                        c.weight = 4f;
+                        // Closest to player = aggressive pursuit (highest priority)
+                        c.weight = shotgunClosest;
                     }
                     else if (c.distToPlayer == maxDist)
                     {
-                        // Farthest from player = avoid retreat (1x weight, lowest priority)
-                        c.weight = 1f;
+                        // Farthest from player = avoid retreat (lowest priority)
+                        c.weight = shotgunFarthest;
                     }
                     else if (dirIndex == 1 || dirIndex == 2) // Top-right (1,-1) or top-left (0,-1)
                     {
-                        // Diagonal upper moves = flanking maneuver (3x weight)
-                        c.weight = 3f;
+                        // Diagonal upper moves = flanking maneuver
+                        c.weight = shotgunDiagonal;
                     }
                     else if (dirIndex == 4 || dirIndex == 5) // Bottom-left (-1,1) or bottom-right (0,1)
                     {
-                        // Side moves = medium priority (2x weight)
-                        c.weight = 2f;
+                        // Side moves = medium priority
+                        c.weight = shotgunSide;
                     }
                     else // Right (1,0) or left (-1,0)
                     {
-                        // Pure horizontal moves = low priority (1x weight)
-                        c.weight = 1f;
+                        // Pure horizontal moves = low priority
+                        c.weight = shotgunFarthest;
                     }
                 }
                 break;
 
             case AIType.Sniper:
                 // Defensive positioning: Prefer farthest distance from player (keeps distance for long-range shots)
-                // 4 weight: farthest from player (highest priority - maximize distance)
-                // 2 weight: medium distance tiles (balanced)
-                // 1 weight: closest to player (lowest priority - avoid close quarters where shotguns excel)
+                float sniperFarthest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.sniperFarthestWeight : 4f;
+                float sniperMedium = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.sniperMediumWeight : 2f;
+                float sniperClosest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.sniperClosestWeight : 1f;
+
                 foreach (var c in candidates)
                 {
-                    if (c.distToPlayer == maxDist) c.weight = 4f; // Far = safe sniping position
-                    else if (c.distToPlayer == minDist) c.weight = 1f; // Close = dangerous to sniper
-                    else c.weight = 2f; // Medium = balanced
+                    if (c.distToPlayer == maxDist) c.weight = sniperFarthest; // Far = safe sniping position
+                    else if (c.distToPlayer == minDist) c.weight = sniperClosest; // Close = dangerous to sniper
+                    else c.weight = sniperMedium; // Medium = balanced
                 }
                 break;
         }
@@ -576,6 +591,8 @@ public class PawnController : MonoBehaviour
         int fromQ = q; int fromR = r;
         Vector3 start = transform.position;
         float t = 0f;
+        float moveDuration = pawnCustomiser != null ? pawnCustomiser.aiThinking.chessMoveAnimationDuration : 0.12f;
+
         if ((targetWorld - start).sqrMagnitude < 0.0001f)
         {
             transform.position = targetWorld;
@@ -583,10 +600,10 @@ public class PawnController : MonoBehaviour
             Debug.Log($"[PawnController] {typeLabel} moved (instant) {fromQ}_{fromR} -> {q}_{r}");
             yield break;
         }
-        while (t < aiMoveDuration)
+        while (t < moveDuration)
         {
             t += Time.deltaTime;
-            float a = Mathf.Clamp01(t / aiMoveDuration);
+            float a = Mathf.Clamp01(t / moveDuration);
             transform.position = Vector3.Lerp(start, targetWorld, a);
             yield return null;
         }
@@ -686,21 +703,16 @@ public class PawnController : MonoBehaviour
     /// Apply modifier effects to components (health, weapon, movement)
     private void ApplyModifierEffects()
     {
-        // Apply Tenacious: Set health to 2
+        // Apply Tenacious: Set health based on customiser value
         if (modifier == Modifier.Tenacious)
         {
             PawnHealth pawnHealth = GetComponent<PawnHealth>();
             if (pawnHealth != null)
             {
-                pawnHealth.MaxHP = 2;
-                pawnHealth.SetHP(2);
+                int maxHP = pawnCustomiser != null ? pawnCustomiser.modifierEffects.tenaciousMaxHP : 2;
+                pawnHealth.MaxHP = maxHP;
+                pawnHealth.SetHP(maxHP);
             }
-        }
-
-        // Apply Fleet: Increase standoff movement speed by 25%
-        if (modifier == Modifier.Fleet && isStandoffMode)
-        {
-            standoffMoveSpeed *= 1.25f;
         }
 
         // Apply modifier effects to weapon system
@@ -713,11 +725,15 @@ public class PawnController : MonoBehaviour
     /// Get the fire interval multiplier based on modifier (Standoff mode only)
     public float GetFireIntervalMultiplier()
     {
+        if (pawnCustomiser != null)
+        {
+            return pawnCustomiser.GetFireIntervalMultiplier(modifier);
+        }
+
+        // Fallback to default behavior
         switch (modifier)
         {
             case Modifier.Confrontational:
-                // Confrontational: Fires more frequently (-25% interval = 0.75x multiplier)
-                // Example: 3s interval → 2.25s interval (fires 33% more often)
                 return 0.75f;
             default:
                 return 1.0f;
@@ -727,15 +743,17 @@ public class PawnController : MonoBehaviour
     /// Get the firing delay multiplier based on modifier (Standoff mode only)
     public float GetFiringDelayMultiplier()
     {
+        if (pawnCustomiser != null)
+        {
+            return pawnCustomiser.GetFiringDelayMultiplier(modifier);
+        }
+
+        // Fallback to default behavior
         switch (modifier)
         {
             case Modifier.Observant:
-                // Observant: Much faster firing delay (-50% delay = 0.5x multiplier)
-                // Example: 0.5s delay → 0.25s delay (fires sooner after interval expires)
                 return 0.5f;
             case Modifier.Reflexive:
-                // Reflexive: Faster firing delay (-25% delay = 0.75x multiplier)
-                // Example: 0.5s delay → 0.375s delay (fires sooner than normal)
                 return 0.75f;
             default:
                 return 1.0f;

@@ -58,9 +58,9 @@ Victory/Defeat Screen
 
 ## Architecture Overview
 
-### Core Systems (15 Consolidated Scripts)
+### Core Systems (16 Consolidated Scripts)
 
-The codebase has been consolidated from 27 scripts to 15 for better maintainability:
+The codebase has been consolidated from 27 scripts to 16 for better maintainability:
 
 1. **GameManager.cs** - Unified game state and level management (merged GameStateManager + LevelManager)
    - States: MainMenu, LevelSelect, ChessMode, Standoff, Victory, Defeat, Paused
@@ -68,44 +68,52 @@ The codebase has been consolidated from 27 scripts to 15 for better maintainabil
 
 2. **LevelData.cs** - ScriptableObject for level presets (3 levels)
 
-3. **AudioManager.cs** - Singleton for music and SFX management
+3. **Pawn Customiser.cs** - ScriptableObject for AI behavior and modifier configurations
+   - Chess mode weight configurations for all AI types
+   - Standoff mode distance preferences
+   - Modifier effect multipliers
+   - Platformer movement and jumping parameters
+   - Allows tweaking AI behavior in Unity Editor without code changes
+
+4. **AudioManager.cs** - Singleton for music and SFX management
    - Supports fade transitions and volume control
 
-4. **TimeController.cs** - SUPERHOT-style slow motion in Standoff mode
+5. **TimeController.cs** - SUPERHOT-style slow motion in Standoff mode
    - Slows time when player stops moving
 
-5. **PawnHealth.cs** - Unified health system (merged PlayerPawn + OpponentPawn)
+6. **PawnHealth.cs** - Unified health system (merged PlayerPawn + OpponentPawn)
    - Handles HP, damage, death, and visual feedback for both player and opponents
 
-6. **Spawner.cs** - Unified spawning (merged PlayerSpawner + PawnSpawner)
+7. **Spawner.cs** - Unified spawning (merged PlayerSpawner + PawnSpawner)
    - Spawns player at bottom-right, opponents in upper tiles with weighted probability
 
-7. **WeaponSystem.cs** - Unified weapon handling (merged Firearm + Projectile + GunAiming)
+8. **WeaponSystem.cs** - Unified weapon handling (merged Firearm + Projectile + GunAiming)
    - Fire modes: Manual, OnLineOfSight, TrackPlayer, Timed
    - Projectile types: Single, Spread, Beam
    - Includes ProjectileBehavior as nested class
 
-8. **InputSystem.cs** - Unified input (merged MobileInputManager + VirtualJoystick)
+9. **InputSystem.cs** - Unified input (merged MobileInputManager + VirtualJoystick)
    - Mobile touch joystick and desktop keyboard fallback
 
-9. **UIManager.cs** - Unified UI (merged 6 UI scripts)
+10. **UIManager.cs** - Unified UI (merged 6 UI scripts)
    - Main menu, level select, game HUD, pause menu, victory/defeat, settings
 
-10. **Player Controller.cs** - Player movement in both modes
+11. **Player Controller.cs** - Player movement in both modes
     - Chess: Swipe-based hex movement
     - Standoff: Rigidbody2D platformer physics
 
-11. **Pawn Controller.cs** - Opponent AI in both modes
+12. **Pawn Controller.cs** - Opponent AI in both modes
     - Chess: Weighted directional decision-making
     - Standoff: Platformer AI with jump detection
+    - References Pawn Customiser for behavior parameters
 
-12. **Chequerboard.cs** - Turn-based coordination
+13. **Chequerboard.cs** - Turn-based coordination
 
-13. **HexGrid Generator.cs** - Procedural hex grid generation
+14. **HexGrid Generator.cs** - Procedural hex grid generation
 
-14. **Platform.cs** - Procedural Standoff arena generation
+15. **Platform.cs** - Procedural Standoff arena generation
 
-15. **Follow Camera.cs** - Orthographic camera with zoom pulse effects
+16. **Follow Camera.cs** - Orthographic camera with zoom pulse effects
 
 ---
 
@@ -224,10 +232,11 @@ The codebase has been consolidated from 27 scripts to 15 for better maintainabil
 ### Consolidated Folder Layout
 ```
 Assets/
-├── Script/                    # 15 Consolidated Scripts
+├── Script/                    # 16 Consolidated Scripts
 │   ├── Core Systems:
 │   │   ├── GameManager.cs     # Game state + Level management
 │   │   ├── LevelData.cs       # ScriptableObject
+│   │   ├── Pawn Customiser.cs # ScriptableObject for AI behavior configs
 │   │   ├── AudioManager.cs
 │   │   ├── TimeController.cs
 │   │
@@ -504,6 +513,61 @@ Create new levels using ScriptableObjects:
 3. Add to `GameManager.levels[]`
 4. Level buttons auto-generate in UIManager
 
+### Using Pawn Customiser to Tweak AI Behavior
+The **Pawn Customiser** is a ScriptableObject that centralizes all AI behavior parameters, allowing you to adjust pawn behavior without modifying code.
+
+**Creating a Pawn Customiser:**
+1. Right-click in Project window → Create → Game → Pawn Customiser
+2. Name it (e.g., "Default Pawn Customiser", "Hard Mode AI", "Easy Mode AI")
+3. Assign it to pawn prefabs in the Inspector (`PawnController.pawnCustomiser` field)
+
+**Configurable Parameters:**
+
+1. **Chess Mode Weights** - Control movement priorities for each AI type:
+   - **Basic AI**: Weights for closest/other tiles (default: 5/1)
+   - **Handcannon AI**: Weights for closest/other tiles (default: 3/1)
+   - **Shotgun AI**: Weights for closest/diagonal/side/farthest tiles (default: 4/3/2/1)
+   - **Sniper AI**: Weights for farthest/medium/closest tiles (default: 4/2/1)
+
+2. **Standoff Mode Distances** - Control AI positioning preferences:
+   - **Aggressive Distance**: Basic/Shotgun approach threshold (default: 1.5)
+   - **Handcannon Min/Max**: Optimal distance range (default: 2-4)
+   - **Sniper Retreat**: Distance to retreat from player (default: 6)
+
+3. **Modifier Effects** - Adjust modifier multipliers:
+   - **Tenacious Max HP**: Health granted by modifier (default: 2)
+   - **Confrontational Fire Interval**: Multiplier for fire rate (default: 0.75)
+   - **Fleet Move Speed**: Speed multiplier in Standoff (default: 1.25)
+   - **Observant Firing Delay**: Delay reduction (default: 0.5)
+   - **Reflexive Firing Delay**: Delay reduction (default: 0.75)
+
+4. **Platformer Movement** - Control jumping and movement:
+   - **Base Move Speed**: Movement speed before modifiers (default: 3)
+   - **Jump Force**: Rigidbody2D jump force (default: 8)
+   - **Max Jumpable Height/Gap**: Obstacle/gap jump limits (default: 2/2)
+   - **Ground Check Distance**: Raycast distance (default: 0.1)
+   - **Edge Check Parameters**: Edge detection settings
+
+5. **AI Thinking** - Control decision-making timing:
+   - **Chess Move Animation Duration**: Movement animation time (default: 0.12s)
+   - **Standoff Think Interval**: AI decision interval (default: 0.5s)
+
+**Example Use Cases:**
+- **Easy Mode**: Lower aggressive AI weights, increase retreat distances, slower movement
+- **Hard Mode**: Higher aggressive weights, faster firing rates, increased movement speed
+- **Sniper-Focused Level**: Increase sniper retreat distance, reduce other AI aggressiveness
+- **Fast-Paced Level**: Lower think intervals, increase movement speeds, faster animations
+
+**Testing Your Customiser:**
+1. Create multiple customiser assets with different settings
+2. Assign different customisers to different pawn prefabs
+3. Test in-game to see behavior differences
+4. Iterate on values in Unity Editor (changes apply immediately in Edit mode)
+
+**Fallback Behavior:**
+- If `pawnCustomiser` is null, Pawn Controller uses hardcoded default values
+- Ensures backward compatibility with existing prefabs
+
 ### Adding a New Firearm Mode
 1. Add enum value to `WeaponSystem.FireMode`
 2. Implement logic in `WeaponSystem.HandleFireModes()`
@@ -723,6 +787,6 @@ This project was developed as a prototype for a 2D Mobile Game Development assig
 
 *Last Updated: 2025-12-10*
 *Unity Version: 6000.4.0a4*
-*Total Scripts: 15 (Consolidated)*
+*Total Scripts: 16 (Consolidated)*
 *Total Lines of Code: 6000+*
 *Modifiers: 5 (Tenacious, Confrontational, Fleet, Observant, Reflexive)*
