@@ -141,9 +141,7 @@ public class PlayerController : MonoBehaviour
 
     #region Mode Switching
 
-    /// <summary>
     /// Switch between Chess and Standoff modes
-    /// </summary>
     public void SetStandoffMode(bool standoffMode)
     {
         isStandoffMode = standoffMode;
@@ -175,7 +173,7 @@ public class PlayerController : MonoBehaviour
             {
                 rb.isKinematic = true;
                 rb.gravityScale = 0f;
-                rb.velocity = Vector2.zero;
+                rb.linearVelocity = Vector2.zero;
             }
 
             // Disable TimeController slow motion
@@ -267,12 +265,12 @@ public class PlayerController : MonoBehaviour
         }
 
         // Apply horizontal movement
-        rb.velocity = new Vector2(horizontal * moveSpeed, rb.velocity.y);
+        rb.linearVelocity = new Vector2(horizontal * moveSpeed, rb.linearVelocity.y);
 
         // Clamp fall speed
-        if (rb.velocity.y < -maxFallSpeed)
+        if (rb.linearVelocity.y < -maxFallSpeed)
         {
-            rb.velocity = new Vector2(rb.velocity.x, -maxFallSpeed);
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, -maxFallSpeed);
         }
     }
 
@@ -306,7 +304,7 @@ public class PlayerController : MonoBehaviour
     {
         if (rb == null) return;
 
-        rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
         canJump = false;
 
         if (AudioManager.Instance != null)

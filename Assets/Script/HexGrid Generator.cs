@@ -256,33 +256,25 @@ public class HexGridGenerator : MonoBehaviour
 
     #region Public Setters for Level Manager
 
-    /// <summary>
     /// Set the grid radius
-    /// </summary>
     public void SetRadius(int newRadius)
     {
         radius = Mathf.Max(1, newRadius);
     }
 
-    /// <summary>
     /// Set extra rows
-    /// </summary>
     public void SetExtraRow(int newExtraRow)
     {
         extraRow = Mathf.Max(0, newExtraRow);
     }
 
-    /// <summary>
     /// Set tile size
-    /// </summary>
     public void SetTileSize(float newTileSize)
     {
         tileSize = Mathf.Max(0.1f, newTileSize);
     }
 
-    /// <summary>
     /// Set hex orientation
-    /// </summary>
     public void SetOrientation(Orientation newOrientation)
     {
         hexOrientation = newOrientation;

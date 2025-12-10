@@ -484,13 +484,53 @@ Create new levels using ScriptableObjects:
 
 ## Code Style
 
-- **Naming**: PascalCase for public fields and methods
-- **Tooltips**: All public Inspector fields have tooltips
+### Naming Conventions
+- **All Variables**: PascalCase (including private fields)
+  - Example: `private float MoveSpeed = 5f;`
+  - Example: `private Rigidbody2D RigidBody;` (not `rb`)
+  - Use descriptive names instead of abbreviations
+- **Public Fields**: PascalCase with [Tooltip] attributes
+- **Methods**: PascalCase
 - **Regions**: Code organized with `#region` blocks
-- **Comments**: Inline comments for clarity
-  - **DO NOT use `/// <summary>` XML documentation comments**
-  - Use regular `//` comments for code explanations
-  - Keep comments concise and focused on the "why" rather than the "what"
+
+### Comments
+- **Function/Class Documentation**: Use `///` (triple slash) WITHOUT `<summary>` tags
+  - Place above functions and classes to explain their purpose
+  - Example: `/// Handles player movement in both Chess and Standoff modes`
+  - NOT: `/// <summary>.../// </summary>`
+- **Inline Logic**: Use `//` (double slash) for inline comments
+  - Single-line comments only (no `/* */` multi-line blocks)
+  - First word capitalized
+  - Example: `// Calculate distance to player`
+- **Comment Style**: Comprehensive and ample
+  - Explain how functions and classes work
+  - Comment logic flow and important calculations
+  - No blank lines between variable declarations
+- **Focus**: Comments explain the "why" and "how", not just the "what"
+
+### Unity-Specific
+- **Inspector Fields**: All serialized fields must have [Tooltip] attributes
+- **Descriptive Naming**: Prefer full names over abbreviations
+  - Good: `RigidBody2D`, `MainCamera`, `PlayerTransform`
+  - Avoid: `rb`, `cam`, `pt`
+
+### Unity 6 Compatibility
+- **Rigidbody2D**: Use `linearVelocity` and `angularVelocity` (NOT `velocity`)
+- **Physics**: Follow Unity 6 API conventions
+- **Deprecated APIs**: Always use the latest Unity 6 equivalents
+
+### Code Organization
+- Group related fields with [Header] attributes
+- Use [SerializeField] for private Inspector-visible fields
+- Maintain logical region organization:
+  - Enums and Types
+  - Inspector Fields
+  - Private Fields
+  - Properties
+  - Unity Lifecycle (Awake, Start, Update, etc.)
+  - Public Methods
+  - Private Methods
+  - Event Handlers
 
 ---
 

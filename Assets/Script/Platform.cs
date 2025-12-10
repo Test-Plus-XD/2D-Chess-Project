@@ -1,9 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-/// <summary>
 /// Generates the Standoff arena using hexagonal tiles with platforms at varying heights
-/// </summary>
 public class Platform : MonoBehaviour
 {
     #region Enums
@@ -124,9 +122,7 @@ public class Platform : MonoBehaviour
 
     #region Public Methods
 
-    /// <summary>
     /// Generate the complete Standoff arena
-    /// </summary>
     [ContextMenu("Generate Arena")]
     public void GenerateArena()
     {
@@ -153,9 +149,7 @@ public class Platform : MonoBehaviour
         }
     }
 
-    /// <summary>
     /// Clear existing arena
-    /// </summary>
     [ContextMenu("Clear Arena")]
     public void ClearArena()
     {
@@ -178,18 +172,14 @@ public class Platform : MonoBehaviour
         }
     }
 
-    /// <summary>
     /// Get tile at specific axial coordinates
-    /// </summary>
     public TileData GetTileAt(int q, int r)
     {
         string key = GetKey(q, r);
         return tileDict.ContainsKey(key) ? tileDict[key] : null;
     }
 
-    /// <summary>
     /// Get all tiles in the arena
-    /// </summary>
     public List<TileData> GetAllTiles()
     {
         return new List<TileData>(allTiles);

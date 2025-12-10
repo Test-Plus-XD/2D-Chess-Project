@@ -52,8 +52,7 @@ public class PawnController : MonoBehaviour
     private float lastThinkTime = 0f;
     private float currentMoveDirection = 0f; // -1 = left, 0 = none, 1 = right
     private Transform playerTransform;
-    private Firearm firearm;
-    private GunAiming gunAiming;
+    private WeaponSystem weaponSystem;
     private SpriteRenderer spriteRenderer;
     #endregion
 
@@ -70,8 +69,7 @@ public class PawnController : MonoBehaviour
 
         // Get components
         rb = GetComponent<Rigidbody2D>();
-        firearm = GetComponent<Firearm>();
-        gunAiming = GetComponent<GunAiming>();
+        weaponSystem = GetComponent<WeaponSystem>();
         spriteRenderer = GetComponent<SpriteRenderer>();
 
         // Configure Rigidbody2D for Chess mode by default
@@ -115,9 +113,7 @@ public class PawnController : MonoBehaviour
 
     #region Mode Switching
 
-    /// <summary>
     /// Switch between Chess and Standoff modes
-    /// </summary>
     public void SetStandoffMode(bool standoffMode)
     {
         isStandoffMode = standoffMode;
@@ -134,14 +130,10 @@ public class PawnController : MonoBehaviour
                 rb.constraints = RigidbodyConstraints2D.FreezeRotation;
             }
 
-            // Configure firearm and gun aiming
-            if (firearm != null)
+            // Configure weapon system
+            if (weaponSystem != null)
             {
-                firearm.SetStandoffMode(true);
-            }
-            if (gunAiming != null)
-            {
-                gunAiming.SetStandoffMode(true);
+                weaponSystem.SetStandoffMode(true);
             }
         }
         else
@@ -151,17 +143,13 @@ public class PawnController : MonoBehaviour
             {
                 rb.isKinematic = true;
                 rb.gravityScale = 0f;
-                rb.velocity = Vector2.zero;
+                rb.linearVelocity = Vector2.zero;
             }
 
-            // Configure firearm and gun aiming
-            if (firearm != null)
+            // Configure weapon system
+            if (weaponSystem != null)
             {
-                firearm.SetStandoffMode(false);
-            }
-            if (gunAiming != null)
-            {
-                gunAiming.SetStandoffMode(false);
+                weaponSystem.SetStandoffMode(false);
             }
         }
     }
@@ -209,7 +197,7 @@ public class PawnController : MonoBehaviour
         if (rb == null) return;
 
         // Apply horizontal movement
-        rb.velocity = new Vector2(currentMoveDirection * standoffMoveSpeed, rb.velocity.y);
+        rb.linearVelocity = new Vector2(currentMoveDirection * standoffMoveSpeed, rb.linearVelocity.y);
     }
 
     private void MakeStandoffDecision()
@@ -300,7 +288,7 @@ public class PawnController : MonoBehaviour
             // Check if obstacle is jumpable (not too high)
             if (hit.point.y - position.y < 2f)
             {
-                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
             }
         }
 
@@ -318,7 +306,7 @@ public class PawnController : MonoBehaviour
             if (farHit.collider != null)
             {
                 // Ground exists after gap, jump it
-                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
             }
             else
             {
