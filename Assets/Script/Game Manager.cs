@@ -28,81 +28,79 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
-    #region Inspector Fields - State Management
-
     [Header("Current State")]
     [Tooltip("Current game state (viewable in inspector)")]
+    // Current game state for state machine management.
     [SerializeField] private GameState currentState = GameState.MainMenu;
 
     [Header("References")]
     [Tooltip("Reference to the Checkerboard manager")]
+    // Turn coordinator for chess mode operations.
     [SerializeField] private Checkerboard checkerboard;
-
     [Tooltip("Reference to the Platform generator")]
+    // Platform generator for standoff mode arena creation.
     [SerializeField] private Platform platformGenerator;
-
     [Tooltip("Reference to the player controller")]
+    // Player controller for mode switching and state management.
     [SerializeField] private PlayerController playerController;
 
     [Header("Transition Settings")]
     [Tooltip("Delay before transitioning to Standoff mode")]
+    // Duration to wait before transitioning from chess to standoff mode.
     [SerializeField] private float standoffTransitionDelay = 1.5f;
 
     [Header("Standoff Settings")]
     [Tooltip("Minimum opponents remaining to trigger Standoff")]
+    // Number of opponents remaining to trigger standoff transition.
     [SerializeField] private int standoffTriggerCount = 1;
-
-    #endregion
-
-    #region Inspector Fields - Level Management
 
     [Header("Level Presets")]
     [Tooltip("Array of level data (3 levels)")]
+    // Array of all available level configurations.
     [SerializeField] private LevelData[] levels = new LevelData[3];
 
     [Header("Current Level")]
     [Tooltip("Currently loaded level (viewable in inspector)")]
+    // Currently active level data.
     [SerializeField] private LevelData currentLevelData;
-
     [Tooltip("Current level index (viewable in inspector)")]
+    // Index of the currently loaded level.
     [SerializeField] private int currentLevelIndex = 0;
 
     [Header("Scene References")]
     [Tooltip("Hex grid generator")]
+    // Hex grid generator for chess mode board creation.
     [SerializeField] private HexGridGenerator gridGenerator;
-
     [Tooltip("Spawner system")]
+    // Spawner system for opponent and player pawn creation.
     [SerializeField] private Spawner spawnerSystem;
-
-    #endregion
-
-    #region Inspector Fields - Events
 
     [Header("State Events")]
     [Tooltip("Called when game state changes")]
+    // Event invoked when the game state changes.
     public UnityEvent<GameState> OnStateChanged;
-
     [Tooltip("Called when transitioning to Standoff mode")]
+    // Event invoked when transitioning to standoff mode.
     public UnityEvent OnStandoffBegin;
-
     [Tooltip("Called when player wins")]
+    // Event invoked when the player achieves victory.
     public UnityEvent OnVictory;
-
     [Tooltip("Called when player is defeated")]
+    // Event invoked when the player is defeated.
     public UnityEvent OnDefeat;
 
     [Header("Level Events")]
     [Tooltip("Called when a level is loaded")]
+    // Event invoked when a new level is loaded.
     public UnityEvent<LevelData> OnLevelLoaded;
-
     [Tooltip("Called when a level is completed")]
+    // Event invoked when a level is completed.
     public UnityEvent<int> OnLevelCompleted;
 
     [Header("Debug")]
     [Tooltip("Show debug information")]
+    // Enable debug logging for game state changes.
     [SerializeField] private bool showDebug = true;
-
-    #endregion
 
     #region Private Fields
 
