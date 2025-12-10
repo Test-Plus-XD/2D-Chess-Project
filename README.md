@@ -12,7 +12,7 @@ A tactical 2D mobile game combining hexagonal chess mechanics with side-scrollin
 
 This project draws inspiration from several amazing games:
 
-- **Shotgun King: The Final Checkmate** - Chess + Shooting mechanics (reversed concept - player is the shotgun king)
+- **Shotgun King: The Final Checkmate** - Chess + Shooting mechanics (reversed concept - player is the pawn while the opponent is the shotgun king)
 - **Fights in Tight Spaces** - Enemy modifiers and tactical card-based combat
 - **SUPERHOT** - Time manipulation mechanics (time moves when you move)
 - **Terraria** - Side-scrolling platformer combat style
