@@ -516,10 +516,12 @@ Create new levels using ScriptableObjects:
 ### Using Pawn Customiser to Tweak AI Behavior
 The **Pawn Customiser** is a ScriptableObject that centralizes all AI behavior parameters, allowing you to adjust pawn behavior without modifying code.
 
+⚠️ **IMPORTANT**: A Pawn Customiser is **required** for Handcannon, Shotgun, and Sniper AI types to function properly. Without one, pawns default to Basic AI behavior and a warning is logged.
+
 **Creating a Pawn Customiser:**
 1. Right-click in Project window → Create → Game → Pawn Customiser
 2. Name it (e.g., "Default Pawn Customiser", "Hard Mode AI", "Easy Mode AI")
-3. Assign it to pawn prefabs in the Inspector (`PawnController.pawnCustomiser` field)
+3. Assign it to **ALL** pawn prefabs in the Inspector (`PawnController.pawnCustomiser` field)
 
 **Configurable Parameters:**
 
@@ -565,8 +567,13 @@ The **Pawn Customiser** is a ScriptableObject that centralizes all AI behavior p
 4. Iterate on values in Unity Editor (changes apply immediately in Edit mode)
 
 **Fallback Behavior:**
-- If `pawnCustomiser` is null, Pawn Controller uses hardcoded default values
-- Ensures backward compatibility with existing prefabs
+- **Warning Shown**: If `pawnCustomiser` is null, Pawn Controller logs a warning in the console
+- **Basic AI Only**: Without a customiser, pawns default to Basic AI behavior with no modifiers:
+  - Chess Mode: Bottom-3 directions only, closest tile gets weight 5, others weight 1
+  - Standoff Mode: Simple aggressive approach (1.5 unit threshold), base move speed 3, jump force 8
+  - No modifier effects applied
+- **Other AI Types**: Handcannon, Shotgun, and Sniper require a Pawn Customiser to function properly
+- **Recommendation**: Always assign a Pawn Customiser to all pawn prefabs for full functionality
 
 ### Adding a New Firearm Mode
 1. Add enum value to `WeaponSystem.FireMode`

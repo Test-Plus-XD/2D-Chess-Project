@@ -96,6 +96,13 @@ public class PawnController : MonoBehaviour
         // Attempt to pick a grid generator if not assigned.
         if (gridGenerator == null) gridGenerator = FindFirstObjectByType<HexGridGenerator>();
 
+        // Check if pawnCustomiser is assigned
+        if (pawnCustomiser == null)
+        {
+            Debug.LogWarning($"[PawnController] {gameObject.name}: No Pawn Customiser assigned! Using Basic AI with no modifiers as fallback. " +
+                           $"Please create a Pawn Customiser asset (Right-click → Create → Game → Pawn Customiser) and assign it to this pawn.");
+        }
+
         // Get components
         rigidBody = GetComponent<Rigidbody2D>();
         weaponSystem = GetComponent<WeaponSystem>();
@@ -202,7 +209,11 @@ public class PawnController : MonoBehaviour
         CheckGroundStatus();
 
         // AI thinking at intervals
-        float thinkInterval = pawnCustomiser != null ? pawnCustomiser.aiThinking.standoffThinkInterval : 0.5f;
+        float thinkInterval = 0.5f; // Basic AI default
+        if (pawnCustomiser != null)
+        {
+            thinkInterval = pawnCustomiser.aiThinking.standoffThinkInterval;
+        }
         if (Time.time >= lastThinkTime + thinkInterval)
         {
             lastThinkTime = Time.time;
@@ -221,8 +232,13 @@ public class PawnController : MonoBehaviour
         if (rigidBody == null) return;
 
         // Apply horizontal movement with customiser values
-        float moveSpeed = pawnCustomiser != null ? pawnCustomiser.platformerMovement.baseMoveSpeed : 3f;
-        float speedMultiplier = pawnCustomiser != null ? pawnCustomiser.GetMoveSpeedMultiplier(modifier) : 1f;
+        float moveSpeed = 3f; // Basic AI default
+        float speedMultiplier = 1f; // No modifier for Basic AI
+        if (pawnCustomiser != null)
+        {
+            moveSpeed = pawnCustomiser.platformerMovement.baseMoveSpeed;
+            speedMultiplier = pawnCustomiser.GetMoveSpeedMultiplier(modifier);
+        }
         rigidBody.linearVelocity = new Vector2(currentMoveDirection * moveSpeed * speedMultiplier, rigidBody.linearVelocity.y);
     }
 
@@ -233,11 +249,27 @@ public class PawnController : MonoBehaviour
         Vector2 toPlayer = playerTransform.position - transform.position;
         float distance = toPlayer.magnitude;
 
-        // Get distance thresholds from customiser or use defaults
-        float aggressiveDistance = pawnCustomiser != null ? pawnCustomiser.standoffDistances.aggressiveApproachDistance : 1.5f;
-        float handcannonMin = pawnCustomiser != null ? pawnCustomiser.standoffDistances.handcannonMinDistance : 2f;
-        float handcannonMax = pawnCustomiser != null ? pawnCustomiser.standoffDistances.handcannonMaxDistance : 4f;
-        float sniperRetreat = pawnCustomiser != null ? pawnCustomiser.standoffDistances.sniperRetreatDistance : 6f;
+        // Use Basic AI behavior if no customiser assigned
+        if (pawnCustomiser == null)
+        {
+            // Basic AI: Simple aggressive approach (always move toward player)
+            if (distance > 1.5f)
+            {
+                currentMoveDirection = Mathf.Sign(toPlayer.x);
+                TryJumpIfObstacle();
+            }
+            else
+            {
+                currentMoveDirection = 0f;
+            }
+            return;
+        }
+
+        // Get distance thresholds from customiser
+        float aggressiveDistance = pawnCustomiser.standoffDistances.aggressiveApproachDistance;
+        float handcannonMin = pawnCustomiser.standoffDistances.handcannonMinDistance;
+        float handcannonMax = pawnCustomiser.standoffDistances.handcannonMaxDistance;
+        float sniperRetreat = pawnCustomiser.standoffDistances.sniperRetreatDistance;
 
         // Decide movement and jumping based on AI type (matches Chess mode personalities)
         switch (aiType)
@@ -299,7 +331,11 @@ public class PawnController : MonoBehaviour
         if (rigidBody == null) return;
 
         // Raycast downward to check for ground
-        float checkDistance = pawnCustomiser != null ? pawnCustomiser.platformerMovement.groundCheckDistance : 0.1f;
+        float checkDistance = 0.1f; // Basic AI default
+        if (pawnCustomiser != null)
+        {
+            checkDistance = pawnCustomiser.platformerMovement.groundCheckDistance;
+        }
         Vector2 position = transform.position;
         RaycastHit2D hit = Physics2D.Raycast(position, Vector2.down, checkDistance, groundLayer);
 
@@ -310,14 +346,25 @@ public class PawnController : MonoBehaviour
     {
         if (!isGrounded || rigidBody == null) return;
 
-        // Get jump parameters from customiser or use defaults
-        float jumpForceValue = pawnCustomiser != null ? pawnCustomiser.platformerMovement.jumpForce : 8f;
-        float maxJumpHeight = pawnCustomiser != null ? pawnCustomiser.platformerMovement.maxJumpableHeight : 2f;
-        float edgeOffset = pawnCustomiser != null ? pawnCustomiser.platformerMovement.edgeCheckOffset : 0.5f;
-        float edgeVertical = pawnCustomiser != null ? pawnCustomiser.platformerMovement.edgeCheckVerticalOffset : 0.5f;
-        float edgeRayDist = pawnCustomiser != null ? pawnCustomiser.platformerMovement.edgeRaycastDistance : 1f;
-        float maxGapDist = pawnCustomiser != null ? pawnCustomiser.platformerMovement.maxJumpableGap : 2f;
-        float farCheckDist = pawnCustomiser != null ? pawnCustomiser.platformerMovement.farGroundCheckDistance : 2f;
+        // Get jump parameters from customiser or use Basic AI defaults
+        float jumpForceValue = 8f; // Basic AI default
+        float maxJumpHeight = 2f;
+        float edgeOffset = 0.5f;
+        float edgeVertical = 0.5f;
+        float edgeRayDist = 1f;
+        float maxGapDist = 2f;
+        float farCheckDist = 2f;
+
+        if (pawnCustomiser != null)
+        {
+            jumpForceValue = pawnCustomiser.platformerMovement.jumpForce;
+            maxJumpHeight = pawnCustomiser.platformerMovement.maxJumpableHeight;
+            edgeOffset = pawnCustomiser.platformerMovement.edgeCheckOffset;
+            edgeVertical = pawnCustomiser.platformerMovement.edgeCheckVerticalOffset;
+            edgeRayDist = pawnCustomiser.platformerMovement.edgeRaycastDistance;
+            maxGapDist = pawnCustomiser.platformerMovement.maxJumpableGap;
+            farCheckDist = pawnCustomiser.platformerMovement.farGroundCheckDistance;
+        }
 
         // Check for obstacle ahead
         Vector2 position = transform.position;
@@ -435,9 +482,68 @@ public class PawnController : MonoBehaviour
         int minDist = int.MaxValue; int maxDist = int.MinValue;
         foreach (var c in candidates) { minDist = Mathf.Min(minDist, c.distToPlayer); maxDist = Mathf.Max(maxDist, c.distToPlayer); }
 
-        // Get weights from customiser or use defaults
-        float basicClosest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.basicClosestWeight : 5f;
-        float basicOther = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.basicOtherWeight : 1f;
+        // Use Basic AI behavior if no customiser assigned
+        if (pawnCustomiser == null)
+        {
+            // Basic AI: Closest tile gets weight 5, others get weight 1
+            foreach (var c in candidates) c.weight = 0f;
+
+            // Get current tile world position for Y-axis comparison (world space)
+            Vector3 currentWorldPos;
+            if (!TryGetTileWorldCentre(q, r, out currentWorldPos))
+            {
+                // Fallback to allowing all 3 directions if can't get world pos (directional check only)
+                foreach (var c in candidates)
+                {
+                    int dq = c.q - q; int dr = c.r - r;
+                    // Allow only: (0,-1) bottom, (-1,0) bottom-left, (1,-1) bottom-right
+                    if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
+                    {
+                        c.weight = 1f;
+                    }
+                }
+                // Give extra weight to closest tile
+                float bestDist = float.PositiveInfinity;
+                foreach (var c in candidates) if (c.weight > 0f) bestDist = Mathf.Min(bestDist, c.distToPlayer);
+                foreach (var c in candidates) if (c.weight > 0f && c.distToPlayer == bestDist) c.weight = 5f;
+                return;
+            }
+
+            foreach (var c in candidates)
+            {
+                // Get candidate tile world position to compare Y values
+                Vector3 candidateWorldPos;
+                if (!TryGetTileWorldCentre(c.q, c.r, out candidateWorldPos))
+                {
+                    c.weight = 0f;
+                    continue;
+                }
+
+                // Block any move that increases Y (moving backward/upward in world space means can't move up)
+                if (candidateWorldPos.y > currentWorldPos.y)
+                {
+                    c.weight = 0f;
+                    continue;
+                }
+
+                int dq = c.q - q; int dr = c.r - r;
+                // Check if direction is one of the allowed 3 bottom directions
+                // bottom = (0,-1); bottom-left = (-1,0); bottom-right = (1,-1)
+                if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
+                {
+                    c.weight = 1f;
+                }
+            }
+            // Give extra weight to allowed tile(s) that are closest to player (prioritize approaching)
+            float bestDist2 = float.PositiveInfinity;
+            foreach (var c in candidates) if (c.weight > 0f) bestDist2 = Mathf.Min(bestDist2, c.distToPlayer);
+            foreach (var c in candidates) if (c.weight > 0f && c.distToPlayer == bestDist2) c.weight = 5f;
+            return;
+        }
+
+        // Get weights from customiser
+        float basicClosest = pawnCustomiser.chessModeWeights.basicClosestWeight;
+        float basicOther = pawnCustomiser.chessModeWeights.basicOtherWeight;
 
         switch (type)
         {
@@ -496,17 +602,17 @@ public class PawnController : MonoBehaviour
 
             case AIType.Handcannon:
                 // All 6 allowed; closest to player has higher weight, others lower.
-                float handcannonClosest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.handcannonClosestWeight : 3f;
-                float handcannonOther = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.handcannonOtherWeight : 1f;
+                float handcannonClosest = pawnCustomiser.chessModeWeights.handcannonClosestWeight;
+                float handcannonOther = pawnCustomiser.chessModeWeights.handcannonOtherWeight;
                 foreach (var c in candidates) c.weight = (c.distToPlayer == minDist) ? handcannonClosest : handcannonOther;
                 break;
 
             case AIType.Shotgun:
                 // Aggressive toward player with directional preferences (tries to get close)
-                float shotgunClosest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.shotgunClosestWeight : 4f;
-                float shotgunDiagonal = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.shotgunDiagonalWeight : 3f;
-                float shotgunSide = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.shotgunSideWeight : 2f;
-                float shotgunFarthest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.shotgunFarthestWeight : 1f;
+                float shotgunClosest = pawnCustomiser.chessModeWeights.shotgunClosestWeight;
+                float shotgunDiagonal = pawnCustomiser.chessModeWeights.shotgunDiagonalWeight;
+                float shotgunSide = pawnCustomiser.chessModeWeights.shotgunSideWeight;
+                float shotgunFarthest = pawnCustomiser.chessModeWeights.shotgunFarthestWeight;
 
                 foreach (var c in candidates)
                 {
@@ -554,9 +660,9 @@ public class PawnController : MonoBehaviour
 
             case AIType.Sniper:
                 // Defensive positioning: Prefer farthest distance from player (keeps distance for long-range shots)
-                float sniperFarthest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.sniperFarthestWeight : 4f;
-                float sniperMedium = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.sniperMediumWeight : 2f;
-                float sniperClosest = pawnCustomiser != null ? pawnCustomiser.chessModeWeights.sniperClosestWeight : 1f;
+                float sniperFarthest = pawnCustomiser.chessModeWeights.sniperFarthestWeight;
+                float sniperMedium = pawnCustomiser.chessModeWeights.sniperMediumWeight;
+                float sniperClosest = pawnCustomiser.chessModeWeights.sniperClosestWeight;
 
                 foreach (var c in candidates)
                 {
@@ -591,7 +697,11 @@ public class PawnController : MonoBehaviour
         int fromQ = q; int fromR = r;
         Vector3 start = transform.position;
         float t = 0f;
-        float moveDuration = pawnCustomiser != null ? pawnCustomiser.aiThinking.chessMoveAnimationDuration : 0.12f;
+        float moveDuration = 0.12f; // Basic AI default
+        if (pawnCustomiser != null)
+        {
+            moveDuration = pawnCustomiser.aiThinking.chessMoveAnimationDuration;
+        }
 
         if ((targetWorld - start).sqrMagnitude < 0.0001f)
         {
@@ -703,13 +813,19 @@ public class PawnController : MonoBehaviour
     /// Apply modifier effects to components (health, weapon, movement)
     private void ApplyModifierEffects()
     {
+        // Basic AI has no modifiers
+        if (pawnCustomiser == null)
+        {
+            return;
+        }
+
         // Apply Tenacious: Set health based on customiser value
         if (modifier == Modifier.Tenacious)
         {
             PawnHealth pawnHealth = GetComponent<PawnHealth>();
             if (pawnHealth != null)
             {
-                int maxHP = pawnCustomiser != null ? pawnCustomiser.modifierEffects.tenaciousMaxHP : 2;
+                int maxHP = pawnCustomiser.modifierEffects.tenaciousMaxHP;
                 pawnHealth.MaxHP = maxHP;
                 pawnHealth.SetHP(maxHP);
             }
@@ -725,39 +841,25 @@ public class PawnController : MonoBehaviour
     /// Get the fire interval multiplier based on modifier (Standoff mode only)
     public float GetFireIntervalMultiplier()
     {
-        if (pawnCustomiser != null)
+        // Basic AI has no modifiers
+        if (pawnCustomiser == null)
         {
-            return pawnCustomiser.GetFireIntervalMultiplier(modifier);
+            return 1.0f;
         }
 
-        // Fallback to default behavior
-        switch (modifier)
-        {
-            case Modifier.Confrontational:
-                return 0.75f;
-            default:
-                return 1.0f;
-        }
+        return pawnCustomiser.GetFireIntervalMultiplier(modifier);
     }
 
     /// Get the firing delay multiplier based on modifier (Standoff mode only)
     public float GetFiringDelayMultiplier()
     {
-        if (pawnCustomiser != null)
+        // Basic AI has no modifiers
+        if (pawnCustomiser == null)
         {
-            return pawnCustomiser.GetFiringDelayMultiplier(modifier);
+            return 1.0f;
         }
 
-        // Fallback to default behavior
-        switch (modifier)
-        {
-            case Modifier.Observant:
-                return 0.5f;
-            case Modifier.Reflexive:
-                return 0.75f;
-            default:
-                return 1.0f;
-        }
+        return pawnCustomiser.GetFiringDelayMultiplier(modifier);
     }
 
     /// Check if this pawn should get an extra move in Chess mode (Fleet modifier only)
