@@ -370,6 +370,27 @@ public class GameManager : MonoBehaviour
 
         if (showDebug) Debug.Log("Transitioning to Standoff mode...");
 
+        // Convert Basic type to Handcannon if last opponent
+        if (checkerboard != null)
+        {
+            var opponents = checkerboard.GetOpponentControllers();
+            if (opponents.Count == 1)
+            {
+                PawnController lastOpponent = opponents[0];
+                if (lastOpponent != null && lastOpponent.aiType == PawnController.AIType.Basic)
+                {
+                    lastOpponent.ConvertBasicToHandcannon();
+
+                    // Ensure the converted opponent has a weapon system
+                    WeaponSystem weaponSystem = lastOpponent.GetComponent<WeaponSystem>();
+                    if (weaponSystem == null)
+                    {
+                        weaponSystem = lastOpponent.gameObject.AddComponent<WeaponSystem>();
+                    }
+                }
+            }
+        }
+
         yield return new WaitForSeconds(standoffTransitionDelay);
 
         SetState(GameState.Standoff);

@@ -133,10 +133,55 @@ The codebase has been consolidated from 27 scripts to 15 for better maintainabil
   - **Shotgun**: Aggressive attacker (strongly prefers moving toward player)
   - **Sniper**: Defensive, prefers farthest tiles
 
-**Shooting Mechanics:**
+**Shooting Mechanics (Chess Mode):**
 - `WeaponSystem.cs`: Handles weapons, projectiles, and gun aiming
-- Fire modes: Manual, OnLineOfSight, TrackPlayer, Timed
-- Projectile types: Single, Spread, Beam
+- **Basic**: No shooting (only capture by moving onto player's tile)
+- **Handcannon**: Fires 1 bullet dealing 1 damage when turn starts
+- **Shotgun**: Fires 3 bullets (0°, +60°, -60°) each dealing 1 damage when turn starts
+- **Sniper**: Fires 1 bullet dealing 2 damage, pierces once for 1 damage when turn starts
+- All pawns with firearms fire **once when their turn starts**
+- All bullets destroy on hitting chess pieces unless from Sniper or affected by modifier
+- Bullets damage both player and opponents
+
+**Shooting Mechanics (Standoff Mode):**
+- Interval-based firing system:
+  1. **Tracking Phase**: Pawn moves based on AI type, line-of-sight follows player with angular velocity
+  2. **Firing Delay**: After fire interval, stop tracking and hold position/aim for delay time (default 0.5s)
+  3. **Fire**: Shoot according to AI type and modifiers
+  4. **Repeat**: Restart interval until player or pawn dies
+- Gun angle matches line-of-sight angle
+- Fire interval and delay are adjustable per pawn and affected by modifiers
+
+**Opponent Modifiers:**
+- Visual indicator: Modifier icon displayed at top-right of each opponent pawn
+- 5 modifier types that enhance opponent capabilities:
+
+1. **Tenacious** 🛡️
+   - Requires two captures to remove the pawn (spawns with 2 HP instead of 1)
+   - Chess: Player must capture twice
+   - Standoff: Takes 2 damage to defeat
+
+2. **Confrontational** ⚔️
+   - Chess: Shoots whenever another piece enters their line-of-sight (in addition to turn start)
+   - Standoff: Reduces fire interval by 25% (fires more frequently)
+
+3. **Fleet** 💨
+   - Chess: Moves an extra time per turn (moves 2 tiles but only shoots once at turn start)
+   - Standoff: Moves 25% faster
+
+4. **Observant** 👁️
+   - Chess: Bullets only damage the player (won't hit other opponents)
+   - Standoff: Firing delay reduced by 50% (0.5s → 0.25s)
+
+5. **Reflexive** 🎯
+   - Chess: Recalculates best aiming direction after the player moves
+   - Standoff: Firearm is fixed on player (instant tracking), firing delay reduced by 25%
+
+**Last Opponent Conversion:**
+- If the last remaining opponent is **Basic** type when entering Standoff mode:
+  - Inherits all stats and modifiers
+  - Converts to **Handcannon** type (gains shooting ability)
+  - Ensures final showdown has shooting mechanics
 
 ---
 
@@ -409,8 +454,49 @@ Create new levels using ScriptableObjects:
 1. Add enum value to `PawnController.AIType`
 2. Add case to `ApplyCombinedWeights()` in `Pawn Controller.cs`
 3. Add case to `MakeStandoffDecision()` in `Pawn Controller.cs`
-4. Create prefab with configured `PawnController` and `WeaponSystem`
-5. Add to level configuration
+4. Add firing logic to `WeaponSystem.Fire()` method
+5. Create prefab with configured `PawnController` and `WeaponSystem`
+6. Add to level configuration
+
+### Assigning Modifiers to Opponents
+1. **In Code** (via spawner or script):
+   ```csharp
+   PawnController pawn = GetComponent<PawnController>();
+   pawn.SetModifier(PawnController.Modifier.Tenacious);
+   ```
+
+2. **In Unity Inspector**:
+   - Select opponent pawn prefab or instance
+   - In `PawnController` component, set `Modifier` dropdown
+   - Assign modifier icon sprites:
+     - `Tenacious Icon` (shield/armor sprite)
+     - `Confrontational Icon` (sword/aggressive sprite)
+     - `Fleet Icon` (speed/wings sprite)
+     - `Observant Icon` (eye sprite)
+     - `Reflexive Icon` (target/crosshair sprite)
+   - Assign `Modifier Icon Image` (UI Image component for display)
+
+3. **Modifier UI Setup**:
+   - Create a Canvas child under the pawn GameObject
+   - Add UI Image component positioned at top-right of pawn
+   - Assign this Image to `PawnController.modifierIconImage`
+   - The icon will auto-update when modifier is set
+
+4. **Testing Modifiers**:
+   - **Tenacious**: Verify pawn survives first capture, dies on second
+   - **Confrontational**: Watch for firing when entering LOS (Chess) or faster firing (Standoff)
+   - **Fleet**: Count moves per turn (should be 2 in Chess), check movement speed (Standoff)
+   - **Observant**: Verify bullets only damage player in Chess, check firing delay in Standoff
+   - **Reflexive**: Watch aim recalculation after player moves (Chess), verify instant tracking (Standoff)
+
+### Adding a New Modifier
+1. Add enum value to `PawnController.Modifier`
+2. Add sprite field in `PawnController` (e.g., `newModifierIcon`)
+3. Add case to `UpdateModifierIcon()` method
+4. Implement effects in `ApplyModifierEffects()` method
+5. Add multiplier methods if needed (e.g., `GetNewModifierMultiplier()`)
+6. Update `WeaponSystem` or other systems to respect new modifier
+7. Document in CLAUDE.md
 
 ### Adding a New Level
 1. Create `LevelData` ScriptableObject
@@ -436,20 +522,40 @@ Create new levels using ScriptableObjects:
 ### Chess Mode Testing
 1. Verify hex grid generation
 2. Test player swipe movement in all 6 directions
-3. Test opponent AI for each type
+3. Test opponent AI for each type (Basic, Handcannon, Shotgun, Sniper)
 4. Verify turn-based system (Checkerboard)
-5. Test opponent shooting (WeaponSystem)
+5. Test opponent shooting:
+   - Basic: No shooting
+   - Handcannon: 1 bullet, 1 damage
+   - Shotgun: 3 bullets at 0°/+60°/-60°, 1 damage each
+   - Sniper: 1 bullet, 2 damage, pierces once for 1 damage
 6. Verify player/opponent capture mechanics
 7. Test HP system and death
+8. Test modifiers:
+   - Tenacious: Pawn survives one capture, dies on second
+   - Confrontational: Fires when entering LOS (not yet implemented)
+   - Fleet: Moves 2 tiles per turn, shoots only once
+   - Observant: Bullets only damage player
+   - Reflexive: Recalculates aim after player moves
 
 ### Standoff Mode Testing
 1. Verify platform generation (symmetry, connectivity)
 2. Test player platformer controls (movement, jump)
 3. Test opponent AI platforming (jumping, edge detection)
 4. Verify slow motion effect (move vs idle)
-5. Test shooting mechanics
+5. Test shooting mechanics:
+   - Interval-based firing (track → delay → fire → repeat)
+   - Gun tracking with angular velocity
+   - Firing delay hold before shot
 6. Verify win condition (touch opponent)
 7. Test transition from Chess → Standoff
+8. Test Basic-to-Handcannon conversion (last opponent)
+9. Test modifiers:
+   - Tenacious: Takes 2 damage to defeat
+   - Confrontational: 25% reduced fire interval
+   - Fleet: 25% faster movement
+   - Observant: 50% reduced firing delay (0.5s → 0.25s)
+   - Reflexive: Instant tracking, 25% reduced firing delay
 
 ### UI Testing
 1. Main menu navigation
@@ -590,7 +696,8 @@ This project was developed as a prototype for a 2D Mobile Game Development assig
 
 ---
 
-*Last Updated: 2025-12-09*
+*Last Updated: 2025-12-10*
 *Unity Version: 6000.4.0a4*
 *Total Scripts: 15 (Consolidated)*
-*Total Lines of Code: 5000+*
+*Total Lines of Code: 6000+*
+*Modifiers: 5 (Tenacious, Confrontational, Fleet, Observant, Reflexive)*

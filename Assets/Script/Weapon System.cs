@@ -36,14 +36,20 @@ public class WeaponSystem : MonoBehaviour
     [Tooltip("Damage dealt per bullet")]
     [SerializeField] private int damage = 1;
 
-    [Tooltip("Time between shots in seconds")]
-    [SerializeField] private float fireRate = 1.5f;
+    [Tooltip("Time between shots in seconds (Standoff mode)")]
+    [SerializeField] private float fireInterval = 3f;
+
+    [Tooltip("Firing delay before shot (Standoff mode)")]
+    [SerializeField] private float firingDelay = 0.5f;
 
     [Tooltip("Maximum range of bullets in world units")]
     [SerializeField] private float maxRange = 15f;
 
     [Tooltip("Speed of projectiles")]
     [SerializeField] private float projectileSpeed = 10f;
+
+    [Tooltip("Angular velocity for tracking player (degrees/second)")]
+    [SerializeField] private float trackingAngularVelocity = 90f;
 
     #endregion
 
@@ -154,6 +160,13 @@ public class WeaponSystem : MonoBehaviour
     private Rigidbody2D rigidBody;
     private PawnController pawnController;
     private Vector2[] hexDirections = new Vector2[6];
+    private PawnController.Modifier currentModifier = PawnController.Modifier.None;
+
+    // Standoff firing state
+    private float intervalStartTime = 0f;
+    private bool isInFiringDelay = false;
+    private float firingDelayStartTime = 0f;
+    private Vector2 lockedAimDirection = Vector2.right;
 
     #endregion
 
@@ -228,7 +241,7 @@ public class WeaponSystem : MonoBehaviour
 
     public void ManualFire()
     {
-        if (Time.time >= lastFireTime + fireRate)
+        if (Time.time >= lastFireTime + GetAdjustedFireInterval())
         {
             Fire();
         }
@@ -245,6 +258,13 @@ public class WeaponSystem : MonoBehaviour
     public void SetStandoffMode(bool standoffMode)
     {
         isInStandoffMode = standoffMode;
+
+        if (standoffMode)
+        {
+            // Initialize standoff firing state
+            intervalStartTime = Time.time;
+            isInFiringDelay = false;
+        }
     }
 
     public void SetFireMode(FireMode mode)
@@ -255,7 +275,7 @@ public class WeaponSystem : MonoBehaviour
     public float GetTimeToNextShot()
     {
         float timeSinceLastShot = Time.time - lastFireTime;
-        return Mathf.Max(0f, fireRate - timeSinceLastShot);
+        return Mathf.Max(0f, GetAdjustedFireInterval() - timeSinceLastShot);
     }
 
     public Vector2 GetAimDirection()
@@ -266,6 +286,31 @@ public class WeaponSystem : MonoBehaviour
     public void OnShotFired()
     {
         lastShotTime = Time.time;
+    }
+
+    /// Apply modifier effects to weapon system
+    public void ApplyModifier(PawnController.Modifier modifier)
+    {
+        currentModifier = modifier;
+    }
+
+    /// Fire once in Chess mode (called when turn starts)
+    public void FireChessMode()
+    {
+        if (pawnController == null) return;
+
+        // Basic pawns don't shoot in chess mode
+        if (pawnController.aiType == PawnController.AIType.Basic) return;
+
+        Fire();
+    }
+
+    /// Recalculate aim direction (for Reflexive modifier after player moves)
+    public void RecalculateAim()
+    {
+        if (playerTransform == null) return;
+        Vector2 toPlayer = (playerTransform.position - transform.position).normalized;
+        currentAimDirection = GetNearestHexDirection(toPlayer);
     }
 
     #endregion
@@ -320,29 +365,66 @@ public class WeaponSystem : MonoBehaviour
 
     private void UpdateStandoffAiming(Vector2 toPlayer)
     {
-        bool shouldStopTracking = false;
-        float timeToNextShot = GetTimeToNextShot();
+        float adjustedInterval = GetAdjustedFireInterval();
+        float adjustedDelay = GetAdjustedFiringDelay();
+        float timeSinceIntervalStart = Time.time - intervalStartTime;
 
-        if (timeToNextShot <= stopTrackingBeforeShotTime && timeToNextShot > 0f)
+        // Check if we should enter firing delay phase
+        if (!isInFiringDelay && timeSinceIntervalStart >= adjustedInterval)
         {
-            shouldStopTracking = true;
+            isInFiringDelay = true;
+            firingDelayStartTime = Time.time;
+            lockedAimDirection = currentAimDirection;
+
+            if (showDebug)
+            {
+                Debug.Log($"[WeaponSystem] Entering firing delay. Locked aim at {lockedAimDirection}");
+            }
         }
 
-        if (!shouldStopTracking)
+        // If in firing delay phase
+        if (isInFiringDelay)
         {
+            float timeSinceDelayStart = Time.time - firingDelayStartTime;
+
+            // Hold position and aim during delay
+            currentAimDirection = lockedAimDirection;
+
+            // Fire after delay completes
+            if (timeSinceDelayStart >= adjustedDelay)
+            {
+                Fire();
+
+                // Reset to tracking phase
+                isInFiringDelay = false;
+                intervalStartTime = Time.time;
+
+                if (showDebug)
+                {
+                    Debug.Log($"[WeaponSystem] Fired! Restarting interval.");
+                }
+            }
+        }
+        else
+        {
+            // Tracking phase: Follow player with angular velocity
             targetAimDirection = toPlayer;
 
-            if (smoothRotation)
+            // Reflexive modifier: Gun fixed on player (instant tracking)
+            if (pawnController != null && pawnController.ShouldFixGunOnPlayer())
             {
-                currentAimDirection = Vector2.Lerp(
-                    currentAimDirection,
-                    targetAimDirection,
-                    Time.deltaTime * aimTrackingSpeed
-                ).normalized;
+                currentAimDirection = targetAimDirection;
             }
             else
             {
-                currentAimDirection = targetAimDirection;
+                // Normal tracking with angular velocity
+                float maxRotationThisFrame = trackingAngularVelocity * Time.deltaTime;
+                float currentAngle = Mathf.Atan2(currentAimDirection.y, currentAimDirection.x) * Mathf.Rad2Deg;
+                float targetAngle = Mathf.Atan2(targetAimDirection.y, targetAimDirection.x) * Mathf.Rad2Deg;
+                float angleDiff = Mathf.DeltaAngle(currentAngle, targetAngle);
+                float rotationAmount = Mathf.Clamp(angleDiff, -maxRotationThisFrame, maxRotationThisFrame);
+                float newAngle = currentAngle + rotationAmount;
+                currentAimDirection = new Vector2(Mathf.Cos(newAngle * Mathf.Deg2Rad), Mathf.Sin(newAngle * Mathf.Deg2Rad));
             }
         }
     }
@@ -465,20 +547,66 @@ public class WeaponSystem : MonoBehaviour
             ApplyRecoil();
         }
 
-        switch (projectileType)
+        // Fire based on AI type
+        if (pawnController != null)
         {
-            case ProjectileType.Single:
-                SpawnProjectile(currentAimDirection);
-                break;
+            switch (pawnController.aiType)
+            {
+                case PawnController.AIType.Basic:
+                    // Basic doesn't shoot (but might if converted to Handcannon)
+                    SpawnProjectile(currentAimDirection);
+                    break;
 
-            case ProjectileType.Spread:
-                FireSpread();
-                break;
+                case PawnController.AIType.Handcannon:
+                    // Handcannon: Single bullet, 1 damage
+                    SpawnProjectile(currentAimDirection, damage: 1);
+                    break;
 
-            case ProjectileType.Beam:
-                FireBeam();
-                break;
+                case PawnController.AIType.Shotgun:
+                    // Shotgun: 3 bullets (0°, +60°, -60°), 1 damage each
+                    SpawnProjectile(currentAimDirection, damage: 1);
+                    SpawnProjectile(RotateVector(currentAimDirection, 60f), damage: 1);
+                    SpawnProjectile(RotateVector(currentAimDirection, -60f), damage: 1);
+                    break;
+
+                case PawnController.AIType.Sniper:
+                    // Sniper: Single bullet, 2 damage, piercing
+                    SpawnProjectile(currentAimDirection, damage: 2, piercing: true);
+                    break;
+            }
         }
+        else
+        {
+            // Fallback to projectile type if no pawn controller
+            switch (projectileType)
+            {
+                case ProjectileType.Single:
+                    SpawnProjectile(currentAimDirection);
+                    break;
+
+                case ProjectileType.Spread:
+                    FireSpread();
+                    break;
+
+                case ProjectileType.Beam:
+                    FireBeam();
+                    break;
+            }
+        }
+    }
+
+    /// Get adjusted fire interval based on modifier
+    private float GetAdjustedFireInterval()
+    {
+        if (pawnController == null) return fireInterval;
+        return fireInterval * pawnController.GetFireIntervalMultiplier();
+    }
+
+    /// Get adjusted firing delay based on modifier
+    private float GetAdjustedFiringDelay()
+    {
+        if (pawnController == null) return firingDelay;
+        return firingDelay * pawnController.GetFiringDelayMultiplier();
     }
 
     private void ApplyRecoil()
@@ -529,7 +657,7 @@ public class WeaponSystem : MonoBehaviour
         }
     }
 
-    private void SpawnProjectile(Vector2 direction)
+    private void SpawnProjectile(Vector2 direction, int damage = -1, bool piercing = false)
     {
         if (projectilePrefab == null)
         {
@@ -548,7 +676,10 @@ public class WeaponSystem : MonoBehaviour
             proj = projectile.AddComponent<ProjectileBehavior>();
         }
 
-        proj.Initialize(direction, projectileSpeed, maxRange, damage, gameObject.name);
+        int finalDamage = damage < 0 ? this.damage : damage;
+        bool onlyDamagePlayer = pawnController != null && pawnController.BulletsOnlyDamagePlayer();
+
+        proj.Initialize(direction, projectileSpeed, maxRange, finalDamage, gameObject.name, piercing, onlyDamagePlayer);
     }
 
     private Vector2 RotateVector(Vector2 v, float degrees)
@@ -565,7 +696,8 @@ public class WeaponSystem : MonoBehaviour
     #endregion
 }
 
-// Projectile behavior component (nested for consolidation).
+/// Projectile behavior component (nested for consolidation).
+/// Handles bullet movement, damage, piercing, and collision detection.
 [RequireComponent(typeof(Rigidbody2D))]
 public class ProjectileBehavior : MonoBehaviour
 {
@@ -577,6 +709,10 @@ public class ProjectileBehavior : MonoBehaviour
     private Vector2 startPosition;
     private Rigidbody2D rigidBody;
     private bool isInitialized = false;
+    private bool isPiercing = false;
+    private bool onlyDamagePlayer = false;
+    private int pierceCount = 0;
+    private int maxPierceCount = 1; // Sniper bullets pierce once
 
     private void Awake()
     {
@@ -602,21 +738,52 @@ public class ProjectileBehavior : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        PawnHealth playerHealth = collision.GetComponent<PawnHealth>();
-        if (playerHealth != null && playerHealth.pawnType == PawnHealth.PawnType.Player)
+        PawnHealth pawnHealth = collision.GetComponent<PawnHealth>();
+
+        // Damage pawns
+        if (pawnHealth != null)
         {
-            playerHealth.TakeDamage(damage, sourceTag);
+            // Observant modifier: Only damage player
+            if (onlyDamagePlayer)
+            {
+                if (pawnHealth.pawnType == PawnHealth.PawnType.Player)
+                {
+                    pawnHealth.TakeDamage(damage, sourceTag);
+                }
+                else
+                {
+                    // Don't damage or destroy bullet when hitting opponent
+                    return;
+                }
+            }
+            else
+            {
+                // Normal: Damage both sides
+                pawnHealth.TakeDamage(damage, sourceTag);
+            }
+
+            // Handle piercing
+            if (isPiercing && pierceCount < maxPierceCount)
+            {
+                pierceCount++;
+                // Reduce damage after first pierce (Sniper: 2 damage first hit, 1 damage second)
+                damage = 1;
+                return; // Don't destroy bullet yet
+            }
+
+            // Destroy bullet after hitting (or after max pierces)
             Destroy(gameObject);
             return;
         }
 
+        // Destroy on hitting tiles/walls/obstacles
         if (collision.CompareTag("Tile") || collision.CompareTag("Wall") || collision.CompareTag("Obstacle"))
         {
             Destroy(gameObject);
         }
     }
 
-    public void Initialize(Vector2 moveDirection, float moveSpeed, float range, int damageAmount, string source)
+    public void Initialize(Vector2 moveDirection, float moveSpeed, float range, int damageAmount, string source, bool piercing = false, bool playerOnly = false)
     {
         direction = moveDirection.normalized;
         speed = moveSpeed;
@@ -624,6 +791,8 @@ public class ProjectileBehavior : MonoBehaviour
         damage = damageAmount;
         sourceTag = source;
         startPosition = transform.position;
+        isPiercing = piercing;
+        onlyDamagePlayer = playerOnly;
         isInitialized = true;
     }
 }
