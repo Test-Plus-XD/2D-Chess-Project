@@ -7,8 +7,6 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "New Pawn Customiser", menuName = "Game/Pawn Customiser", order = 2)]
 public class PawnCustomiser : ScriptableObject
 {
-    #region Nested Classes
-
     /// Configuration for chess mode AI movement weights
     [Serializable]
     public class ChessModeWeights
@@ -161,10 +159,6 @@ public class PawnCustomiser : ScriptableObject
         public float standoffThinkInterval = 0.5f;
     }
 
-    #endregion
-
-    #region Configuration Fields
-
     [Header("Chess Mode AI Weights")]
     [Tooltip("Weight configurations for chess mode AI movement strategies")]
     public ChessModeWeights chessModeWeights = new ChessModeWeights();
@@ -184,10 +178,6 @@ public class PawnCustomiser : ScriptableObject
     [Header("AI Decision Making")]
     [Tooltip("Timing parameters for AI thinking and animation")]
     public AIThinking aiThinking = new AIThinking();
-
-    #endregion
-
-    #region Helper Methods
 
     /// Get chess mode weight for a tile based on AI type and distance to player
     public float GetChessModeWeight(PawnController.AIType aiType, bool isClosest, bool isFarthest, int directionIndex)
@@ -262,6 +252,4 @@ public class PawnCustomiser : ScriptableObject
                 return 1.0f;
         }
     }
-
-    #endregion
 }
