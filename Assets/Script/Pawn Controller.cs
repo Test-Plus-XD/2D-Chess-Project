@@ -55,29 +55,40 @@ public class PawnController : MonoBehaviour
     private string typeLabel = "";
     #endregion
 
-    #region Standoff Mode Fields
     [Header("Standoff Mode Settings")]
     [Tooltip("Movement speed in Standoff mode")]
+    // Movement speed for AI in platformer mode.
     public float standoffMoveSpeed = 3f;
     [Tooltip("Jump force for AI")]
+    // Jump velocity for AI platformer jumping.
     public float jumpForce = 8f;
     [Tooltip("Ground check distance")]
+    // Distance for ground detection raycast.
     public float groundCheckDistance = 0.1f;
     [Tooltip("Layer mask for ground detection")]
+    // Layer mask for detecting ground in platformer mode.
     public LayerMask groundLayer;
     [Tooltip("Decision update interval (seconds)")]
+    // Interval at which AI makes movement decisions.
     public float aiThinkInterval = 0.5f;
 
     // Standoff mode state
+    // Whether pawn is currently in standoff platformer mode.
     private bool isStandoffMode = false;
+    // Rigidbody2D for physics-based movement.
     private Rigidbody2D rigidBody;
+    // Whether pawn is currently touching ground.
     private bool isGrounded = false;
+    // Timestamp of last AI decision.
     private float lastThinkTime = 0f;
-    private float currentMoveDirection = 0f; // -1 = left, 0 = none, 1 = right
+    // Current horizontal movement direction (-1 = left, 0 = none, 1 = right).
+    private float currentMoveDirection = 0f;
+    // Transform reference to player for AI decision-making.
     private Transform playerTransform;
+    // WeaponSystem component for standoff mode shooting.
     private WeaponSystem weaponSystem;
+    // SpriteRenderer for sprite flipping based on direction.
     private SpriteRenderer spriteRenderer;
-    #endregion
 
     // Data-holder for neighbour candidates.
     private class Candidate { public int q, r, index; public float weight = 1f; public int distToPlayer; }

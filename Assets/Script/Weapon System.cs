@@ -24,120 +24,96 @@ public class WeaponSystem : MonoBehaviour
 
     #endregion
 
-    #region Inspector Fields - Firearm Settings
-
     [Header("Firearm Settings")]
     [Tooltip("The fire mode this firearm uses")]
+    // Determines how and when this weapon fires.
     [SerializeField] private FireMode fireMode = FireMode.TrackPlayer;
-
     [Tooltip("The type of projectile this firearm shoots")]
+    // Type of projectile pattern (single, spread, or beam).
     [SerializeField] private ProjectileType projectileType = ProjectileType.Single;
-
     [Tooltip("Damage dealt per bullet")]
+    // Damage points each bullet inflicts.
     [SerializeField] private int damage = 1;
-
     [Tooltip("Time between shots in seconds (Standoff mode)")]
+    // Interval between shots in seconds.
     [SerializeField] private float fireInterval = 3f;
-
     [Tooltip("Firing delay before shot (Standoff mode)")]
+    // Delay between aiming and firing in seconds.
     [SerializeField] private float firingDelay = 0.5f;
-
     [Tooltip("Maximum range of bullets in world units")]
+    // Maximum distance bullets travel before despawning.
     [SerializeField] private float maxRange = 15f;
-
     [Tooltip("Speed of projectiles")]
+    // Speed at which projectiles travel.
     [SerializeField] private float projectileSpeed = 10f;
-
     [Tooltip("Angular velocity for tracking player (degrees/second)")]
+    // Speed of gun rotation when tracking player.
     [SerializeField] private float trackingAngularVelocity = 90f;
-
-    #endregion
-
-    #region Inspector Fields - Spread Settings
 
     [Header("Spread Settings")]
     [Tooltip("Number of bullets in spread shot")]
+    // Number of bullets in a spread pattern.
     [SerializeField] private int spreadCount = 3;
-
     [Tooltip("Angle between spread bullets in degrees")]
+    // Angle between each bullet in spread pattern.
     [SerializeField] private float spreadAngle = 30f;
-
-    #endregion
-
-    #region Inspector Fields - Line of Sight
 
     [Header("Line of Sight Settings")]
     [Tooltip("Detection range for line of sight mode")]
+    // Maximum distance to detect targets for line-of-sight mode.
     [SerializeField] private float detectionRange = 10f;
-
     [Tooltip("Layer mask for detecting targets")]
+    // Layer mask for what counts as a valid target.
     [SerializeField] private LayerMask targetLayer;
-
     [Tooltip("Layer mask for obstacles blocking line of sight")]
+    // Layer mask for obstacles that block line-of-sight.
     [SerializeField] private LayerMask obstacleLayer;
-
-    #endregion
-
-    #region Inspector Fields - Visuals
 
     [Header("Projectile Visuals")]
     [Tooltip("Projectile prefab to spawn")]
+    // Prefab to instantiate as a projectile.
     [SerializeField] private GameObject projectilePrefab;
-
     [Tooltip("Muzzle flash effect (optional)")]
+    // Visual effect spawned at barrel when firing.
     [SerializeField] private GameObject muzzleFlashPrefab;
-
     [Tooltip("Point where projectiles spawn")]
+    // Transform marking where projectiles are created.
     [SerializeField] private Transform firePoint;
-
-    #endregion
-
-    #region Inspector Fields - Gun Aiming
 
     [Header("Gun Aiming")]
     [Tooltip("The gun transform to rotate")]
+    // Gun transform that rotates to aim.
     [SerializeField] private Transform gunTransform;
-
     [Tooltip("Gun offset from pawn center")]
+    // Offset of gun from the pawn's center position.
     [SerializeField] private Vector2 gunOffset = new Vector2(0.2f, 0f);
-
-    #endregion
-
-    #region Inspector Fields - Audio & Animation
 
     [Header("Audio & Animation")]
     [Tooltip("Sound played when firing")]
+    // Audio clip played when weapon fires.
     [SerializeField] private AudioClip fireSound;
-
     [Tooltip("Volume of fire sound")]
+    // Volume multiplier for fire sound effect.
     [SerializeField][Range(0f, 1f)] private float fireVolume = 0.7f;
-
     [Tooltip("Animator for gun animations")]
+    // Animator controlling gun firing animations.
     [SerializeField] private Animator gunAnimator;
-
     [Tooltip("Name of fire animation trigger")]
+    // Animation trigger name to play firing animation.
     [SerializeField] private string fireAnimationTrigger = "Fire";
-
-    #endregion
-
-    #region Inspector Fields - Recoil
 
     [Header("Recoil (Standoff Mode)")]
     [Tooltip("Enable physical recoil when shooting")]
+    // Whether to apply physical recoil when firing.
     [SerializeField] private bool enableRecoil = true;
-
     [Tooltip("Recoil force magnitude")]
+    // Force magnitude applied as recoil.
     [SerializeField] private float recoilForce = 3f;
-
-    #endregion
-
-    #region Inspector Fields - Debug
 
     [Header("Debug")]
     [Tooltip("Show debug lines")]
+    // Enable debug visualization for weapon system.
     [SerializeField] private bool showDebug = false;
-
-    #endregion
 
     #region Private Fields
 

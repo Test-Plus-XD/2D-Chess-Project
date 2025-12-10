@@ -604,7 +604,7 @@ Create new levels using ScriptableObjects:
   - Example: `private const float MAX_SPEED = 10f;`
   - Example: `private static readonly float DEFAULT_SPEED = 5f;`
 - **Methods**: PascalCase
-- **Regions**: Code organized with `#region` blocks
+- **Regions**: Use `#region` blocks sparingly - limit to one `#region` per 200 lines of code (e.g., a 400-line script should have max 2 regions, 600-line script max 3 regions). Remove #region entirely for scripts under 200 lines.
 - **Descriptive Naming**: Prefer full descriptive names over abbreviations
   - Good: `rigidBody`, `mainCamera`, `playerTransform`
   - Avoid: `rb`, `cam`, `pt`
@@ -622,7 +622,32 @@ Create new levels using ScriptableObjects:
 - **Comment Style**: Comprehensive and ample
   - Explain how functions and classes work
   - Comment logic flow and important calculations
-  - No blank lines between variable declarations
+- **Field Formatting**: Use consistent pattern for all serialized and important fields
+  - Pattern: `[Tooltip] → // Comment → field declaration`
+  - Do NOT leave blank lines between variable declarations
+  - All [Tooltip] attributes required for Inspector fields
+  - Comments explain what the field does and why it matters
+  - Example (Serialized Fields):
+    ```csharp
+    [Header("Current State")]
+    [Tooltip("Current game state (viewable in inspector)")]
+    // Current game state for state machine management.
+    [SerializeField] private GameState currentState = GameState.MainMenu;
+
+    [Header("References")]
+    [Tooltip("Reference to the grid generator")]
+    // Hex grid generator for board creation and tile lookup.
+    [SerializeField] private HexGridGenerator gridGenerator;
+    ```
+  - Example (Private Fields):
+    ```csharp
+    // Singleton instance for easy access.
+    public static GameManager Instance { get; private set; }
+    // Currently loaded level data.
+    private LevelData currentLevelData;
+    // Current level index.
+    private int currentLevelIndex = 0;
+    ```
 - **Focus**: Comments explain the "why" and "how", not just the "what"
 
 ### Unity-Specific
