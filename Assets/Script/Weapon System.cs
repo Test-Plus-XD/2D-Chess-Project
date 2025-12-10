@@ -101,15 +101,6 @@ public class WeaponSystem : MonoBehaviour
     [Tooltip("Gun offset from pawn center")]
     [SerializeField] private Vector2 gunOffset = new Vector2(0.2f, 0f);
 
-    [Tooltip("Aim tracking speed (lower = more delay)")]
-    [SerializeField][Range(1f, 20f)] private float aimTrackingSpeed = 10f;
-
-    [Tooltip("Time to stop tracking before shooting")]
-    [SerializeField] private float stopTrackingBeforeShotTime = 0.5f;
-
-    [Tooltip("Smoothing for rotation")]
-    [SerializeField] private bool smoothRotation = true;
-
     #endregion
 
     #region Inspector Fields - Audio & Animation
@@ -205,7 +196,7 @@ public class WeaponSystem : MonoBehaviour
     private void Start()
     {
         FindPlayer();
-        lastFireTime = -fireRate;
+        lastFireTime = -fireInterval;
     }
 
     private void Update()
@@ -475,21 +466,21 @@ public class WeaponSystem : MonoBehaviour
         switch (fireMode)
         {
             case FireMode.Timed:
-                if (Time.time >= lastFireTime + fireRate)
+                if (Time.time >= lastFireTime + fireInterval)
                 {
                     Fire();
                 }
                 break;
 
             case FireMode.OnLineOfSight:
-                if (Time.time >= lastFireTime + fireRate && HasLineOfSight())
+                if (Time.time >= lastFireTime + fireInterval && HasLineOfSight())
                 {
                     Fire();
                 }
                 break;
 
             case FireMode.TrackPlayer:
-                if (Time.time >= lastFireTime + fireRate)
+                if (Time.time >= lastFireTime + fireInterval)
                 {
                     Fire();
                 }
