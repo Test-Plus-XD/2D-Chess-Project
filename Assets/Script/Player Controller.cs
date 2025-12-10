@@ -331,7 +331,7 @@ public class PlayerController : MonoBehaviour
             // Trigger victory
             if (GameManager.Instance != null)
             {
-                GameManager.Instance.SetGameState(GameManager.GameState.Victory);
+                GameManager.Instance.TriggerVictory();
             }
         }
     }
