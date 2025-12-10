@@ -4,7 +4,7 @@ using UnityEngine;
 
 // Unified spawning system for both player and opponent pawns.
 // Consolidates PlayerSpawner and PawnSpawner functionality.
-public class SpawnerSystem : MonoBehaviour
+public class Spawner : MonoBehaviour
 {
     #region Inspector Fields - References
 
@@ -113,19 +113,19 @@ public class SpawnerSystem : MonoBehaviour
     {
         if (gridGenerator == null)
         {
-            Debug.LogError("[SpawnerSystem] No HexGridGenerator found.");
+            Debug.LogError("[Spawner] No HexGridGenerator found.");
             return;
         }
 
         if (checkerboard == null)
         {
-            Debug.LogError("[SpawnerSystem] No Checkerboard found.");
+            Debug.LogError("[Spawner] No Checkerboard found.");
             return;
         }
 
         if (playerPawnPrefab == null)
         {
-            Debug.LogWarning("[SpawnerSystem] No player pawn prefab assigned.");
+            Debug.LogWarning("[Spawner] No player pawn prefab assigned.");
             return;
         }
 
@@ -152,7 +152,7 @@ public class SpawnerSystem : MonoBehaviour
 
         if (colliders.Count == 0)
         {
-            Debug.LogWarning("[SpawnerSystem] No tiles found for player spawn.");
+            Debug.LogWarning("[Spawner] No tiles found for player spawn.");
             SpawnPlayerUsingTransformScan(tileParent);
             return;
         }
@@ -183,7 +183,7 @@ public class SpawnerSystem : MonoBehaviour
 
         if (chosenCollider == null)
         {
-            Debug.LogError("[SpawnerSystem] Failed to find tile for player spawn.");
+            Debug.LogError("[Spawner] Failed to find tile for player spawn.");
             return;
         }
 
@@ -217,7 +217,7 @@ public class SpawnerSystem : MonoBehaviour
             gridGenerator = FindFirstObjectByType<HexGridGenerator>();
             if (gridGenerator == null)
             {
-                Debug.LogError("[SpawnerSystem] No HexGridGenerator found.");
+                Debug.LogError("[Spawner] No HexGridGenerator found.");
                 return;
             }
         }
@@ -227,7 +227,7 @@ public class SpawnerSystem : MonoBehaviour
         List<TileCandidate> candidates = BuildUpperTileCandidates();
         if (candidates.Count == 0)
         {
-            Debug.LogWarning("[SpawnerSystem] No upper tiles found for opponent spawning.");
+            Debug.LogWarning("[Spawner] No upper tiles found for opponent spawning.");
         }
 
         HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
@@ -306,7 +306,7 @@ public class SpawnerSystem : MonoBehaviour
 
         if (chosen == null)
         {
-            Debug.LogError("[SpawnerSystem] Fallback transform scan failed.");
+            Debug.LogError("[Spawner] Fallback transform scan failed.");
             return;
         }
 
@@ -342,7 +342,7 @@ public class SpawnerSystem : MonoBehaviour
 
             if (chosen == Vector2Int.zero && candidates.Count == 0)
             {
-                Debug.LogWarning("[SpawnerSystem] No tile available for spawning.");
+                Debug.LogWarning("[Spawner] No tile available for spawning.");
                 break;
             }
 

@@ -17,26 +17,26 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 
     [Header("Joystick Components")]
     [Tooltip("The background image of the joystick")]
-    [SerializeField] private RectTransform joystickBackground;
+    [SerializeField] public RectTransform joystickBackground;
 
     [Tooltip("The handle that moves within the joystick")]
-    [SerializeField] private RectTransform joystickHandle;
+    [SerializeField] public RectTransform joystickHandle;
 
     [Header("Joystick Settings")]
     [Tooltip("Maximum distance the handle can move from center")]
-    [SerializeField] private float handleRange = 50f;
+    [SerializeField] public float handleRange = 50f;
 
     [Tooltip("Minimum input magnitude to register (0-1)")]
-    [SerializeField][Range(0f, 1f)] private float deadZone = 0.1f;
+    [SerializeField][Range(0f, 1f)] public float deadZone = 0.1f;
 
     [Tooltip("Show/hide joystick when not in use")]
-    [SerializeField] private bool dynamicJoystick = true;
+    [SerializeField] public bool dynamicJoystick = true;
 
     [Tooltip("Opacity when joystick is idle")]
-    [SerializeField][Range(0f, 1f)] private float idleOpacity = 0.3f;
+    [SerializeField][Range(0f, 1f)] public float idleOpacity = 0.3f;
 
     [Tooltip("Opacity when joystick is active")]
-    [SerializeField][Range(0f, 1f)] private float activeOpacity = 1f;
+    [SerializeField][Range(0f, 1f)] public float activeOpacity = 1f;
 
     #endregion
 
@@ -44,7 +44,7 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 
     [Header("Jump Button")]
     [Tooltip("Jump button")]
-    [SerializeField] private Button jumpButton;
+    [SerializeField] public Button jumpButton;
 
     #endregion
 
@@ -52,10 +52,10 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 
     [Header("Settings")]
     [Tooltip("Enable mobile controls")]
-    [SerializeField] private bool enableMobileControls = true;
+    [SerializeField] public bool enableMobileControls = true;
 
     [Tooltip("Auto-detect platform (enable on mobile, disable on desktop)")]
-    [SerializeField] private bool autoDetectPlatform = true;
+    [SerializeField] public bool autoDetectPlatform = true;
 
     #endregion
 
@@ -71,7 +71,7 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 
     [Header("Debug")]
     [Tooltip("Show debug information")]
-    [SerializeField] private bool showDebug = false;
+    [SerializeField] public bool showDebug = false;
 
     #endregion
 

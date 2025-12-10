@@ -176,7 +176,7 @@ Assets/
 3. `AudioManager.cs` - Music and SFX
 4. `TimeController.cs` - SUPERHOT time mechanics
 5. `PawnHealth.cs` - Player + Opponent health
-6. `SpawnerSystem.cs` - Player + Opponent spawning
+6. `Spawner.cs` - Player + Opponent spawning
 7. `WeaponSystem.cs` - Firearm + Projectile + GunAiming
 8. `InputSystem.cs` - Mobile + Desktop input
 9. `UIManager.cs` - All UI screens

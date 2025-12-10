@@ -77,7 +77,7 @@ The codebase has been consolidated from 27 scripts to 15 for better maintainabil
 5. **PawnHealth.cs** - Unified health system (merged PlayerPawn + OpponentPawn)
    - Handles HP, damage, death, and visual feedback for both player and opponents
 
-6. **SpawnerSystem.cs** - Unified spawning (merged PlayerSpawner + PawnSpawner)
+6. **Spawner.cs** - Unified spawning (merged PlayerSpawner + PawnSpawner)
    - Spawns player at bottom-right, opponents in upper tiles with weighted probability
 
 7. **WeaponSystem.cs** - Unified weapon handling (merged Firearm + Projectile + GunAiming)
@@ -237,7 +237,7 @@ Assets/
 │   │   ├── PawnHealth.cs      # Player + Opponent health
 │   │   ├── Chequerboard.cs
 │   │   ├── HexGrid Generator.cs
-│   │   ├── SpawnerSystem.cs   # Player + Opponent spawning
+│   │   ├── Spawner.cs   # Player + Opponent spawning
 │   │   ├── Platform.cs
 │   │   ├── WeaponSystem.cs    # Firearm + Projectile + GunAiming
 │   │

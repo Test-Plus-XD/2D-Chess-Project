@@ -72,7 +72,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private HexGridGenerator gridGenerator;
 
     [Tooltip("Spawner system")]
-    [SerializeField] private SpawnerSystem spawnerSystem;
+    [SerializeField] private Spawner spawnerSystem;
 
     #endregion
 
@@ -143,7 +143,7 @@ public class GameManager : MonoBehaviour
 
         // Auto-find references
         if (gridGenerator == null) gridGenerator = FindFirstObjectByType<HexGridGenerator>();
-        if (spawnerSystem == null) spawnerSystem = FindFirstObjectByType<SpawnerSystem>();
+        if (spawnerSystem == null) spawnerSystem = FindFirstObjectByType<Spawner>();
         if (platformGenerator == null) platformGenerator = FindFirstObjectByType<Platform>();
     }
 
