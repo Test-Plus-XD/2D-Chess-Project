@@ -8,28 +8,37 @@ public class TimeController : MonoBehaviour
 
     [Header("Time Settings")]
     [Tooltip("Normal time scale (default 1.0)")]
+    // Time scale when player is moving (normal speed).
     [SerializeField][Range(0.1f, 2f)] private float normalTimeScale = 1f;
     [Tooltip("Slow motion time scale when player is idle")]
+    // Time scale when player is idle (slow motion).
     [SerializeField][Range(0.01f, 1f)] private float slowMotionTimeScale = 0.1f;
     [Tooltip("Minimum movement magnitude to trigger normal time")]
+    // Minimum player movement magnitude to trigger normal time scale.
     [SerializeField][Range(0.01f, 1f)] private float movementThreshold = 0.1f;
     [Tooltip("Speed of time scale transitions")]
+    // Speed at which time scale transitions between normal and slow motion.
     [SerializeField] private float transitionSpeed = 5f;
 
     [Header("Mode Settings")]
     [Tooltip("Enable slow motion effect")]
+    // Whether the slow motion effect is currently enabled.
     [SerializeField] private bool slowMotionEnabled = false;
     [Tooltip("Current time scale (viewable in inspector)")]
+    // Current time scale applied to the game.
     [SerializeField] private float currentTimeScale = 1f;
 
     [Header("Audio Pitch")]
     [Tooltip("Match audio pitch to time scale")]
+    // Whether to adjust audio pitch to match the time scale.
     [SerializeField] private bool adjustAudioPitch = true;
     [Tooltip("Minimum audio pitch")]
+    // Minimum pitch to prevent audio from becoming inaudible.
     [SerializeField][Range(0.1f, 1f)] private float minAudioPitch = 0.3f;
 
     [Header("Debug")]
     [Tooltip("Show debug information")]
+    // Enable debug logging for time scale changes.
     [SerializeField] private bool showDebug = false;
 
     // Target time scale for smooth transition.

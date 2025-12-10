@@ -10,49 +10,65 @@ public class AudioManager : MonoBehaviour
 
     [Header("Audio Sources")]
     [Tooltip("Audio source for music")]
+    // Audio source for background music playback.
     [SerializeField] private AudioSource musicSource;
     [Tooltip("Audio source for sound effects")]
+    // Audio source for playing sound effects.
     [SerializeField] private AudioSource sfxSource;
 
     [Header("Volume Settings")]
     [Tooltip("Master volume (0-1)")]
+    // Master volume multiplier applied to all audio.
     [SerializeField][Range(0f, 1f)] private float masterVolume = 1f;
     [Tooltip("Music volume (0-1)")]
+    // Volume multiplier for background music.
     [SerializeField][Range(0f, 1f)] private float musicVolume = 0.7f;
     [Tooltip("Sound effects volume (0-1)")]
+    // Volume multiplier for sound effects.
     [SerializeField][Range(0f, 1f)] private float sfxVolume = 0.8f;
 
     [Header("Music Settings")]
     [Tooltip("Fade duration when changing music")]
+    // Duration in seconds for music fade transitions.
     [SerializeField] private float musicFadeDuration = 1f;
     [Tooltip("Loop music by default")]
+    // Whether background music should loop when playing.
     [SerializeField] private bool loopMusic = true;
 
     [Header("Sound Effects Library")]
     [Tooltip("Button click sound")]
+    // Sound effect played when UI buttons are clicked.
     [SerializeField] private AudioClip buttonClickSound;
     [Tooltip("Pawn move sound")]
+    // Sound effect played when a pawn moves.
     [SerializeField] private AudioClip pawnMoveSound;
     [Tooltip("Pawn capture sound")]
+    // Sound effect played when a pawn is captured.
     [SerializeField] private AudioClip pawnCaptureSound;
     [Tooltip("Shooting sound")]
+    // Sound effect played when a weapon fires.
     [SerializeField] private AudioClip shootSound;
     [Tooltip("Player hit sound")]
+    // Sound effect played when the player takes damage.
     [SerializeField] private AudioClip playerHitSound;
     [Tooltip("Victory sound")]
+    // Sound effect played when the player wins.
     [SerializeField] private AudioClip victorySound;
     [Tooltip("Defeat sound")]
+    // Sound effect played when the player loses.
     [SerializeField] private AudioClip defeatSound;
     [Tooltip("Transition sound")]
+    // Sound effect played during scene transitions.
     [SerializeField] private AudioClip transitionSound;
 
     [Header("Debug")]
     [Tooltip("Show debug information")]
+    // Enable debug logging for audio events.
     [SerializeField] private bool showDebug = false;
 
     // Coroutine handle for music fade transitions.
     private Coroutine musicFadeCoroutine;
-    // Dictionary mapping sound names to audio clips.
+    // Dictionary mapping sound names to audio clips for quick lookup.
     private Dictionary<string, AudioClip> soundLibrary = new Dictionary<string, AudioClip>();
 
     private void Awake()

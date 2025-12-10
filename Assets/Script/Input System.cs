@@ -12,38 +12,50 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 
     [Header("Joystick Components")]
     [Tooltip("The background image of the joystick")]
+    // Background image of the joystick control.
     [SerializeField] public RectTransform joystickBackground;
     [Tooltip("The handle that moves within the joystick")]
+    // Handle that moves within the joystick bounds.
     [SerializeField] public RectTransform joystickHandle;
 
     [Header("Joystick Settings")]
     [Tooltip("Maximum distance the handle can move from center")]
+    // Maximum distance in pixels the joystick handle can move from center.
     [SerializeField] public float handleRange = 50f;
     [Tooltip("Minimum input magnitude to register (0-1)")]
+    // Minimum joystick input magnitude to register as valid input.
     [SerializeField][Range(0f, 1f)] public float deadZone = 0.1f;
     [Tooltip("Show/hide joystick when not in use")]
+    // Whether to show/hide joystick based on activity.
     [SerializeField] public bool dynamicJoystick = true;
     [Tooltip("Opacity when joystick is idle")]
+    // Opacity of joystick when not in use.
     [SerializeField][Range(0f, 1f)] public float idleOpacity = 0.3f;
     [Tooltip("Opacity when joystick is active")]
+    // Opacity of joystick when being used.
     [SerializeField][Range(0f, 1f)] public float activeOpacity = 1f;
 
     [Header("Jump Button")]
     [Tooltip("Jump button")]
+    // UI button that triggers the jump action.
     [SerializeField] public Button jumpButton;
 
     [Header("Settings")]
     [Tooltip("Enable mobile controls")]
+    // Whether to enable mobile touch-based controls.
     [SerializeField] public bool enableMobileControls = true;
     [Tooltip("Auto-detect platform (enable on mobile, disable on desktop)")]
+    // Automatically detect if running on mobile platform.
     [SerializeField] public bool autoDetectPlatform = true;
 
     [Header("Events")]
     [Tooltip("Called when jump button is pressed")]
+    // Event invoked when the jump button is pressed.
     public UnityEvent OnJumpPressed;
 
     [Header("Debug")]
     [Tooltip("Show debug information")]
+    // Enable debug logging for input events.
     [SerializeField] public bool showDebug = false;
 
     // Current input direction from joystick or keyboard.
