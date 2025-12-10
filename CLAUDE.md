@@ -22,7 +22,7 @@ This Unity 2D project is a hybrid tactical game combining:
 **Unity Version**: 6000.4.0a4
 
 **Game Inspirations:**
-- **Shotgun King: The Final Checkmate** - Chess mechanics reversed (player is the shotgun king)
+- **Shotgun King: The Final Checkmate** - Chess mechanics reversed (player is the pawn, opponent is the shotgun king)
 - **Fights in Tight Spaces** - Enemy modifiers and tactical card-based combat
 - **SUPERHOT** - Time manipulation mechanics (time moves when you move)
 - **Terraria** - Side-scrolling platformer combat style
