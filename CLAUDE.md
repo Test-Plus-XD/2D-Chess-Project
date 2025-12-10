@@ -622,9 +622,24 @@ Create new levels using ScriptableObjects:
 - **Comment Style**: Comprehensive and ample
   - Explain how functions and classes work
   - Comment logic flow and important calculations
-- **Field Formatting**: Place a single-line comment above each field to explain its purpose
+- **Field Formatting**: Use consistent pattern for all serialized and important fields
+  - Pattern: `[Tooltip] → // Comment → field declaration`
   - Do NOT leave blank lines between variable declarations
-  - Example:
+  - All [Tooltip] attributes required for Inspector fields
+  - Comments explain what the field does and why it matters
+  - Example (Serialized Fields):
+    ```csharp
+    [Header("Current State")]
+    [Tooltip("Current game state (viewable in inspector)")]
+    // Current game state for state machine management.
+    [SerializeField] private GameState currentState = GameState.MainMenu;
+
+    [Header("References")]
+    [Tooltip("Reference to the grid generator")]
+    // Hex grid generator for board creation and tile lookup.
+    [SerializeField] private HexGridGenerator gridGenerator;
+    ```
+  - Example (Private Fields):
     ```csharp
     // Singleton instance for easy access.
     public static GameManager Instance { get; private set; }
