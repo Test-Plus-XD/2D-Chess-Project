@@ -61,33 +61,36 @@ public class Checkerboard : MonoBehaviour
     public bool IsPlayerTurn() { return playerTurn; }
 
     // Main entry: call this after the player finishes a move to trigger opponents' turn.
-    // The method is safe-guarded so multiple calls while opponents are moving are ignored.
+    // The method is safeguarded so multiple calls while opponents are moving are ignored.
     public void OnPlayerMoved()
     {
-        if (!playerTurn) return; // Ignore if opponents are already moving
+        // Prevent re-triggering opponents' turn if they're already taking their turn
+        if (!playerTurn) return;
+        // Start the opponent turn sequence as a coroutine
         StartCoroutine(OpponentsTurnRoutine());
     }
 
-    // Coroutine that asks each opponent to move once (in sequence) and then returns control to player.
-    // Opponents turn routine now reads player's coords directly from the registered PlayerController
-    //private IEnumerator OpponentsTurnRoutine(int playerQ, int playerR)
+    // Coroutine that orchestrates all opponents' moves in sequence
+    // Each opponent gets a turn to: fire → move (1 or 2 times depending on Fleet modifier) → yield to next
+    // Then Reflexive modifiers recalculate aim, and control returns to player
     private IEnumerator OpponentsTurnRoutine()
     {
-        playerTurn = false; // Block player actions while opponents move
-        // Ensure opponent list is fresh (in case pawns were spawned since last refresh).
+        // Lock player input while opponents are moving
+        playerTurn = false;
+        // Ensure opponent list is fresh (in case pawns were spawned since last refresh)
         RefreshOpponents();
-        // Reset Moved flags before starting.
+        // Reset Moved flags before starting so each opponent's Moved flag starts false
         foreach (var opp in opponents) if (opp != null) opp.ResetMovedFlag();
 
-        // Read authoritative player coords at the start of the opponent phase
+        // Read authoritative player coords at the start of opponent phase (get current position)
         if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
         int playerQ = (playerController != null) ? playerController.q : 0;
         int playerR = (playerController != null) ? playerController.r : 0;
         Debug.Log($"[Checkerboard] Opponents turn starting. Player at {playerQ}_{playerR}. Opponent count={opponents.Count}");
 
-        // Iterate over a snapshot so modifications(like captures) don’t break the loop
+        // Iterate over a snapshot to prevent issues if opponents are destroyed during movement
         var snapshot = new List<PawnController>(opponents);
-        // Build initial occupied set from current opponent positions so two opponents don't aim for the same tile.
+        // Build occupied set from current opponent positions (prevents 2 opponents choosing same tile)
         HashSet<Vector2Int> occupied = new HashSet<Vector2Int>();
         foreach (var p in snapshot)
         {
@@ -99,59 +102,61 @@ public class Checkerboard : MonoBehaviour
         {
             if (opp == null) continue;
 
-            // Fire weapon at turn start (if pawn has firearm)
+            // Fire weapon at turn start (each opponent type has unique firing pattern)
             WeaponSystem weaponSystem = opp.GetComponent<WeaponSystem>();
             if (weaponSystem != null && opp.aiType != PawnController.AIType.Basic)
             {
+                // Fire once per turn (Handcannon/Shotgun/Sniper, not Basic)
                 weaponSystem.FireChessMode();
-                yield return new WaitForSeconds(0.2f); // Small delay after firing
+                yield return new WaitForSeconds(0.2f); // Small visual delay after firing
             }
 
-            // Fleet modifier: Extra move (move twice, but only shoot once)
+            // Fleet modifier grants extra move: move twice but only shoot once (already shot above)
             int movesThisTurn = opp.HasExtraMove() ? 2 : 1;
 
             for (int moveIndex = 0; moveIndex < movesThisTurn; moveIndex++)
             {
-                // Make this pawn free to choose (remove its current pos so it can rechoose it or move).
+                // Free current pawn position so it can rechoose or move to a new tile
                 occupied.Remove(new Vector2Int(opp.q, opp.r));
-                // Ask pawn to choose a target while blocking occupied tiles.
+                // Ask pawn AI to choose best move target while respecting occupied tiles
                 int tgtQ, tgtR;
                 bool chosen = opp.ChooseMoveTarget(playerQ, playerR, occupied, out tgtQ, out tgtR);
                 if (!chosen)
                 {
-                    // No valid target (all neighbors blocked); re-reserve the pawn's current tile to avoid others taking it.
+                    // No valid move available (all neighbors occupied) - pawn skips remaining moves
                     occupied.Add(new Vector2Int(opp.q, opp.r));
                     break; // Stop extra moves if no valid target
                 }
-                // Reserve target so subsequent opponents can't pick it.
+                // Reserve target so subsequent opponents don't choose this tile
                 occupied.Add(new Vector2Int(tgtQ, tgtR));
-                // Tell the pawn to move to the chosen reserved target.
+                // Execute movement coroutine (smooth animation + capture check)
                 bool started = opp.ExecuteAIMoveTo(tgtQ, tgtR);
                 if (!started)
                 {
-                    // If move failed for some reason, free the reservation so others might take it.
+                    // Move failed for some reason - free the reservation
                     occupied.Remove(new Vector2Int(tgtQ, tgtR));
                     occupied.Add(new Vector2Int(opp.q, opp.r));
                     break; // Stop extra moves if move failed
                 }
-                // Wait for the pawn to complete its move (same as your old code).
+                // Wait for pawn to complete movement animation (with timeout to prevent hangs)
                 float timer = 0f; float timeout = 2f;
                 while (!opp.Moved && timer < timeout)
                 {
                     timer += Time.deltaTime;
                     yield return null;
                 }
-                // Reset Moved flag for next move in Fleet
+                // Reset Moved flag for next move in Fleet turn
                 if (moveIndex < movesThisTurn - 1)
                 {
                     opp.ResetMovedFlag();
                 }
-                // Small delay for visuals.
+                // Small delay between moves for visual pacing
                 if (opponentMoveDelay > 0f) yield return new WaitForSeconds(opponentMoveDelay);
             }
         }
 
-        // After all opponents move, handle Reflexive modifier (recalculate aim after player moves)
+        // After all opponents move, handle Reflexive modifier (recalculate aim at new player position)
+        // Reflexive gives opponent tactical advantage by allowing mid-turn aim adjustment
         foreach (var opp in opponents)
         {
             if (opp == null) continue;
@@ -160,11 +165,12 @@ public class Checkerboard : MonoBehaviour
                 WeaponSystem weapon = opp.GetComponent<WeaponSystem>();
                 if (weapon != null)
                 {
+                    // Recalculate aiming direction now that player has moved
                     weapon.RecalculateAim();
                 }
             }
         }
-        // Opponents done, allow player to act again.
+        // Opponents done - unlock player input for next turn
         playerTurn = true;
     }
 

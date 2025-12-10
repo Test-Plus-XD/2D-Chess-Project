@@ -356,13 +356,15 @@ public class WeaponSystem : MonoBehaviour
 
     private void UpdateStandoffAiming(Vector2 toPlayer)
     {
+        // Get fire interval and delay with modifier adjustments (e.g., Confrontational -25%, Observant -50%)
         float adjustedInterval = GetAdjustedFireInterval();
         float adjustedDelay = GetAdjustedFiringDelay();
         float timeSinceIntervalStart = Time.time - intervalStartTime;
 
-        // Check if we should enter firing delay phase
+        // Check if we should enter firing delay phase (after fire interval has elapsed)
         if (!isInFiringDelay && timeSinceIntervalStart >= adjustedInterval)
         {
+            // Lock current aim direction to prevent tracking during delay
             isInFiringDelay = true;
             firingDelayStartTime = Time.time;
             lockedAimDirection = currentAimDirection;
@@ -373,22 +375,22 @@ public class WeaponSystem : MonoBehaviour
             }
         }
 
-        // If in firing delay phase
+        // If in firing delay phase (stop tracking, prepare to fire)
         if (isInFiringDelay)
         {
             float timeSinceDelayStart = Time.time - firingDelayStartTime;
 
-            // Hold position and aim during delay
-            currentAimDirection = lockedAimDirection;
+            // Hold position and aim frozen during delay period
+            currentAimDirection = lockedAimDirection; // FROZEN AIM
 
             // Fire after delay completes
             if (timeSinceDelayStart >= adjustedDelay)
             {
-                Fire();
+                Fire(); // SHOOT!
 
-                // Reset to tracking phase
+                // Reset to tracking phase for next cycle
                 isInFiringDelay = false;
-                intervalStartTime = Time.time;
+                intervalStartTime = Time.time; // RESTART INTERVAL
 
                 if (showDebug)
                 {
@@ -398,22 +400,28 @@ public class WeaponSystem : MonoBehaviour
         }
         else
         {
-            // Tracking phase: Follow player with angular velocity
+            // Tracking phase: Follow player with angular velocity until interval expires
             targetAimDirection = toPlayer;
 
-            // Reflexive modifier: Gun fixed on player (instant tracking)
+            // Reflexive modifier: Gun fixed on player (instant tracking, no lerp)
             if (pawnController != null && pawnController.ShouldFixGunOnPlayer())
             {
+                // Lock instantly to target (matches "Reflexive" modifier instant tracking)
                 currentAimDirection = targetAimDirection;
             }
             else
             {
-                // Normal tracking with angular velocity
+                // Normal tracking with angular velocity (allows for slow gun turning)
+                // Calculate maximum rotation allowed this frame based on angular velocity
                 float maxRotationThisFrame = trackingAngularVelocity * Time.deltaTime;
+                // Convert current and target directions to angles for proper interpolation
                 float currentAngle = Mathf.Atan2(currentAimDirection.y, currentAimDirection.x) * Mathf.Rad2Deg;
                 float targetAngle = Mathf.Atan2(targetAimDirection.y, targetAimDirection.x) * Mathf.Rad2Deg;
+                // Use DeltaAngle to get shortest rotation path (handles 359→1 degree wrap)
                 float angleDiff = Mathf.DeltaAngle(currentAngle, targetAngle);
+                // Clamp rotation to max allowed this frame
                 float rotationAmount = Mathf.Clamp(angleDiff, -maxRotationThisFrame, maxRotationThisFrame);
+                // Apply rotation and convert back to direction vector
                 float newAngle = currentAngle + rotationAmount;
                 currentAimDirection = new Vector2(Mathf.Cos(newAngle * Mathf.Deg2Rad), Mathf.Sin(newAngle * Mathf.Deg2Rad));
             }
@@ -514,61 +522,66 @@ public class WeaponSystem : MonoBehaviour
 
     private void Fire()
     {
+        // Record fire time for cooldown tracking
         lastFireTime = Time.time;
         lastShotTime = Time.time;
 
+        // Play firing sound effect
         if (fireSound != null && audioSource != null)
         {
             audioSource.PlayOneShot(fireSound, fireVolume);
         }
 
+        // Trigger gun animation (e.g., recoil animation)
         if (gunAnimator != null && !string.IsNullOrEmpty(fireAnimationTrigger))
         {
             gunAnimator.SetTrigger(fireAnimationTrigger);
         }
 
+        // Spawn muzzle flash visual effect (auto-destroy after 0.1s)
         if (muzzleFlashPrefab != null)
         {
             GameObject flash = Instantiate(muzzleFlashPrefab, firePoint.position, Quaternion.identity);
             Destroy(flash, 0.1f);
         }
 
+        // Apply physical recoil in Standoff mode (pushes pawn backward)
         if (isInStandoffMode && enableRecoil && rigidBody != null)
         {
             ApplyRecoil();
         }
 
-        // Fire based on AI type
+        // Fire based on AI type (each type has unique firing pattern)
         if (pawnController != null)
         {
             switch (pawnController.aiType)
             {
                 case PawnController.AIType.Basic:
-                    // Basic doesn't shoot (but might if converted to Handcannon)
+                    // Basic doesn't shoot normally (but spawns projectile if converted to Handcannon)
                     SpawnProjectile(currentAimDirection);
                     break;
 
                 case PawnController.AIType.Handcannon:
-                    // Handcannon: Single bullet, 1 damage
+                    // Handcannon: Single bullet, 1 damage (mid-range specialist)
                     SpawnProjectile(currentAimDirection, damage: 1);
                     break;
 
                 case PawnController.AIType.Shotgun:
-                    // Shotgun: 3 bullets (0°, +60°, -60°), 1 damage each
+                    // Shotgun: 3 bullets in spread pattern (0°, +60°, -60°), 1 damage each
                     SpawnProjectile(currentAimDirection, damage: 1);
                     SpawnProjectile(RotateVector(currentAimDirection, 60f), damage: 1);
                     SpawnProjectile(RotateVector(currentAimDirection, -60f), damage: 1);
                     break;
 
                 case PawnController.AIType.Sniper:
-                    // Sniper: Single bullet, 2 damage, piercing
+                    // Sniper: Single bullet, 2 damage, pierces once for additional 1 damage (high damage, piercing)
                     SpawnProjectile(currentAimDirection, damage: 2, piercing: true);
                     break;
             }
         }
         else
         {
-            // Fallback to projectile type if no pawn controller
+            // Fallback: Fire based on projectile type if no pawn controller found
             switch (projectileType)
             {
                 case ProjectileType.Single:
@@ -586,18 +599,22 @@ public class WeaponSystem : MonoBehaviour
         }
     }
 
-    /// Get adjusted fire interval based on modifier
+    /// Get adjusted fire interval based on modifier applied to the pawn
     private float GetAdjustedFireInterval()
     {
         if (pawnController == null) return fireInterval;
+        // Apply modifier multiplier (e.g., Confrontational = 0.75x => 25% faster firing)
         return fireInterval * pawnController.GetFireIntervalMultiplier();
+        // Example: Confrontational modifier = 0.75x (25% reduced interval = fires more frequently)
     }
 
-    /// Get adjusted firing delay based on modifier
+    /// Get adjusted firing delay based on modifier applied to the pawn
     private float GetAdjustedFiringDelay()
     {
         if (pawnController == null) return firingDelay;
+        // Apply modifier multiplier (e.g., Observant = 0.5x => 50% faster, Reflexive = 0.75x => 25% faster)
         return firingDelay * pawnController.GetFiringDelayMultiplier();
+        // Example: Observant modifier = 0.5x (0.5s delay → 0.25s delay, fires sooner)
     }
 
     private void ApplyRecoil()

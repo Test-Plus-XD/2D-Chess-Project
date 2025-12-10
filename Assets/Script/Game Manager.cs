@@ -166,10 +166,13 @@ public class GameManager : MonoBehaviour
 
     #region Public Methods - State Management
 
+    /// Transition to a new game state (MainMenu → LevelSelect → ChessMode → Standoff → Victory/Defeat)
     public void SetState(GameState newState)
     {
+        // Ignore redundant state changes
         if (currentState == newState) return;
 
+        // Record previous state for transition handling
         GameState previousState = currentState;
         currentState = newState;
 
@@ -178,7 +181,9 @@ public class GameManager : MonoBehaviour
             Debug.Log($"Game state changed: {previousState} -> {newState}");
         }
 
+        // Notify listeners of state change
         OnStateChanged?.Invoke(newState);
+        // Execute state-specific transition logic
         HandleStateTransition(previousState, newState);
     }
 
