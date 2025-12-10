@@ -212,8 +212,8 @@ public class UIManager : MonoBehaviour
         SetupAllButtons();
         SetupSliders();
 
-        playerHealth = FindObjectOfType<PawnHealth>();
-        checkerboard = FindObjectOfType<Checkerboard>();
+        playerHealth = FindFirstObjectByType<PawnHealth>();
+        checkerboard = FindFirstObjectByType<Checkerboard>();
 
         if (playerHealth != null)
         {
@@ -663,7 +663,7 @@ public class UIManager : MonoBehaviour
     {
         if (playerHealth == null)
         {
-            playerHealth = FindObjectOfType<PawnHealth>();
+            playerHealth = FindFirstObjectByType<PawnHealth>();
             if (playerHealth != null)
             {
                 playerHealth.OnHPChanged.AddListener(OnPlayerHPChanged);
@@ -728,7 +728,7 @@ public class UIManager : MonoBehaviour
         {
             if (checkerboard == null)
             {
-                checkerboard = FindObjectOfType<Checkerboard>();
+                checkerboard = FindFirstObjectByType<Checkerboard>();
             }
 
             if (checkerboard != null)

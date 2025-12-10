@@ -48,9 +48,6 @@ public class GameManager : MonoBehaviour
     [Tooltip("Delay before transitioning to Standoff mode")]
     [SerializeField] private float standoffTransitionDelay = 1.5f;
 
-    [Tooltip("Duration of transition fade effect")]
-    [SerializeField] private float transitionDuration = 1f;
-
     [Header("Standoff Settings")]
     [Tooltip("Minimum opponents remaining to trigger Standoff")]
     [SerializeField] private int standoffTriggerCount = 1;
@@ -145,16 +142,16 @@ public class GameManager : MonoBehaviour
         }
 
         // Auto-find references
-        if (gridGenerator == null) gridGenerator = FindObjectOfType<HexGridGenerator>();
-        if (spawnerSystem == null) spawnerSystem = FindObjectOfType<SpawnerSystem>();
-        if (platformGenerator == null) platformGenerator = FindObjectOfType<Platform>();
+        if (gridGenerator == null) gridGenerator = FindFirstObjectByType<HexGridGenerator>();
+        if (spawnerSystem == null) spawnerSystem = FindFirstObjectByType<SpawnerSystem>();
+        if (platformGenerator == null) platformGenerator = FindFirstObjectByType<Platform>();
     }
 
     private void Start()
     {
-        if (checkerboard == null) checkerboard = FindObjectOfType<Checkerboard>();
-        if (platformGenerator == null) platformGenerator = FindObjectOfType<Platform>();
-        if (playerController == null) playerController = FindObjectOfType<PlayerController>();
+        if (checkerboard == null) checkerboard = FindFirstObjectByType<Checkerboard>();
+        if (platformGenerator == null) platformGenerator = FindFirstObjectByType<Platform>();
+        if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
     }
 
     private void Update()
