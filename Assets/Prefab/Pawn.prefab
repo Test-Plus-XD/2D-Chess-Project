@@ -58,7 +58,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -100,7 +100,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8220362534732780499}
-  - component: {fileID: 6069127514370944923}
   - component: {fileID: 4125179561108870762}
   - component: {fileID: 4718072739672187271}
   - component: {fileID: -2306292687554822088}
@@ -128,30 +127,6 @@ Transform:
   - {fileID: 4878062388068553741}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &6069127514370944923
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1490730411366956168}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a3bfcd992302a11428e2643078a7e5c3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::OpponentPawn
-  MaxHP: 1
-  HP: 0
-  hpSprites:
-  - {fileID: 21300000, guid: b3e1163275d819d4598cb182bb245b3e, type: 3}
-  - {fileID: 21300000, guid: e991c1a6202c3dd46a6c89015983baca, type: 3}
-  expelForce: 8
-  verticalImpulse: 4
-  expelTorque: 6
-  expelDelay: 2
-  destroyDelay: 1.6
-  bringCloserScale: 12
-  bringCloserDuration: 0.1
 --- !u!114 &4125179561108870762
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -171,6 +146,19 @@ MonoBehaviour:
   Moved: 0
   q: 0
   r: 0
+  modifierIconImage: {fileID: 0}
+  tenaciousIcon: {fileID: 0}
+  confrontationalIcon: {fileID: 0}
+  fleetIcon: {fileID: 0}
+  observantIcon: {fileID: 0}
+  reflexiveIcon: {fileID: 0}
+  standoffMoveSpeed: 3
+  jumpForce: 8
+  groundCheckDistance: 0.1
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  aiThinkInterval: 0.5
 --- !u!61 &4718072739672187271
 BoxCollider2D:
   m_ObjectHideFlags: 0
