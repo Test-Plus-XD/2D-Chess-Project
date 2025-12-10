@@ -604,7 +604,7 @@ Create new levels using ScriptableObjects:
   - Example: `private const float MAX_SPEED = 10f;`
   - Example: `private static readonly float DEFAULT_SPEED = 5f;`
 - **Methods**: PascalCase
-- **Regions**: Code organized with `#region` blocks
+- **Regions**: Use `#region` blocks only if the script will exceed 500 lines; remove them for scripts with 400 lines or fewer
 - **Descriptive Naming**: Prefer full descriptive names over abbreviations
   - Good: `rigidBody`, `mainCamera`, `playerTransform`
   - Avoid: `rb`, `cam`, `pt`
@@ -622,7 +622,17 @@ Create new levels using ScriptableObjects:
 - **Comment Style**: Comprehensive and ample
   - Explain how functions and classes work
   - Comment logic flow and important calculations
-  - No blank lines between variable declarations
+- **Field Formatting**: Place a single-line comment above each field to explain its purpose
+  - Do NOT leave blank lines between variable declarations
+  - Example:
+    ```csharp
+    // Singleton instance for easy access.
+    public static GameManager Instance { get; private set; }
+    // Currently loaded level data.
+    private LevelData currentLevelData;
+    // Current level index.
+    private int currentLevelIndex = 0;
+    ```
 - **Focus**: Comments explain the "why" and "how", not just the "what"
 
 ### Unity-Specific

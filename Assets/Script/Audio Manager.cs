@@ -5,60 +5,44 @@ using System.Collections.Generic;
 /// Manages all audio including music and sound effects
 public class AudioManager : MonoBehaviour
 {
-    #region Singleton
-
+    // Singleton instance for easy access.
     public static AudioManager Instance { get; private set; }
-
-    #endregion
-
-    #region Inspector Fields
 
     [Header("Audio Sources")]
     [Tooltip("Audio source for music")]
     [SerializeField] private AudioSource musicSource;
-
     [Tooltip("Audio source for sound effects")]
     [SerializeField] private AudioSource sfxSource;
 
     [Header("Volume Settings")]
     [Tooltip("Master volume (0-1)")]
     [SerializeField][Range(0f, 1f)] private float masterVolume = 1f;
-
     [Tooltip("Music volume (0-1)")]
     [SerializeField][Range(0f, 1f)] private float musicVolume = 0.7f;
-
     [Tooltip("Sound effects volume (0-1)")]
     [SerializeField][Range(0f, 1f)] private float sfxVolume = 0.8f;
 
     [Header("Music Settings")]
     [Tooltip("Fade duration when changing music")]
     [SerializeField] private float musicFadeDuration = 1f;
-
     [Tooltip("Loop music by default")]
     [SerializeField] private bool loopMusic = true;
 
     [Header("Sound Effects Library")]
     [Tooltip("Button click sound")]
     [SerializeField] private AudioClip buttonClickSound;
-
     [Tooltip("Pawn move sound")]
     [SerializeField] private AudioClip pawnMoveSound;
-
     [Tooltip("Pawn capture sound")]
     [SerializeField] private AudioClip pawnCaptureSound;
-
     [Tooltip("Shooting sound")]
     [SerializeField] private AudioClip shootSound;
-
     [Tooltip("Player hit sound")]
     [SerializeField] private AudioClip playerHitSound;
-
     [Tooltip("Victory sound")]
     [SerializeField] private AudioClip victorySound;
-
     [Tooltip("Defeat sound")]
     [SerializeField] private AudioClip defeatSound;
-
     [Tooltip("Transition sound")]
     [SerializeField] private AudioClip transitionSound;
 
@@ -66,16 +50,10 @@ public class AudioManager : MonoBehaviour
     [Tooltip("Show debug information")]
     [SerializeField] private bool showDebug = false;
 
-    #endregion
-
-    #region Private Fields
-
+    // Coroutine handle for music fade transitions.
     private Coroutine musicFadeCoroutine;
+    // Dictionary mapping sound names to audio clips.
     private Dictionary<string, AudioClip> soundLibrary = new Dictionary<string, AudioClip>();
-
-    #endregion
-
-    #region Unity Lifecycle
 
     private void Awake()
     {
@@ -115,10 +93,6 @@ public class AudioManager : MonoBehaviour
         // Apply initial volumes
         UpdateVolumes();
     }
-
-    #endregion
-
-    #region Public Methods - Music
 
     /// Play music clip
     public void PlayMusic(AudioClip clip, bool fade = true)
@@ -173,10 +147,6 @@ public class AudioManager : MonoBehaviour
     {
         musicSource.UnPause();
     }
-
-    #endregion
-
-    #region Public Methods - Sound Effects
 
     /// Play sound effect
     public void PlaySFX(AudioClip clip, float volumeMultiplier = 1f)
@@ -252,10 +222,6 @@ public class AudioManager : MonoBehaviour
         PlaySFX(transitionSound);
     }
 
-    #endregion
-
-    #region Public Methods - Volume Control
-
     /// Set master volume
     public void SetMasterVolume(float volume)
     {
@@ -285,10 +251,6 @@ public class AudioManager : MonoBehaviour
 
     /// Get SFX volume
     public float GetSFXVolume() => sfxVolume;
-
-    #endregion
-
-    #region Private Methods
 
     private void InitializeSoundLibrary()
     {
@@ -366,6 +328,4 @@ public class AudioManager : MonoBehaviour
         musicSource.volume = startVolume;
         musicFadeCoroutine = null;
     }
-
-    #endregion
 }

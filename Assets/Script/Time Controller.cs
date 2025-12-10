@@ -3,38 +3,28 @@ using UnityEngine;
 /// Controls time scale for SUPERHOT-style slow motion during Standoff mode
 public class TimeController : MonoBehaviour
 {
-    #region Singleton
-
+    // Singleton instance for easy access.
     public static TimeController Instance { get; private set; }
-
-    #endregion
-
-    #region Inspector Fields
 
     [Header("Time Settings")]
     [Tooltip("Normal time scale (default 1.0)")]
     [SerializeField][Range(0.1f, 2f)] private float normalTimeScale = 1f;
-
     [Tooltip("Slow motion time scale when player is idle")]
     [SerializeField][Range(0.01f, 1f)] private float slowMotionTimeScale = 0.1f;
-
     [Tooltip("Minimum movement magnitude to trigger normal time")]
     [SerializeField][Range(0.01f, 1f)] private float movementThreshold = 0.1f;
-
     [Tooltip("Speed of time scale transitions")]
     [SerializeField] private float transitionSpeed = 5f;
 
     [Header("Mode Settings")]
     [Tooltip("Enable slow motion effect")]
     [SerializeField] private bool slowMotionEnabled = false;
-
     [Tooltip("Current time scale (viewable in inspector)")]
     [SerializeField] private float currentTimeScale = 1f;
 
     [Header("Audio Pitch")]
     [Tooltip("Match audio pitch to time scale")]
     [SerializeField] private bool adjustAudioPitch = true;
-
     [Tooltip("Minimum audio pitch")]
     [SerializeField][Range(0.1f, 1f)] private float minAudioPitch = 0.3f;
 
@@ -42,27 +32,17 @@ public class TimeController : MonoBehaviour
     [Tooltip("Show debug information")]
     [SerializeField] private bool showDebug = false;
 
-    #endregion
-
-    #region Private Fields
-
+    // Target time scale for smooth transition.
     private float targetTimeScale;
+    // Whether the player is currently moving.
     private bool isPlayerMoving = false;
+    // Cached array of all audio sources in the scene.
     private AudioSource[] audioSources;
-
-    #endregion
-
-    #region Properties
 
     /// Check if slow motion is currently enabled
     public bool IsSlowMotionEnabled => slowMotionEnabled;
-
     /// Get the current time scale
     public float CurrentTimeScale => currentTimeScale;
-
-    #endregion
-
-    #region Unity Lifecycle
 
     private void Awake()
     {
@@ -112,10 +92,6 @@ public class TimeController : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region Public Methods
-
     /// Enable or disable slow motion effect
     public void SetSlowMotionEnabled(bool enabled)
     {
@@ -160,10 +136,6 @@ public class TimeController : MonoBehaviour
         AdjustAudioPitch(1f);
     }
 
-    #endregion
-
-    #region Private Methods
-
     private void CheckPlayerMovement()
     {
         // Check for input from mobile or keyboard
@@ -203,10 +175,6 @@ public class TimeController : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region Editor Helpers
-
     private void OnValidate()
     {
         // Ensure slow motion scale is less than normal
@@ -215,6 +183,4 @@ public class TimeController : MonoBehaviour
             slowMotionTimeScale = normalTimeScale * 0.5f;
         }
     }
-
-    #endregion
 }

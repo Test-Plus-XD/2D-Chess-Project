@@ -7,95 +7,66 @@ using UnityEngine.EventSystems;
 // Consolidates MobileInputManager and VirtualJoystick functionality.
 public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IDragHandler
 {
-    #region Singleton
-
+    // Singleton instance for easy access.
     public static InputSystem Instance { get; private set; }
-
-    #endregion
-
-    #region Inspector Fields - Joystick
 
     [Header("Joystick Components")]
     [Tooltip("The background image of the joystick")]
     [SerializeField] public RectTransform joystickBackground;
-
     [Tooltip("The handle that moves within the joystick")]
     [SerializeField] public RectTransform joystickHandle;
 
     [Header("Joystick Settings")]
     [Tooltip("Maximum distance the handle can move from center")]
     [SerializeField] public float handleRange = 50f;
-
     [Tooltip("Minimum input magnitude to register (0-1)")]
     [SerializeField][Range(0f, 1f)] public float deadZone = 0.1f;
-
     [Tooltip("Show/hide joystick when not in use")]
     [SerializeField] public bool dynamicJoystick = true;
-
     [Tooltip("Opacity when joystick is idle")]
     [SerializeField][Range(0f, 1f)] public float idleOpacity = 0.3f;
-
     [Tooltip("Opacity when joystick is active")]
     [SerializeField][Range(0f, 1f)] public float activeOpacity = 1f;
-
-    #endregion
-
-    #region Inspector Fields - Jump Button
 
     [Header("Jump Button")]
     [Tooltip("Jump button")]
     [SerializeField] public Button jumpButton;
 
-    #endregion
-
-    #region Inspector Fields - Settings
-
     [Header("Settings")]
     [Tooltip("Enable mobile controls")]
     [SerializeField] public bool enableMobileControls = true;
-
     [Tooltip("Auto-detect platform (enable on mobile, disable on desktop)")]
     [SerializeField] public bool autoDetectPlatform = true;
-
-    #endregion
-
-    #region Inspector Fields - Events
 
     [Header("Events")]
     [Tooltip("Called when jump button is pressed")]
     public UnityEvent OnJumpPressed;
 
-    #endregion
-
-    #region Inspector Fields - Debug
-
     [Header("Debug")]
     [Tooltip("Show debug information")]
     [SerializeField] public bool showDebug = false;
 
-    #endregion
-
-    #region Private Fields
-
+    // Current input direction from joystick or keyboard.
     private Vector2 inputVector;
+    // Canvas group for opacity control.
     private CanvasGroup canvasGroup;
+    // Whether the joystick is currently active.
     private bool isJoystickActive = false;
+    // Whether jump input was pressed this frame.
     private bool jumpInputThisFrame = false;
 
-    #endregion
-
-    #region Properties
-
+    // Direction input clamped by dead zone.
     public Vector2 Direction => inputVector.magnitude > deadZone ? inputVector : Vector2.zero;
+    // Horizontal component of direction.
     public float Horizontal => Direction.x;
+    // Vertical component of direction.
     public float Vertical => Direction.y;
+    // Movement from either mobile or desktop input.
     public Vector2 Movement => enableMobileControls ? Direction : new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+    // Whether jump button was pressed.
     public bool JumpPressed => jumpInputThisFrame;
+    // Whether joystick is currently active.
     public bool IsJoystickActive => isJoystickActive;
-
-    #endregion
-
-    #region Unity Lifecycle
 
     private void Awake()
     {
@@ -180,10 +151,6 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
         jumpInputThisFrame = false;
     }
 
-    #endregion
-
-    #region Event Handlers - Joystick
-
     public void OnPointerDown(PointerEventData eventData)
     {
         isJoystickActive = true;
@@ -231,10 +198,6 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
             }
         }
     }
-
-    #endregion
-
-    #region Public Methods
 
     public void SetMobileControls(bool enabled)
     {
@@ -286,6 +249,4 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
             canvasGroup.alpha = opacity;
         }
     }
-
-    #endregion
 }
