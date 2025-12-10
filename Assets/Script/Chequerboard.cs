@@ -12,7 +12,7 @@ public class Checkerboard : MonoBehaviour
     // Cached list of opponent PawnController instances.
     private List<PawnController> opponents = new List<PawnController>();
     // Cached reference to the player's PlayerController (optional).
-    private PlayerController playerController;
+    public PlayerController playerController;
     // If true the player may act; set to false while opponents are moving.
     private bool playerTurn = true;
     // Delay between opponent moves for visual pacing.
