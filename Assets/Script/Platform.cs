@@ -107,17 +107,18 @@ public class Platform : MonoBehaviour
 
     private void Awake()
     {
-        InitializeHexDirections();
+        // Disable the GameObject on start
+        gameObject.SetActive(false);
+    }
 
+    private void Start()
+    {
+        InitializeHexDirections();
         if (parentContainer == null)
         {
             GameObject container = new GameObject("StandoffArena");
             parentContainer = container.transform;
         }
-    }
-
-    private void Start()
-    {
         GenerateArena();
     }
 
