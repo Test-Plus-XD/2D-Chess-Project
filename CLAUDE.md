@@ -604,7 +604,7 @@ Create new levels using ScriptableObjects:
   - Example: `private const float MAX_SPEED = 10f;`
   - Example: `private static readonly float DEFAULT_SPEED = 5f;`
 - **Methods**: PascalCase
-- **Regions**: Use `#region` blocks only if the script will exceed 500 lines; remove them for scripts with 400 lines or fewer
+- **Regions**: Use `#region` blocks sparingly - limit to one `#region` per 200 lines of code (e.g., a 400-line script should have max 2 regions, 600-line script max 3 regions). Remove #region entirely for scripts under 200 lines.
 - **Descriptive Naming**: Prefer full descriptive names over abbreviations
   - Good: `rigidBody`, `mainCamera`, `playerTransform`
   - Avoid: `rb`, `cam`, `pt`
