@@ -285,7 +285,7 @@ public class WeaponSystem : MonoBehaviour
 
     private void FindPlayer()
     {
-        PlayerController player = FindObjectOfType<PlayerController>();
+        PlayerController player = FindFirstObjectByType<PlayerController>();
         if (player != null)
         {
             playerTransform = player.transform;

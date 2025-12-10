@@ -36,7 +36,7 @@ public class FollowCamera : MonoBehaviour
     public static FollowCamera Instance { get; private set; }
 
     // Cached camera reference.
-    private Camera camera;
+    private new Camera camera;
     // Velocity vector used by SmoothDamp for position smoothing.
     private Vector3 positionVelocity = Vector3.zero;
     // Velocity float used by SmoothDamp for size smoothing.

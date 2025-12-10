@@ -59,7 +59,7 @@ public class PlayerController : MonoBehaviour
 
     #region Shared Fields
     // Cached camera reference for screen->world conversion.
-    private Camera camera;
+    private new Camera camera;
     #endregion
 
     // Enable EnhancedTouch when this component is enabled to get reliable touch phases.
@@ -112,7 +112,7 @@ public class PlayerController : MonoBehaviour
         // Configure Rigidbody2D for Chess mode by default
         if (rigidBody != null)
         {
-            rigidBody.isKinematic = true;
+            rigidBody.bodyType = RigidbodyType2D.Kinematic;
             rigidBody.gravityScale = 0f;
         }
 
@@ -153,7 +153,7 @@ public class PlayerController : MonoBehaviour
             // Configure for Standoff mode (platformer physics)
             if (rigidBody != null)
             {
-                rigidBody.isKinematic = false;
+                rigidBody.bodyType = RigidbodyType2D.Dynamic;
                 rigidBody.gravityScale = 2f;
                 rigidBody.constraints = RigidbodyConstraints2D.FreezeRotation;
             }
@@ -171,7 +171,7 @@ public class PlayerController : MonoBehaviour
             // Configure for Chess mode (kinematic movement)
             if (rigidBody != null)
             {
-                rigidBody.isKinematic = true;
+                rigidBody.bodyType = RigidbodyType2D.Kinematic;
                 rigidBody.gravityScale = 0f;
                 rigidBody.linearVelocity = Vector2.zero;
             }
@@ -234,9 +234,9 @@ public class PlayerController : MonoBehaviour
         CheckGroundStatus();
 
         // Handle jump input
-        if (MobileInputManager.Instance != null)
+        if (InputSystem.Instance != null)
         {
-            if (MobileInputManager.Instance.JumpPressed && isGrounded && canJump)
+            if (InputSystem.Instance.JumpPressed && isGrounded && canJump)
             {
                 Jump();
             }
@@ -276,9 +276,9 @@ public class PlayerController : MonoBehaviour
 
     private float GetHorizontalInput()
     {
-        if (MobileInputManager.Instance != null)
+        if (InputSystem.Instance != null)
         {
-            return MobileInputManager.Instance.Horizontal;
+            return InputSystem.Instance.Horizontal;
         }
         return Input.GetAxisRaw("Horizontal");
     }
@@ -322,16 +322,16 @@ public class PlayerController : MonoBehaviour
         if (opponent != null)
         {
             // Win condition: capture opponent in Standoff mode
-            OpponentPawn opPawn = opponent.GetComponent<OpponentPawn>();
+            PawnHealth opPawn = opponent.GetComponent<PawnHealth>();
             if (opPawn != null)
             {
-                opPawn.TakeDamage(opPawn.HP, "Player Capture");
+                opPawn.TakeDamage(opPawn.MaxHP, "Player Capture");
             }
 
             // Trigger victory
-            if (GameStateManager.Instance != null)
+            if (GameManager.Instance != null)
             {
-                GameStateManager.Instance.TriggerVictory();
+                GameManager.Instance.SetGameState(GameManager.GameState.Victory);
             }
         }
     }
@@ -507,16 +507,16 @@ public class PlayerController : MonoBehaviour
             if (opp.q == coordQ && opp.r == coordR)
             {
                 // Found an opponent at this tile; attempt capture.
-                OpponentPawn opPawn = opp.GetComponent<OpponentPawn>();
+                PawnHealth opPawn = opp.GetComponent<PawnHealth>();
                 if (opPawn != null)
                 {
                     // Capture deals damage equal to opponent HP (this kills 1HP opponents).
-                    opPawn.TakeDamage(opPawn.HP, "Player");
+                    opPawn.TakeDamage(opPawn.MaxHP, "Player");
                 }
                 else
                 {
-                    // If OpponentPawn not present, destroy PawnController GameObject as fallback.
-                    Debug.LogWarning("[PlayerController] Opponent missing OpponentPawn component - destroying controller object.");
+                    // If PawnHealth not present, destroy PawnController GameObject as fallback.
+                    Debug.LogWarning("[PlayerController] Opponent missing PawnHealth component - destroying controller object.");
                     Destroy(opp.gameObject);
                 }
                 // Stop after first occupant (adjust if stacking allowed and you want different behaviour).

@@ -75,7 +75,7 @@ public class PawnController : MonoBehaviour
         // Configure Rigidbody2D for Chess mode by default
         if (rigidBody != null)
         {
-            rigidBody.isKinematic = true;
+            rigidBody.bodyType = RigidbodyType2D.Kinematic;
             rigidBody.gravityScale = 0f;
         }
 
@@ -125,7 +125,7 @@ public class PawnController : MonoBehaviour
             // Configure for Standoff mode (platformer physics)
             if (rigidBody != null)
             {
-                rigidBody.isKinematic = false;
+                rigidBody.bodyType = RigidbodyType2D.Dynamic;
                 rigidBody.gravityScale = 2f;
                 rigidBody.constraints = RigidbodyConstraints2D.FreezeRotation;
             }
@@ -141,7 +141,7 @@ public class PawnController : MonoBehaviour
             // Configure for Chess mode (kinematic movement)
             if (rigidBody != null)
             {
-                rigidBody.isKinematic = true;
+                rigidBody.bodyType = RigidbodyType2D.Kinematic;
                 rigidBody.gravityScale = 0f;
                 rigidBody.linearVelocity = Vector2.zero;
             }
@@ -160,7 +160,7 @@ public class PawnController : MonoBehaviour
 
     private void FindPlayer()
     {
-        PlayerController player = FindObjectOfType<PlayerController>();
+        PlayerController player = FindFirstObjectByType<PlayerController>();
         if (player != null)
         {
             playerTransform = player.transform;
@@ -554,11 +554,11 @@ public class PawnController : MonoBehaviour
         GameObject player = GameObject.FindWithTag("Player");
         if (player != null)
         {
-            PlayerPawn playerPawn = player.GetComponent<PlayerPawn>();
+            PawnHealth playerPawn = player.GetComponent<PawnHealth>();
             PlayerController playerController = player.GetComponent<PlayerController>();
             if (playerPawn != null && playerController.q == q && playerController.r == r)
             {
-                // Deal damage equal to this Player's MaxHP (OpponentPawn component).
+                // Deal damage equal to this Player's MaxHP (PawnHealth component).
                 playerPawn.TakeDamage(playerPawn.MaxHP, $"Opponent_{aiType}");
             }
         }

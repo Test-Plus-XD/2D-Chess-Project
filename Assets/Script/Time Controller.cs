@@ -48,6 +48,7 @@ public class TimeController : MonoBehaviour
 
     private float targetTimeScale;
     private bool isPlayerMoving = false;
+    private AudioSource[] audioSources;
 
     #endregion
 
@@ -78,6 +79,7 @@ public class TimeController : MonoBehaviour
 
         targetTimeScale = normalTimeScale;
         currentTimeScale = normalTimeScale;
+        audioSources = FindObjectsByType<AudioSource>(FindObjectsSortMode.None);
     }
 
     private void Update()
@@ -101,7 +103,7 @@ public class TimeController : MonoBehaviour
         if (adjustAudioPitch)
         {
             float pitch = Mathf.Max(minAudioPitch, currentTimeScale);
-            AudioListener.pitch = pitch;
+            AdjustAudioPitch(pitch);
         }
 
         if (showDebug && Mathf.Abs(currentTimeScale - targetTimeScale) > 0.01f)
@@ -122,7 +124,7 @@ public class TimeController : MonoBehaviour
         if (!enabled)
         {
             Time.timeScale = normalTimeScale;
-            AudioListener.pitch = 1f;
+            AdjustAudioPitch(1f);
         }
 
         if (showDebug)
@@ -155,7 +157,7 @@ public class TimeController : MonoBehaviour
     {
         Time.timeScale = normalTimeScale;
         currentTimeScale = normalTimeScale;
-        AudioListener.pitch = 1f;
+        AdjustAudioPitch(1f);
     }
 
     #endregion
@@ -167,21 +169,38 @@ public class TimeController : MonoBehaviour
         // Check for input from mobile or keyboard
         Vector2 movement = Vector2.zero;
 
-        // Mobile input
-        if (MobileInputManager.Instance != null)
+        // Input system (unified mobile/desktop)
+        if (InputSystem.Instance != null)
         {
-            movement = MobileInputManager.Instance.Movement;
+            movement = InputSystem.Instance.Movement;
         }
-
-        // Keyboard fallback
-        if (movement.magnitude < movementThreshold)
+        else
         {
+            // Keyboard fallback if InputSystem not available
             float h = Input.GetAxisRaw("Horizontal");
             float v = Input.GetAxisRaw("Vertical");
             movement = new Vector2(h, v);
         }
 
         isPlayerMoving = movement.magnitude >= movementThreshold;
+    }
+
+    private void AdjustAudioPitch(float pitch)
+    {
+        // Refresh audio sources list if empty
+        if (audioSources == null || audioSources.Length == 0)
+        {
+            audioSources = FindObjectsByType<AudioSource>(FindObjectsSortMode.None);
+        }
+
+        // Adjust pitch for all audio sources
+        foreach (var audioSource in audioSources)
+        {
+            if (audioSource != null)
+            {
+                audioSource.pitch = pitch;
+            }
+        }
     }
 
     #endregion

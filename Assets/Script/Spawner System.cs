@@ -258,7 +258,7 @@ public class SpawnerSystem : MonoBehaviour
     public void ClearAllPawns()
     {
         // Clear player
-        PlayerController[] players = FindObjectsOfType<PlayerController>();
+        PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
         foreach (var p in players)
         {
             if (Application.isPlaying) Destroy(p.gameObject);
@@ -266,7 +266,7 @@ public class SpawnerSystem : MonoBehaviour
         }
 
         // Clear opponents
-        PawnController[] pawns = FindObjectsOfType<PawnController>();
+        PawnController[] pawns = FindObjectsByType<PawnController>(FindObjectsSortMode.None);
         foreach (var pawn in pawns)
         {
             if (Application.isPlaying) Destroy(pawn.gameObject);
