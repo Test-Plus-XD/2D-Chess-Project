@@ -98,37 +98,71 @@ public class Checkerboard : MonoBehaviour
         foreach (var opp in snapshot)
         {
             if (opp == null) continue;
-            // Make this pawn free to choose (remove its current pos so it can rechoose it or move).
-            occupied.Remove(new Vector2Int(opp.q, opp.r));
-            // Ask pawn to choose a target while blocking occupied tiles.
-            int tgtQ, tgtR;
-            bool chosen = opp.ChooseMoveTarget(playerQ, playerR, occupied, out tgtQ, out tgtR);
-            if (!chosen)
+
+            // Fire weapon at turn start (if pawn has firearm)
+            WeaponSystem weaponSystem = opp.GetComponent<WeaponSystem>();
+            if (weaponSystem != null && opp.aiType != PawnController.AIType.Basic)
             {
-                // No valid target (all neighbors blocked); re-reserve the pawn's current tile to avoid others taking it.
-                occupied.Add(new Vector2Int(opp.q, opp.r));
-                continue;
+                weaponSystem.FireChessMode();
+                yield return new WaitForSeconds(0.2f); // Small delay after firing
             }
-            // Reserve target so subsequent opponents can't pick it.
-            occupied.Add(new Vector2Int(tgtQ, tgtR));
-            // Tell the pawn to move to the chosen reserved target.
-            bool started = opp.ExecuteAIMoveTo(tgtQ, tgtR);
-            if (!started)
+
+            // Fleet modifier: Extra move (move twice, but only shoot once)
+            int movesThisTurn = opp.HasExtraMove() ? 2 : 1;
+
+            for (int moveIndex = 0; moveIndex < movesThisTurn; moveIndex++)
             {
-                // If move failed for some reason, free the reservation so others might take it.
-                occupied.Remove(new Vector2Int(tgtQ, tgtR));
-                occupied.Add(new Vector2Int(opp.q, opp.r));
-                continue;
+                // Make this pawn free to choose (remove its current pos so it can rechoose it or move).
+                occupied.Remove(new Vector2Int(opp.q, opp.r));
+                // Ask pawn to choose a target while blocking occupied tiles.
+                int tgtQ, tgtR;
+                bool chosen = opp.ChooseMoveTarget(playerQ, playerR, occupied, out tgtQ, out tgtR);
+                if (!chosen)
+                {
+                    // No valid target (all neighbors blocked); re-reserve the pawn's current tile to avoid others taking it.
+                    occupied.Add(new Vector2Int(opp.q, opp.r));
+                    break; // Stop extra moves if no valid target
+                }
+                // Reserve target so subsequent opponents can't pick it.
+                occupied.Add(new Vector2Int(tgtQ, tgtR));
+                // Tell the pawn to move to the chosen reserved target.
+                bool started = opp.ExecuteAIMoveTo(tgtQ, tgtR);
+                if (!started)
+                {
+                    // If move failed for some reason, free the reservation so others might take it.
+                    occupied.Remove(new Vector2Int(tgtQ, tgtR));
+                    occupied.Add(new Vector2Int(opp.q, opp.r));
+                    break; // Stop extra moves if move failed
+                }
+                // Wait for the pawn to complete its move (same as your old code).
+                float timer = 0f; float timeout = 2f;
+                while (!opp.Moved && timer < timeout)
+                {
+                    timer += Time.deltaTime;
+                    yield return null;
+                }
+                // Reset Moved flag for next move in Fleet
+                if (moveIndex < movesThisTurn - 1)
+                {
+                    opp.ResetMovedFlag();
+                }
+                // Small delay for visuals.
+                if (opponentMoveDelay > 0f) yield return new WaitForSeconds(opponentMoveDelay);
             }
-            // Wait for the pawn to complete its move (same as your old code).
-            float timer = 0f; float timeout = 2f;
-            while (!opp.Moved && timer < timeout)
+        }
+
+        // After all opponents move, handle Reflexive modifier (recalculate aim after player moves)
+        foreach (var opp in opponents)
+        {
+            if (opp == null) continue;
+            if (opp.ShouldRecalculateAimAfterPlayerMove())
             {
-                timer += Time.deltaTime;
-                yield return null;
+                WeaponSystem weapon = opp.GetComponent<WeaponSystem>();
+                if (weapon != null)
+                {
+                    weapon.RecalculateAim();
+                }
             }
-            // Small delay for visuals.
-            if (opponentMoveDelay > 0f) yield return new WaitForSeconds(opponentMoveDelay);
         }
         // Opponents done, allow player to act again.
         playerTurn = true;

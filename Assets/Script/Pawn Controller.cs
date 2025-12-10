@@ -11,8 +11,17 @@ public class PawnController : MonoBehaviour
     #region Enums and Types
     // AI types available for this pawn.
     public enum AIType { Basic, Handcannon, Shotgun, Sniper }
-    // Placeholder modifier for future extension.
-    public enum Modifier { None }
+
+    /// Modifier types that enhance opponent pawn capabilities
+    public enum Modifier
+    {
+        None,        // No modifier
+        Tenacious,   // Requires two captures to remove (2 HP)
+        Confrontational, // Shoots on LOS entry (chess), -25% fire interval (standoff)
+        Fleet,       // Extra move in chess, +25% move speed in standoff
+        Observant,   // Bullets only damage player (chess), -50% firing delay (standoff)
+        Reflexive    // Recalculate aim after player move (chess), fixed on player (standoff), -25% firing delay
+    }
     #endregion
 
     #region Chess Mode Fields
@@ -23,6 +32,20 @@ public class PawnController : MonoBehaviour
     public float aiMoveDuration = 0.12f; // Duration of AI movement animation.
     public bool Moved = false; // Set true after pawn completes its AI move.
     public int q, r; // Axial coordinates tracked by this pawn.
+
+    [Header("Modifier Visual")]
+    [Tooltip("UI image displaying the modifier icon at top-right of pawn")]
+    public UnityEngine.UI.Image modifierIconImage;
+    [Tooltip("Sprite for Tenacious modifier")]
+    public Sprite tenaciousIcon;
+    [Tooltip("Sprite for Confrontational modifier")]
+    public Sprite confrontationalIcon;
+    [Tooltip("Sprite for Fleet modifier")]
+    public Sprite fleetIcon;
+    [Tooltip("Sprite for Observant modifier")]
+    public Sprite observantIcon;
+    [Tooltip("Sprite for Reflexive modifier")]
+    public Sprite reflexiveIcon;
 
     // Neighbour axial deltas (must match your project's convention).
     private readonly int[] DIR_Q = { 1, 1, 0, -1, -1, 0 };
@@ -580,7 +603,157 @@ public class PawnController : MonoBehaviour
     private void UpdateNameWithCoords()
     {
         // Use aiType for readable label
-        this.gameObject.name = $"Opponent {aiType}: {q}_{r}";
+        string modifierLabel = modifier != Modifier.None ? $" [{modifier}]" : "";
+        this.gameObject.name = $"Opponent {aiType}{modifierLabel}: {q}_{r}";
+    }
+
+    #endregion
+
+    #region Modifier System
+
+    /// Set the modifier for this pawn and update visual display
+    public void SetModifier(Modifier newModifier)
+    {
+        modifier = newModifier;
+        UpdateModifierIcon();
+        UpdateNameWithCoords();
+
+        // Apply modifier effects to other components
+        ApplyModifierEffects();
+    }
+
+    /// Update the modifier icon UI display
+    private void UpdateModifierIcon()
+    {
+        if (modifierIconImage == null) return;
+
+        Sprite iconSprite = null;
+        switch (modifier)
+        {
+            case Modifier.Tenacious:
+                iconSprite = tenaciousIcon;
+                break;
+            case Modifier.Confrontational:
+                iconSprite = confrontationalIcon;
+                break;
+            case Modifier.Fleet:
+                iconSprite = fleetIcon;
+                break;
+            case Modifier.Observant:
+                iconSprite = observantIcon;
+                break;
+            case Modifier.Reflexive:
+                iconSprite = reflexiveIcon;
+                break;
+            case Modifier.None:
+            default:
+                iconSprite = null;
+                break;
+        }
+
+        if (iconSprite != null)
+        {
+            modifierIconImage.sprite = iconSprite;
+            modifierIconImage.enabled = true;
+        }
+        else
+        {
+            modifierIconImage.enabled = false;
+        }
+    }
+
+    /// Apply modifier effects to components (health, weapon, movement)
+    private void ApplyModifierEffects()
+    {
+        // Apply Tenacious: Set health to 2
+        if (modifier == Modifier.Tenacious)
+        {
+            PawnHealth pawnHealth = GetComponent<PawnHealth>();
+            if (pawnHealth != null)
+            {
+                pawnHealth.MaxHP = 2;
+                pawnHealth.SetHP(2);
+            }
+        }
+
+        // Apply Fleet: Increase standoff movement speed by 25%
+        if (modifier == Modifier.Fleet && isStandoffMode)
+        {
+            standoffMoveSpeed *= 1.25f;
+        }
+
+        // Apply modifier effects to weapon system
+        if (weaponSystem != null)
+        {
+            weaponSystem.ApplyModifier(modifier);
+        }
+    }
+
+    /// Get the fire interval multiplier based on modifier (for standoff)
+    public float GetFireIntervalMultiplier()
+    {
+        switch (modifier)
+        {
+            case Modifier.Confrontational:
+                return 0.75f; // -25% fire interval
+            default:
+                return 1.0f;
+        }
+    }
+
+    /// Get the firing delay multiplier based on modifier (for standoff)
+    public float GetFiringDelayMultiplier()
+    {
+        switch (modifier)
+        {
+            case Modifier.Observant:
+                return 0.5f; // -50% firing delay (0.5s to 0.25s)
+            case Modifier.Reflexive:
+                return 0.75f; // -25% firing delay
+            default:
+                return 1.0f;
+        }
+    }
+
+    /// Check if this pawn should get an extra move in chess mode (Fleet modifier)
+    public bool HasExtraMove()
+    {
+        return modifier == Modifier.Fleet;
+    }
+
+    /// Check if bullets should only damage the player (Observant modifier, chess mode)
+    public bool BulletsOnlyDamagePlayer()
+    {
+        return modifier == Modifier.Observant && !isStandoffMode;
+    }
+
+    /// Check if this pawn should recalculate aim after player moves (Reflexive modifier, chess mode)
+    public bool ShouldRecalculateAimAfterPlayerMove()
+    {
+        return modifier == Modifier.Reflexive && !isStandoffMode;
+    }
+
+    /// Check if this pawn should fire when LOS is entered (Confrontational modifier, chess mode)
+    public bool ShouldFireOnLineOfSight()
+    {
+        return modifier == Modifier.Confrontational && !isStandoffMode;
+    }
+
+    /// Check if gun should be fixed on player (Reflexive modifier, standoff mode)
+    public bool ShouldFixGunOnPlayer()
+    {
+        return modifier == Modifier.Reflexive && isStandoffMode;
+    }
+
+    /// Convert Basic type to Handcannon (used when last opponent enters standoff)
+    public void ConvertBasicToHandcannon()
+    {
+        if (aiType == AIType.Basic)
+        {
+            aiType = AIType.Handcannon;
+            UpdateNameWithCoords();
+            Debug.Log($"[PawnController] Converted Basic to Handcannon with modifier: {modifier}");
+        }
     }
 
     // Utility: check tile existence under the generator parent container.
