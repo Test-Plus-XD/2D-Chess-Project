@@ -230,11 +230,7 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
         }
     }
 
-    #endregion
-
-    #region Private Methods
-
-    private void OnJumpButtonPressed()
+    public void OnJumpButtonPressed()
     {
         jumpInputThisFrame = true;
         OnJumpPressed?.Invoke();

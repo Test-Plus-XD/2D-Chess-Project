@@ -21,16 +21,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject mainMenuPanel;
     [Tooltip("Play button")]
     [SerializeField] private Button playButton;
-    [Tooltip("Level select button")]
-    [SerializeField] private Button levelSelectButton;
     [Tooltip("Settings button")]
     [SerializeField] private Button settingsButton;
     [Tooltip("Quit button")]
     [SerializeField] private Button quitButton;
-    [Tooltip("Title text")]
-    [SerializeField] private TextMeshProUGUI mainMenuTitleText;
-    [Tooltip("Default level to start (0-based)")]
-    [SerializeField] private int defaultStartLevel = 0;
 
     #endregion
 
@@ -260,7 +254,6 @@ public class UIManager : MonoBehaviour
     {
         // Main Menu button listeners are registered
         if (playButton != null) playButton.onClick.AddListener(OnPlayClicked);
-        if (levelSelectButton != null) levelSelectButton.onClick.AddListener(OnLevelSelectClicked);
         if (settingsButton != null) settingsButton.onClick.AddListener(OnSettingsClicked);
         if (quitButton != null) quitButton.onClick.AddListener(OnQuitClicked);
 
@@ -561,10 +554,10 @@ public class UIManager : MonoBehaviour
     {
         // Button click sound is played
         PlayButtonSound();
-        // Default level is started
-        StartGame(defaultStartLevel);
+        // Level select screen is shown for player to choose level
+        ShowLevelSelect();
 
-        if (showDebug) Debug.Log("[UIManager] Play button clicked");
+        if (showDebug) Debug.Log("[UIManager] Play button clicked - showing level select");
     }
 
     private void OnLevelSelectClicked()
