@@ -409,11 +409,11 @@ public class PawnController : MonoBehaviour
         return true;
     }
 
-    // Combined weight application for all AI types in one place.
+    // Combined weight application for all AI types in one place (Chess mode movement strategy)
     private void ApplyCombinedWeights(List<Candidate> candidates, AIType type, int playerQ, int playerR)
     {
         if (candidates == null || candidates.Count == 0) return;
-        // Find min/max distances among candidates.
+        // Find min/max distances among candidates to compare relative distances to player
         int minDist = int.MaxValue; int maxDist = int.MinValue;
         foreach (var c in candidates) { minDist = Mathf.Min(minDist, c.distToPlayer); maxDist = Mathf.Max(maxDist, c.distToPlayer); }
 
@@ -421,17 +421,18 @@ public class PawnController : MonoBehaviour
         {
             case AIType.Basic:
                 // Like chess pawns: only move forward (down in world space), never backward (up)
-                // Allowed only bottom 3 directions, and must not move upward in world space (y)
+                // Restricted to bottom 3 directions: (0,-1), (-1,0), (1,-1) - can't move upward
                 foreach (var c in candidates) c.weight = 0f;
 
-                // Get current tile world position
+                // Get current tile world position for Y-axis comparison (world space)
                 Vector3 currentWorldPos;
                 if (!TryGetTileWorldCentre(q, r, out currentWorldPos))
                 {
-                    // Fallback to allowing all 3 directions if can't get world pos
+                    // Fallback to allowing all 3 directions if can't get world pos (directional check only)
                     foreach (var c in candidates)
                     {
                         int dq = c.q - q; int dr = c.r - r;
+                        // Allow only: (0,-1) bottom, (-1,0) bottom-left, (1,-1) bottom-right
                         if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
                         {
                             c.weight = 1f;
@@ -442,7 +443,7 @@ public class PawnController : MonoBehaviour
 
                 foreach (var c in candidates)
                 {
-                    // Get candidate tile world position
+                    // Get candidate tile world position to compare Y values
                     Vector3 candidateWorldPos;
                     if (!TryGetTileWorldCentre(c.q, c.r, out candidateWorldPos))
                     {
@@ -450,7 +451,7 @@ public class PawnController : MonoBehaviour
                         continue;
                     }
 
-                    // Block any move that increases y (moving backward/upward in world space)
+                    // Block any move that increases Y (moving backward/upward in world space means can't move up)
                     if (candidateWorldPos.y > currentWorldPos.y)
                     {
                         c.weight = 0f;
@@ -458,13 +459,14 @@ public class PawnController : MonoBehaviour
                     }
 
                     int dq = c.q - q; int dr = c.r - r;
+                    // Check if direction is one of the allowed 3 bottom directions
                     // bottom = (0,-1); bottom-left = (-1,0); bottom-right = (1,-1)
                     if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
                     {
                         c.weight = 1f;
                     }
                 }
-                // Give extra weight to the allowed tile(s) that are closest to the player.
+                // Give extra weight (5x) to allowed tile(s) that are closest to player (prioritize approaching)
                 float bestDist = float.PositiveInfinity;
                 foreach (var c in candidates) if (c.weight > 0f) bestDist = Mathf.Min(bestDist, c.distToPlayer);
                 foreach (var c in candidates) if (c.weight > 0f && c.distToPlayer == bestDist) c.weight = 5f;
@@ -476,14 +478,14 @@ public class PawnController : MonoBehaviour
                 break;
 
             case AIType.Shotgun:
-                // Aggressive toward player with directional preferences
-                // 4 weight: toward player (closest)
-                // 3 weight: top-right and top-left
-                // 2 weight: bottom-right and bottom-left
-                // 1 weight: farthest from player or other directions
+                // Aggressive toward player with directional preferences (tries to get close)
+                // 4 weight: closest to player (highest priority - aggressive pursuit)
+                // 3 weight: top-right and top-left diagonal moves (flanking positioning)
+                // 2 weight: bottom-right and bottom-left (side positioning)
+                // 1 weight: side/horizontal moves and farthest away (avoids retreating)
                 foreach (var c in candidates)
                 {
-                    // Determine hex direction index by calculating offset
+                    // Determine hex direction index by calculating offset from current position
                     int dq = c.q - q;
                     int dr = c.r - r;
                     int dirIndex = -1;
@@ -496,37 +498,45 @@ public class PawnController : MonoBehaviour
                         }
                     }
 
-                    // Assign weights with priority
+                    // Assign weights with distance and directional priority
                     if (c.distToPlayer == minDist)
                     {
-                        c.weight = 4f; // Closest to player (highest priority)
+                        // Closest to player = aggressive pursuit (4x weight, highest priority)
+                        c.weight = 4f;
                     }
                     else if (c.distToPlayer == maxDist)
                     {
-                        c.weight = 1f; // Farthest from player (lowest priority)
+                        // Farthest from player = avoid retreat (1x weight, lowest priority)
+                        c.weight = 1f;
                     }
                     else if (dirIndex == 1 || dirIndex == 2) // Top-right (1,-1) or top-left (0,-1)
                     {
+                        // Diagonal upper moves = flanking maneuver (3x weight)
                         c.weight = 3f;
                     }
                     else if (dirIndex == 4 || dirIndex == 5) // Bottom-left (-1,1) or bottom-right (0,1)
                     {
+                        // Side moves = medium priority (2x weight)
                         c.weight = 2f;
                     }
                     else // Right (1,0) or left (-1,0)
                     {
+                        // Pure horizontal moves = low priority (1x weight)
                         c.weight = 1f;
                     }
                 }
                 break;
 
             case AIType.Sniper:
-                // All 6 allowed; farthest weight 4, closest weight 1, others weight 2.
+                // Defensive positioning: Prefer farthest distance from player (keeps distance for long-range shots)
+                // 4 weight: farthest from player (highest priority - maximize distance)
+                // 2 weight: medium distance tiles (balanced)
+                // 1 weight: closest to player (lowest priority - avoid close quarters where shotguns excel)
                 foreach (var c in candidates)
                 {
-                    if (c.distToPlayer == maxDist) c.weight = 4f;
-                    else if (c.distToPlayer == minDist) c.weight = 1f;
-                    else c.weight = 2f;
+                    if (c.distToPlayer == maxDist) c.weight = 4f; // Far = safe sniping position
+                    else if (c.distToPlayer == minDist) c.weight = 1f; // Close = dangerous to sniper
+                    else c.weight = 2f; // Medium = balanced
                 }
                 break;
         }
@@ -689,59 +699,74 @@ public class PawnController : MonoBehaviour
         }
     }
 
-    /// Get the fire interval multiplier based on modifier (for standoff)
+    /// Get the fire interval multiplier based on modifier (Standoff mode only)
     public float GetFireIntervalMultiplier()
     {
         switch (modifier)
         {
             case Modifier.Confrontational:
-                return 0.75f; // -25% fire interval
+                // Confrontational: Fires more frequently (-25% interval = 0.75x multiplier)
+                // Example: 3s interval → 2.25s interval (fires 33% more often)
+                return 0.75f;
             default:
                 return 1.0f;
         }
     }
 
-    /// Get the firing delay multiplier based on modifier (for standoff)
+    /// Get the firing delay multiplier based on modifier (Standoff mode only)
     public float GetFiringDelayMultiplier()
     {
         switch (modifier)
         {
             case Modifier.Observant:
-                return 0.5f; // -50% firing delay (0.5s to 0.25s)
+                // Observant: Much faster firing delay (-50% delay = 0.5x multiplier)
+                // Example: 0.5s delay → 0.25s delay (fires sooner after interval expires)
+                return 0.5f;
             case Modifier.Reflexive:
-                return 0.75f; // -25% firing delay
+                // Reflexive: Faster firing delay (-25% delay = 0.75x multiplier)
+                // Example: 0.5s delay → 0.375s delay (fires sooner than normal)
+                return 0.75f;
             default:
                 return 1.0f;
         }
     }
 
-    /// Check if this pawn should get an extra move in chess mode (Fleet modifier)
+    /// Check if this pawn should get an extra move in Chess mode (Fleet modifier only)
     public bool HasExtraMove()
     {
+        // Fleet modifier: Gets 2 moves per turn instead of 1 (but only shoots once at turn start)
         return modifier == Modifier.Fleet;
     }
 
-    /// Check if bullets should only damage the player (Observant modifier, chess mode)
+    /// Check if bullets should only damage the player (Observant modifier, Chess mode only)
     public bool BulletsOnlyDamagePlayer()
     {
+        // Observant modifier (Chess): Bullets pass through opponents, only damage player
+        // Useful for tactical positioning without friendly fire risk
         return modifier == Modifier.Observant && !isStandoffMode;
     }
 
-    /// Check if this pawn should recalculate aim after player moves (Reflexive modifier, chess mode)
+    /// Check if this pawn should recalculate aim after player moves (Reflexive modifier, Chess mode only)
     public bool ShouldRecalculateAimAfterPlayerMove()
     {
+        // Reflexive modifier (Chess): After player moves, this pawn recalculates best aim direction
+        // Gives tactical advantage by always aiming at player's new position
         return modifier == Modifier.Reflexive && !isStandoffMode;
     }
 
-    /// Check if this pawn should fire when LOS is entered (Confrontational modifier, chess mode)
+    /// Check if this pawn should fire when entering LOS (Confrontational modifier, Chess mode only)
     public bool ShouldFireOnLineOfSight()
     {
+        // Confrontational modifier (Chess): Shoots not just at turn start, but also when
+        // another piece enters their line of sight (in addition to regular turn firing)
         return modifier == Modifier.Confrontational && !isStandoffMode;
     }
 
-    /// Check if gun should be fixed on player (Reflexive modifier, standoff mode)
+    /// Check if gun should be fixed on player (Reflexive modifier, Standoff mode only)
     public bool ShouldFixGunOnPlayer()
     {
+        // Reflexive modifier (Standoff): Gun tracks player instantly without lerp/angular velocity
+        // Combined with reduced firing delay for rapid targeting
         return modifier == Modifier.Reflexive && isStandoffMode;
     }
 
