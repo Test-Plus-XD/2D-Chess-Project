@@ -36,7 +36,7 @@ public class FollowCamera : MonoBehaviour
     public static FollowCamera Instance { get; private set; }
 
     // Cached camera reference.
-    private Camera cam;
+    private Camera camera;
     // Velocity vector used by SmoothDamp for position smoothing.
     private Vector3 positionVelocity = Vector3.zero;
     // Velocity float used by SmoothDamp for size smoothing.
@@ -58,14 +58,14 @@ public class FollowCamera : MonoBehaviour
     // Initialise and optionally perform the first recalc.
     private void Start()
     {
-        cam = GetComponent<Camera>() ?? Camera.main;
-        if (cam == null)
+        camera = GetComponent<Camera>() ?? Camera.main;
+        if (camera == null)
         {
             Debug.LogError("[FollowCamera] No Camera found on this GameObject and Camera.main is null.");
             enabled = false;
             return;
         }
-        if (!cam.orthographic)
+        if (!camera.orthographic)
         {
             Debug.LogWarning("[FollowCamera] Camera is not orthographic. Behaviour is designed for orthographic cameras.");
         }
@@ -124,7 +124,7 @@ public class FollowCamera : MonoBehaviour
         // The horizontal half-size of the camera view in world units equals orthoSize * aspect.
         // Therefore to fit a horizontal half-width W, we need orthoSize >= W / aspect.
         float requiredHalfWidth = combined.extents.x + padding;
-        float requiredHalfHeightFromWidth = requiredHalfWidth / cam.aspect;
+        float requiredHalfHeightFromWidth = requiredHalfWidth / camera.aspect;
         // Final required orthographic half-height is the maximum of both constraints and the configured min size.
         float targetSize = Mathf.Max(requiredHalfHeight, requiredHalfHeightFromWidth, minOrthographicSize);
         targetSize = Mathf.Min(targetSize, maxOrthographicSize);
@@ -133,12 +133,12 @@ public class FollowCamera : MonoBehaviour
         if (smoothFollow && smoothTime > 0f)
         {
             transform.position = Vector3.SmoothDamp(transform.position, targetPos, ref positionVelocity, smoothTime);
-            cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, targetSize, ref sizeVelocity, smoothTime);
+            camera.orthographicSize = Mathf.SmoothDamp(camera.orthographicSize, targetSize, ref sizeVelocity, smoothTime);
         }
         else
         {
             transform.position = targetPos;
-            cam.orthographicSize = targetSize;
+            camera.orthographicSize = targetSize;
         }
     }
 
@@ -152,25 +152,25 @@ public class FollowCamera : MonoBehaviour
             if (container == null) continue;
             // Collect SpriteRenderers under the container for visual bounds.
             SpriteRenderer[] srs = container.GetComponentsInChildren<SpriteRenderer>(includeInactive: true);
-            foreach (var sr in srs)
+            foreach (var spriteRenderer in srs)
             {
                 if (!hasAny)
                 {
-                    combined = sr.bounds; // Initialise with first found renderer bounds
+                    combined = spriteRenderer.bounds; // Initialise with first found renderer bounds
                     hasAny = true;
                 }
-                else combined.Encapsulate(sr.bounds);
+                else combined.Encapsulate(spriteRenderer.bounds);
             }
             // Collect PolygonCollider2D under the container for physics bounds which often match visual trimmed shapes.
             PolygonCollider2D[] pcs = container.GetComponentsInChildren<PolygonCollider2D>(includeInactive: true);
-            foreach (var pc in pcs)
+            foreach (var polygonCollider in pcs)
             {
                 if (!hasAny)
                 {
-                    combined = pc.bounds; // Initialise if no renderer was found yet
+                    combined = polygonCollider.bounds; // Initialise if no renderer was found yet
                     hasAny = true;
                 }
-                else combined.Encapsulate(pc.bounds);
+                else combined.Encapsulate(polygonCollider.bounds);
             }
             // Fallback: include child transforms positions so single-point tiles without renderers still contribute.
             Transform[] children = container.GetComponentsInChildren<Transform>(includeInactive: true);
@@ -235,7 +235,7 @@ public class FollowCamera : MonoBehaviour
     private IEnumerator ZoomPulseCoroutine(float multiplier, float totalDuration)
     {
         if (isPulseActive) yield break;
-        if (cam == null) yield break;
+        if (camera == null) yield break;
 
         isPulseActive = true;
 
@@ -246,7 +246,7 @@ public class FollowCamera : MonoBehaviour
         float contractDuration = expandDuration;
 
         // Record original size and clamp target against min/max.
-        float originalSize = cam.orthographicSize;
+        float originalSize = camera.orthographicSize;
         float targetSize = Mathf.Clamp(originalSize * multiplier, minOrthographicSize, maxOrthographicSize);
 
         // Expand (ease)
@@ -256,10 +256,10 @@ public class FollowCamera : MonoBehaviour
             t += Time.deltaTime;
             float a = Mathf.Clamp01(t / expandDuration);
             float ease = a * a * (3f - 2f * a); // smoothstep
-            cam.orthographicSize = Mathf.Lerp(originalSize, targetSize, ease);
+            camera.orthographicSize = Mathf.Lerp(originalSize, targetSize, ease);
             yield return null;
         }
-        cam.orthographicSize = targetSize;
+        camera.orthographicSize = targetSize;
 
         // Hold at max
         if (hold > 0f) yield return new WaitForSeconds(hold);
@@ -271,10 +271,10 @@ public class FollowCamera : MonoBehaviour
             t += Time.deltaTime;
             float a = Mathf.Clamp01(t / contractDuration);
             float ease = a * a * (3f - 2f * a);
-            cam.orthographicSize = Mathf.Lerp(targetSize, originalSize, ease);
+            camera.orthographicSize = Mathf.Lerp(targetSize, originalSize, ease);
             yield return null;
         }
-        cam.orthographicSize = originalSize;
+        camera.orthographicSize = originalSize;
         isPulseActive = false;
     }
 }

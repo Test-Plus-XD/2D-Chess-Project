@@ -137,16 +137,16 @@ public class SpawnerSystem : MonoBehaviour
         for (int i = 0; i < tileParent.childCount; i++)
         {
             Transform child = tileParent.GetChild(i);
-            PolygonCollider2D pc = child.GetComponent<PolygonCollider2D>();
-            if (pc != null) colliders.Add(pc);
+            PolygonCollider2D polygonCollider = child.GetComponent<PolygonCollider2D>();
+            if (polygonCollider != null) colliders.Add(polygonCollider);
         }
 
         if (colliders.Count == 0 && allowSceneWideColliderSearch)
         {
             PolygonCollider2D[] all = Object.FindObjectsByType<PolygonCollider2D>(FindObjectsSortMode.None);
-            foreach (var pc in all)
+            foreach (var polygonCollider in all)
             {
-                if (pc.gameObject.name.StartsWith("Hex_")) colliders.Add(pc);
+                if (polygonCollider.gameObject.name.StartsWith("Hex_")) colliders.Add(polygonCollider);
             }
         }
 
@@ -159,24 +159,24 @@ public class SpawnerSystem : MonoBehaviour
 
         // Find bottom-right tile
         float bestBottom = float.PositiveInfinity;
-        foreach (var pc in colliders)
+        foreach (var polygonCollider in colliders)
         {
-            float bMinY = pc.bounds.min.y;
+            float bMinY = polygonCollider.bounds.min.y;
             if (bMinY < bestBottom) bestBottom = bMinY;
         }
 
         const float eps = 0.0001f;
         PolygonCollider2D chosenCollider = null;
         float bestCenterX = float.NegativeInfinity;
-        foreach (var pc in colliders)
+        foreach (var polygonCollider in colliders)
         {
-            if (pc.bounds.min.y <= bestBottom + eps)
+            if (polygonCollider.bounds.min.y <= bestBottom + eps)
             {
-                float cx = pc.bounds.center.x;
+                float cx = polygonCollider.bounds.center.x;
                 if (cx > bestCenterX)
                 {
                     bestCenterX = cx;
-                    chosenCollider = pc;
+                    chosenCollider = polygonCollider;
                 }
             }
         }
@@ -202,10 +202,10 @@ public class SpawnerSystem : MonoBehaviour
         int q = 0, r = 0;
         if (parts.Length >= 3 && int.TryParse(parts[1], out q) && int.TryParse(parts[2], out r))
         {
-            PlayerController pc = playerPawn.GetComponent<PlayerController>();
-            if (pc != null)
+            PlayerController playerController = playerPawn.GetComponent<PlayerController>();
+            if (playerController != null)
             {
-                pc.Initialise(q, r, gridGenerator, checkerboard);
+                playerController.Initialise(q, r, gridGenerator, checkerboard);
             }
         }
     }
@@ -319,10 +319,10 @@ public class SpawnerSystem : MonoBehaviour
         int q = 0, r = 0;
         if (parts.Length >= 3 && int.TryParse(parts[1], out q) && int.TryParse(parts[2], out r))
         {
-            PlayerController pc = playerPawn.GetComponent<PlayerController>();
-            if (pc != null)
+            PlayerController playerController = playerPawn.GetComponent<PlayerController>();
+            if (playerController != null)
             {
-                pc.Initialise(q, r, gridGenerator, checkerboard);
+                playerController.Initialise(q, r, gridGenerator, checkerboard);
             }
         }
     }
@@ -346,22 +346,22 @@ public class SpawnerSystem : MonoBehaviour
                 break;
             }
 
-            GameObject go = Instantiate(prefab, opponentSpawnParent);
+            GameObject gameObject = Instantiate(prefab, opponentSpawnParent);
 
-            PawnController pc = go.GetComponent<PawnController>();
-            if (pc == null) pc = go.AddComponent<PawnController>();
+            PawnController pawnController = gameObject.GetComponent<PawnController>();
+            if (pawnController == null) pawnController = gameObject.AddComponent<PawnController>();
 
-            pc.gridGenerator = gridGenerator;
-            pc.aiType = aiType;
-            pc.SetCoordsAndSnap(chosen.x, chosen.y);
+            pawnController.gridGenerator = gridGenerator;
+            pawnController.aiType = aiType;
+            pawnController.SetCoordsAndSnap(chosen.x, chosen.y);
 
             Vector3 world;
             if (TryGetTileWorldCentre(chosen.x, chosen.y, out world))
             {
-                go.transform.position = world;
+                gameObject.transform.position = world;
             }
 
-            go.name = $"Opponent {prefab.name}: {chosen.x}_{chosen.y}";
+            gameObject.name = $"Opponent {prefab.name}: {chosen.x}_{chosen.y}";
 
             if (!allowStacking) occupied.Add(chosen);
         }
@@ -457,10 +457,10 @@ public class SpawnerSystem : MonoBehaviour
         Transform tile = parent.Find($"Hex_{qa}_{ra}");
         if (tile == null) return false;
 
-        PolygonCollider2D pc = tile.GetComponent<PolygonCollider2D>();
-        if (pc != null)
+        PolygonCollider2D polygonCollider = tile.GetComponent<PolygonCollider2D>();
+        if (polygonCollider != null)
         {
-            Vector3 c = pc.bounds.center;
+            Vector3 c = polygonCollider.bounds.center;
             centre = new Vector3(c.x, c.y, 0f);
             return true;
         }

@@ -25,8 +25,8 @@ public class PlayerController : MonoBehaviour
     // Array of 6 arrow GameObjects in clockwise order starting from 12 o'clock.
     public GameObject[] directionArrows = new GameObject[6];
     // Neighbour axial directions for axial coords (axial deltas must match your axial system).
-    private readonly int[] dirQ = { 1, 1, 0, -1, -1, 0 };
-    private readonly int[] dirR = { 0, -1, -1, 0, 1, 1 };
+    private readonly int[] dir_q = { 1, 1, 0, -1, -1, 0 };
+    private readonly int[] dir_r = { 0, -1, -1, 0, 1, 1 };
     // Input tracking.
     private Vector2 swipeStartScreen;
     private Vector3 swipeStartWorld;
@@ -51,7 +51,7 @@ public class PlayerController : MonoBehaviour
 
     // Standoff mode state
     private bool isStandoffMode = false;
-    private Rigidbody2D rb;
+    private Rigidbody2D rigidBody;
     private bool isGrounded = false;
     private bool canJump = true;
     private SpriteRenderer spriteRenderer;
@@ -59,7 +59,7 @@ public class PlayerController : MonoBehaviour
 
     #region Shared Fields
     // Cached camera reference for screen->world conversion.
-    private Camera cam;
+    private Camera camera;
     #endregion
 
     // Enable EnhancedTouch when this component is enabled to get reliable touch phases.
@@ -81,18 +81,18 @@ public class PlayerController : MonoBehaviour
         q = startQ;
         r = startR;
         gridGenerator = generator;
-        cam = Camera.main;
+        camera = Camera.main;
         checkerboard.RegisterPlayer(this);
         // Try to position pawn at the tile's collider centre if present.
         Transform tileParent = gridGenerator != null && gridGenerator.parentContainer != null ? gridGenerator.parentContainer : gridGenerator.transform;
         Transform tile = tileParent.Find($"Hex_{q}_{r}");
         if (tile != null)
         {
-            PolygonCollider2D pc = tile.GetComponent<PolygonCollider2D>();
-            if (pc != null)
+            PolygonCollider2D polygonCollider = tile.GetComponent<PolygonCollider2D>();
+            if (polygonCollider != null)
             {
                 // Place pawn exactly at the collider's world-space centre so visual alignment matches physics/collider.
-                Vector3 centre = pc.bounds.center;
+                Vector3 centre = polygonCollider.bounds.center;
                 transform.position = new Vector3(centre.x, centre.y, transform.position.z);
                 return;
             }
@@ -105,15 +105,15 @@ public class PlayerController : MonoBehaviour
 
     private void Start()
     {
-        if (cam == null) cam = Camera.main;
-        rb = GetComponent<Rigidbody2D>();
+        if (camera == null) camera = Camera.main;
+        rigidBody = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
 
         // Configure Rigidbody2D for Chess mode by default
-        if (rb != null)
+        if (rigidBody != null)
         {
-            rb.isKinematic = true;
-            rb.gravityScale = 0f;
+            rigidBody.isKinematic = true;
+            rigidBody.gravityScale = 0f;
         }
 
         HideAllArrows();
@@ -146,16 +146,16 @@ public class PlayerController : MonoBehaviour
     {
         isStandoffMode = standoffMode;
 
-        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        if (rigidBody == null) rigidBody = GetComponent<Rigidbody2D>();
 
         if (isStandoffMode)
         {
             // Configure for Standoff mode (platformer physics)
-            if (rb != null)
+            if (rigidBody != null)
             {
-                rb.isKinematic = false;
-                rb.gravityScale = 2f;
-                rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+                rigidBody.isKinematic = false;
+                rigidBody.gravityScale = 2f;
+                rigidBody.constraints = RigidbodyConstraints2D.FreezeRotation;
             }
 
             HideAllArrows();
@@ -169,11 +169,11 @@ public class PlayerController : MonoBehaviour
         else
         {
             // Configure for Chess mode (kinematic movement)
-            if (rb != null)
+            if (rigidBody != null)
             {
-                rb.isKinematic = true;
-                rb.gravityScale = 0f;
-                rb.linearVelocity = Vector2.zero;
+                rigidBody.isKinematic = true;
+                rigidBody.gravityScale = 0f;
+                rigidBody.linearVelocity = Vector2.zero;
             }
 
             // Disable TimeController slow motion
@@ -252,7 +252,7 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdateStandoffMode()
     {
-        if (rb == null) return;
+        if (rigidBody == null) return;
 
         // Get horizontal input
         float horizontal = GetHorizontalInput();
@@ -265,12 +265,12 @@ public class PlayerController : MonoBehaviour
         }
 
         // Apply horizontal movement
-        rb.linearVelocity = new Vector2(horizontal * moveSpeed, rb.linearVelocity.y);
+        rigidBody.linearVelocity = new Vector2(horizontal * moveSpeed, rigidBody.linearVelocity.y);
 
         // Clamp fall speed
-        if (rb.linearVelocity.y < -maxFallSpeed)
+        if (rigidBody.linearVelocity.y < -maxFallSpeed)
         {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, -maxFallSpeed);
+            rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, -maxFallSpeed);
         }
     }
 
@@ -285,7 +285,7 @@ public class PlayerController : MonoBehaviour
 
     private void CheckGroundStatus()
     {
-        if (rb == null) return;
+        if (rigidBody == null) return;
 
         // Raycast downward to check for ground
         Vector2 position = transform.position;
@@ -302,9 +302,9 @@ public class PlayerController : MonoBehaviour
 
     private void Jump()
     {
-        if (rb == null) return;
+        if (rigidBody == null) return;
 
-        rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+        rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, jumpForce);
         canJump = false;
 
         if (AudioManager.Instance != null)
@@ -384,8 +384,8 @@ public class PlayerController : MonoBehaviour
         float bestDot = float.NegativeInfinity;
         for (int i = 0; i < 6; i++)
         {
-            int nq = q + dirQ[i];
-            int nr = r + dirR[i];
+            int nq = q + dir_q[i];
+            int nr = r + dir_r[i];
             Vector3 neighbourWorld;
             if (TryGetTileWorldCentre(nq, nr, out neighbourWorld))
             {
@@ -411,8 +411,8 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        int targetQ = q + dirQ[bestIndex];
-        int targetR = r + dirR[bestIndex];
+        int targetQ = q + dir_q[bestIndex];
+        int targetR = r + dir_r[bestIndex];
 
         Vector3 targetWorld;
         if (!TryGetTileWorldCentre(targetQ, targetR, out targetWorld))
@@ -437,10 +437,10 @@ public class PlayerController : MonoBehaviour
         Transform tileParent = gridGenerator.parentContainer == null ? gridGenerator.transform : gridGenerator.parentContainer;
         Transform tile = tileParent.Find($"Hex_{qa}_{ra}");
         if (tile == null) return false;
-        PolygonCollider2D pc = tile.GetComponent<PolygonCollider2D>();
-        if (pc != null)
+        PolygonCollider2D polygonCollider = tile.GetComponent<PolygonCollider2D>();
+        if (polygonCollider != null)
         {
-            Vector3 c = pc.bounds.center;
+            Vector3 c = polygonCollider.bounds.center;
             centre = new Vector3(c.x, c.y, transform.position.z);
             return true;
         }
@@ -528,10 +528,10 @@ public class PlayerController : MonoBehaviour
     // Convert a screen point to a world point on a plane at specified world Z.
     private Vector3 ScreenToWorldPointOnZ(float worldZ, Vector2 screenPos)
     {
-        if (cam == null) cam = Camera.main;
-        float z = worldZ - cam.transform.position.z; // distance forward from camera to the plane at worldZ
+        if (camera == null) camera = Camera.main;
+        float z = worldZ - camera.transform.position.z; // distance forward from camera to the plane at worldZ
         Vector3 sp = new Vector3(screenPos.x, screenPos.y, z);
-        return cam.ScreenToWorldPoint(sp);
+        return camera.ScreenToWorldPoint(sp);
     }
 
     // Update the fixed-on-pawn arrow selection based on a screen position (pointer) while dragging.
@@ -582,9 +582,9 @@ public class PlayerController : MonoBehaviour
         if (directionArrows == null || directionArrows.Length < 6) return;
         for (int i = 0; i < 6; i++)
         {
-            var go = directionArrows[i];
-            if (go == null) continue;
-            go.SetActive(i == index);
+            var gameObject = directionArrows[i];
+            if (gameObject == null) continue;
+            gameObject.SetActive(i == index);
         }
     }
 

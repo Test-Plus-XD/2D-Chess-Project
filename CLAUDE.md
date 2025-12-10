@@ -485,13 +485,24 @@ Create new levels using ScriptableObjects:
 ## Code Style
 
 ### Naming Conventions
-- **All Variables**: PascalCase (including private fields)
-  - Example: `private float MoveSpeed = 5f;`
-  - Example: `private Rigidbody2D RigidBody;` (not `rb`)
-  - Use descriptive names instead of abbreviations
-- **Public Fields**: PascalCase with [Tooltip] attributes
+- **Public Fields**: PascalCase
+  - Example: `public float MoveSpeed = 5f;`
+  - Example: `public Rigidbody2D PlayerRigidBody;`
+- **Private Fields**: camelCase
+  - Example: `private float moveSpeed = 5f;`
+  - Example: `private Rigidbody2D rigidBody;` (not `rb`)
+- **Readonly Fields**: snake_case
+  - Example: `private readonly float max_speed = 10f;`
+  - Example: `private readonly Vector3 default_position = Vector3.zero;`
+- **Constants/Static Readonly**: UPPER_CASE_SNAKE_CASE
+  - Example: `private const float MAX_SPEED = 10f;`
+  - Example: `private static readonly float DEFAULT_SPEED = 5f;`
 - **Methods**: PascalCase
 - **Regions**: Code organized with `#region` blocks
+- **Descriptive Naming**: Prefer full descriptive names over abbreviations
+  - Good: `rigidBody`, `mainCamera`, `playerTransform`
+  - Avoid: `rb`, `cam`, `pt`
+  - Exception: Common Unity abbreviations like `q`, `r` for coordinates are acceptable
 
 ### Comments
 - **Function/Class Documentation**: Use `///` (triple slash) WITHOUT `<summary>` tags
@@ -510,9 +521,8 @@ Create new levels using ScriptableObjects:
 
 ### Unity-Specific
 - **Inspector Fields**: All serialized fields must have [Tooltip] attributes
-- **Descriptive Naming**: Prefer full names over abbreviations
-  - Good: `RigidBody2D`, `MainCamera`, `PlayerTransform`
-  - Avoid: `rb`, `cam`, `pt`
+- **SerializeField**: Use for private Inspector-visible fields
+  - Example: `[SerializeField] private float moveSpeed = 5f;`
 
 ### Unity 6 Compatibility
 - **Rigidbody2D**: Use `linearVelocity` and `angularVelocity` (NOT `velocity`)
