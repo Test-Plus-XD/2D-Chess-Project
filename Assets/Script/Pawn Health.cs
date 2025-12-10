@@ -75,7 +75,7 @@ public class PawnHealth : MonoBehaviour
     #region Private Fields
 
     protected PawnController pawnController;
-    protected Rigidbody2D rigidBody2D;
+    protected Rigidbody2D rigidBody;
 
     #endregion
 
@@ -86,7 +86,7 @@ public class PawnHealth : MonoBehaviour
         HP = pawnType == PawnType.Player ? startingHP : MaxHP;
         pawnController = GetComponent<PawnController>();
         if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
-        rigidBody2D = GetComponent<Rigidbody2D>();
+        rigidBody = GetComponent<Rigidbody2D>();
         UpdateSpriteForHP();
     }
 
@@ -213,7 +213,7 @@ public class PawnHealth : MonoBehaviour
 
     private void OpponentDeath()
     {
-        if (rigidBody2D == null)
+        if (rigidBody == null)
         {
             Debug.LogWarning("[PawnHealth] No Rigidbody2D found, destroying immediately.");
             Destroy(gameObject);
@@ -230,20 +230,20 @@ public class PawnHealth : MonoBehaviour
 
     private IEnumerator ExpelAfterDelayCoroutine()
     {
-        if (rigidBody2D == null) rigidBody2D = GetComponent<Rigidbody2D>();
+        if (rigidBody == null) rigidBody = GetComponent<Rigidbody2D>();
 
-        if (rigidBody2D != null)
+        if (rigidBody != null)
         {
-            RigidbodyType2D previousBodyType = rigidBody2D.bodyType;
-            rigidBody2D.linearVelocity = Vector2.zero;
-            rigidBody2D.angularVelocity = 0f;
-            rigidBody2D.bodyType = RigidbodyType2D.Kinematic;
+            RigidbodyType2D previousBodyType = rigidBody.bodyType;
+            rigidBody.linearVelocity = Vector2.zero;
+            rigidBody.angularVelocity = 0f;
+            rigidBody.bodyType = RigidbodyType2D.Kinematic;
 
             StartCoroutine(BringCloserCoroutine());
 
             yield return new WaitForSeconds(expelDelay);
 
-            rigidBody2D.bodyType = previousBodyType;
+            rigidBody.bodyType = previousBodyType;
         }
         else
         {
@@ -288,12 +288,12 @@ public class PawnHealth : MonoBehaviour
 
         if (!foundTile)
         {
-            Camera cam = Camera.main;
-            if (cam != null)
+            Camera camera = Camera.main;
+            if (camera != null)
             {
-                float camZ = transform.position.z - cam.transform.position.z;
-                Vector3 leftWorld = cam.ViewportToWorldPoint(new Vector3(0f, 0.5f, camZ));
-                Vector3 rightWorld = cam.ViewportToWorldPoint(new Vector3(1f, 0.5f, camZ));
+                float camZ = transform.position.z - camera.transform.position.z;
+                Vector3 leftWorld = camera.ViewportToWorldPoint(new Vector3(0f, 0.5f, camZ));
+                Vector3 rightWorld = camera.ViewportToWorldPoint(new Vector3(1f, 0.5f, camZ));
                 minX = leftWorld.x;
                 maxX = rightWorld.x;
             }
@@ -311,11 +311,11 @@ public class PawnHealth : MonoBehaviour
 
         Vector2 impulse = new Vector2(horizDir * expelForce, verticalImpulse);
 
-        if (rigidBody2D != null)
+        if (rigidBody != null)
         {
-            rigidBody2D.simulated = true;
-            rigidBody2D.AddForce(impulse, ForceMode2D.Impulse);
-            rigidBody2D.AddTorque(horizDir * expelTorque, ForceMode2D.Impulse);
+            rigidBody.simulated = true;
+            rigidBody.AddForce(impulse, ForceMode2D.Impulse);
+            rigidBody.AddTorque(horizDir * expelTorque, ForceMode2D.Impulse);
         }
         else
         {

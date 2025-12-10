@@ -1,8 +1,6 @@
 using UnityEngine;
 
-/// <summary>
 /// Controls time scale for SUPERHOT-style slow motion during Standoff mode
-/// </summary>
 public class TimeController : MonoBehaviour
 {
     #region Singleton
@@ -55,14 +53,10 @@ public class TimeController : MonoBehaviour
 
     #region Properties
 
-    /// <summary>
     /// Check if slow motion is currently enabled
-    /// </summary>
     public bool IsSlowMotionEnabled => slowMotionEnabled;
 
-    /// <summary>
     /// Get the current time scale
-    /// </summary>
     public float CurrentTimeScale => currentTimeScale;
 
     #endregion
@@ -120,9 +114,7 @@ public class TimeController : MonoBehaviour
 
     #region Public Methods
 
-    /// <summary>
     /// Enable or disable slow motion effect
-    /// </summary>
     public void SetSlowMotionEnabled(bool enabled)
     {
         slowMotionEnabled = enabled;
@@ -139,34 +131,26 @@ public class TimeController : MonoBehaviour
         }
     }
 
-    /// <summary>
     /// Set normal time scale value
-    /// </summary>
     public void SetNormalTimeScale(float scale)
     {
         normalTimeScale = Mathf.Clamp(scale, 0.1f, 2f);
     }
 
-    /// <summary>
     /// Set slow motion time scale value
-    /// </summary>
     public void SetSlowMotionTimeScale(float scale)
     {
         slowMotionTimeScale = Mathf.Clamp(scale, 0.01f, 1f);
     }
 
-    /// <summary>
     /// Temporarily override time scale (for cutscenes, etc.)
-    /// </summary>
     public void SetTimeScale(float scale)
     {
         Time.timeScale = scale;
         currentTimeScale = scale;
     }
 
-    /// <summary>
     /// Reset time to normal
-    /// </summary>
     public void ResetTime()
     {
         Time.timeScale = normalTimeScale;

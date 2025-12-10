@@ -41,21 +41,21 @@ public class Checkerboard : MonoBehaviour
     }
 
     // Register an opponent (call from PawnSpawner when you spawn a pawn).
-    public void RegisterOpponent(PawnController pc)
+    public void RegisterOpponent(PawnController polygonCollider)
     {
-        if (pc == null) return;
-        if (!opponents.Contains(pc)) opponents.Add(pc);
+        if (polygonCollider == null) return;
+        if (!opponents.Contains(polygonCollider)) opponents.Add(polygonCollider);
     }
 
     // De-register an opponent (call from PawnController.OnDestroy()).
-    public void DeregisterOpponent(PawnController pc)
+    public void DeregisterOpponent(PawnController polygonCollider)
     {
-        if (pc == null) return;
-        opponents.Remove(pc);
+        if (polygonCollider == null) return;
+        opponents.Remove(polygonCollider);
     }
 
     // Registration for the PlayerController.
-    public void RegisterPlayer(PlayerController pc) { playerController = pc; }
+    public void RegisterPlayer(PlayerController polygonCollider) { playerController = polygonCollider; }
 
     // Returns true if it is currently the player's turn.
     public bool IsPlayerTurn() { return playerTurn; }

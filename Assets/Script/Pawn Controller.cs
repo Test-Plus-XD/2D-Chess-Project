@@ -25,8 +25,8 @@ public class PawnController : MonoBehaviour
     public int q, r; // Axial coordinates tracked by this pawn.
 
     // Neighbour axial deltas (must match your project's convention).
-    private readonly int[] dirQ = { 1, 1, 0, -1, -1, 0 };
-    private readonly int[] dirR = { 0, -1, -1, 0, 1, 1 };
+    private readonly int[] DIR_Q = { 1, 1, 0, -1, -1, 0 };
+    private readonly int[] DIR_R = { 0, -1, -1, 0, 1, 1 };
 
     // Keep the original prefab/type label for nicer names (optional).
     private string typeLabel = "";
@@ -47,13 +47,12 @@ public class PawnController : MonoBehaviour
 
     // Standoff mode state
     private bool isStandoffMode = false;
-    private Rigidbody2D rb;
+    private Rigidbody2D rigidBody;
     private bool isGrounded = false;
     private float lastThinkTime = 0f;
     private float currentMoveDirection = 0f; // -1 = left, 0 = none, 1 = right
     private Transform playerTransform;
-    private Firearm firearm;
-    private GunAiming gunAiming;
+    private WeaponSystem weaponSystem;
     private SpriteRenderer spriteRenderer;
     #endregion
 
@@ -69,16 +68,15 @@ public class PawnController : MonoBehaviour
         if (gridGenerator == null) gridGenerator = FindFirstObjectByType<HexGridGenerator>();
 
         // Get components
-        rb = GetComponent<Rigidbody2D>();
-        firearm = GetComponent<Firearm>();
-        gunAiming = GetComponent<GunAiming>();
+        rigidBody = GetComponent<Rigidbody2D>();
+        weaponSystem = GetComponent<WeaponSystem>();
         spriteRenderer = GetComponent<SpriteRenderer>();
 
         // Configure Rigidbody2D for Chess mode by default
-        if (rb != null)
+        if (rigidBody != null)
         {
-            rb.isKinematic = true;
-            rb.gravityScale = 0f;
+            rigidBody.isKinematic = true;
+            rigidBody.gravityScale = 0f;
         }
 
         // Lightweight label for naming.
@@ -115,53 +113,43 @@ public class PawnController : MonoBehaviour
 
     #region Mode Switching
 
-    /// <summary>
     /// Switch between Chess and Standoff modes
-    /// </summary>
     public void SetStandoffMode(bool standoffMode)
     {
         isStandoffMode = standoffMode;
 
-        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        if (rigidBody == null) rigidBody = GetComponent<Rigidbody2D>();
 
         if (isStandoffMode)
         {
             // Configure for Standoff mode (platformer physics)
-            if (rb != null)
+            if (rigidBody != null)
             {
-                rb.isKinematic = false;
-                rb.gravityScale = 2f;
-                rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+                rigidBody.isKinematic = false;
+                rigidBody.gravityScale = 2f;
+                rigidBody.constraints = RigidbodyConstraints2D.FreezeRotation;
             }
 
-            // Configure firearm and gun aiming
-            if (firearm != null)
+            // Configure weapon system
+            if (weaponSystem != null)
             {
-                firearm.SetStandoffMode(true);
-            }
-            if (gunAiming != null)
-            {
-                gunAiming.SetStandoffMode(true);
+                weaponSystem.SetStandoffMode(true);
             }
         }
         else
         {
             // Configure for Chess mode (kinematic movement)
-            if (rb != null)
+            if (rigidBody != null)
             {
-                rb.isKinematic = true;
-                rb.gravityScale = 0f;
-                rb.velocity = Vector2.zero;
+                rigidBody.isKinematic = true;
+                rigidBody.gravityScale = 0f;
+                rigidBody.linearVelocity = Vector2.zero;
             }
 
-            // Configure firearm and gun aiming
-            if (firearm != null)
+            // Configure weapon system
+            if (weaponSystem != null)
             {
-                firearm.SetStandoffMode(false);
-            }
-            if (gunAiming != null)
-            {
-                gunAiming.SetStandoffMode(false);
+                weaponSystem.SetStandoffMode(false);
             }
         }
     }
@@ -206,10 +194,10 @@ public class PawnController : MonoBehaviour
 
     private void FixedUpdateStandoffMode()
     {
-        if (rb == null) return;
+        if (rigidBody == null) return;
 
         // Apply horizontal movement
-        rb.velocity = new Vector2(currentMoveDirection * standoffMoveSpeed, rb.velocity.y);
+        rigidBody.linearVelocity = new Vector2(currentMoveDirection * standoffMoveSpeed, rigidBody.linearVelocity.y);
     }
 
     private void MakeStandoffDecision()
@@ -276,7 +264,7 @@ public class PawnController : MonoBehaviour
 
     private void CheckGroundStatus()
     {
-        if (rb == null) return;
+        if (rigidBody == null) return;
 
         // Raycast downward to check for ground
         Vector2 position = transform.position;
@@ -287,7 +275,7 @@ public class PawnController : MonoBehaviour
 
     private void TryJumpIfObstacle()
     {
-        if (!isGrounded || rb == null) return;
+        if (!isGrounded || rigidBody == null) return;
 
         // Check for obstacle ahead
         Vector2 position = transform.position;
@@ -300,7 +288,7 @@ public class PawnController : MonoBehaviour
             // Check if obstacle is jumpable (not too high)
             if (hit.point.y - position.y < 2f)
             {
-                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+                rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, jumpForce);
             }
         }
 
@@ -318,7 +306,7 @@ public class PawnController : MonoBehaviour
             if (farHit.collider != null)
             {
                 // Ground exists after gap, jump it
-                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+                rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, jumpForce);
             }
             else
             {
@@ -348,8 +336,8 @@ public class PawnController : MonoBehaviour
         List<Candidate> candidates = new List<Candidate>();
         for (int i = 0; i < 6; i++)
         {
-            int nq = q + dirQ[i];
-            int nr = r + dirR[i];
+            int nq = q + DIR_Q[i];
+            int nr = r + DIR_R[i];
             //if (nq == playerQ && nr == playerR) continue; // Exclude the player's tile explicitly so opponents never try to occupy the player.
             if (!TileExists(nq, nr)) continue;
             Candidate c = new Candidate() { q = nq, r = nr, index = i };
@@ -478,7 +466,7 @@ public class PawnController : MonoBehaviour
                     int dirIndex = -1;
                     for (int i = 0; i < 6; i++)
                     {
-                        if (dirQ[i] == dq && dirR[i] == dr)
+                        if (DIR_Q[i] == dq && DIR_R[i] == dr)
                         {
                             dirIndex = i;
                             break;
@@ -609,10 +597,10 @@ public class PawnController : MonoBehaviour
         Transform parent = gridGenerator.parentContainer == null ? gridGenerator.transform : gridGenerator.parentContainer;
         Transform tile = parent.Find($"Hex_{qa}_{ra}");
         if (tile == null) return false;
-        PolygonCollider2D pc = tile.GetComponent<PolygonCollider2D>();
-        if (pc != null)
+        PolygonCollider2D polygonCollider = tile.GetComponent<PolygonCollider2D>();
+        if (polygonCollider != null)
         {
-            Vector3 c = pc.bounds.center;
+            Vector3 c = polygonCollider.bounds.center;
             centre = new Vector3(c.x, c.y, transform.position.z);
             return true;
         }

@@ -2,9 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
-/// <summary>
 /// Manages all audio including music and sound effects
-/// </summary>
 public class AudioManager : MonoBehaviour
 {
     #region Singleton
@@ -122,9 +120,7 @@ public class AudioManager : MonoBehaviour
 
     #region Public Methods - Music
 
-    /// <summary>
     /// Play music clip
-    /// </summary>
     public void PlayMusic(AudioClip clip, bool fade = true)
     {
         if (clip == null) return;
@@ -149,9 +145,7 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    /// <summary>
     /// Stop music
-    /// </summary>
     public void StopMusic(bool fade = true)
     {
         if (fade)
@@ -168,17 +162,13 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    /// <summary>
     /// Pause music
-    /// </summary>
     public void PauseMusic()
     {
         musicSource.Pause();
     }
 
-    /// <summary>
     /// Resume music
-    /// </summary>
     public void ResumeMusic()
     {
         musicSource.UnPause();
@@ -188,9 +178,7 @@ public class AudioManager : MonoBehaviour
 
     #region Public Methods - Sound Effects
 
-    /// <summary>
     /// Play sound effect
-    /// </summary>
     public void PlaySFX(AudioClip clip, float volumeMultiplier = 1f)
     {
         if (clip == null) return;
@@ -203,9 +191,7 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    /// <summary>
     /// Play sound effect by name from library
-    /// </summary>
     public void PlaySFX(string soundName, float volumeMultiplier = 1f)
     {
         if (soundLibrary.ContainsKey(soundName))
@@ -218,65 +204,49 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    /// <summary>
     /// Play UI button click sound
-    /// </summary>
     public void PlayButtonClick()
     {
         PlaySFX(buttonClickSound);
     }
 
-    /// <summary>
     /// Play pawn move sound
-    /// </summary>
     public void PlayPawnMove()
     {
         PlaySFX(pawnMoveSound);
     }
 
-    /// <summary>
     /// Play pawn capture sound
-    /// </summary>
     public void PlayPawnCapture()
     {
         PlaySFX(pawnCaptureSound);
     }
 
-    /// <summary>
     /// Play shooting sound
-    /// </summary>
     public void PlayShoot()
     {
         PlaySFX(shootSound);
     }
 
-    /// <summary>
     /// Play player hit sound
-    /// </summary>
     public void PlayPlayerHit()
     {
         PlaySFX(playerHitSound);
     }
 
-    /// <summary>
     /// Play victory sound
-    /// </summary>
     public void PlayVictory()
     {
         PlaySFX(victorySound);
     }
 
-    /// <summary>
     /// Play defeat sound
-    /// </summary>
     public void PlayDefeat()
     {
         PlaySFX(defeatSound);
     }
 
-    /// <summary>
     /// Play transition sound
-    /// </summary>
     public void PlayTransition()
     {
         PlaySFX(transitionSound);
@@ -286,46 +256,34 @@ public class AudioManager : MonoBehaviour
 
     #region Public Methods - Volume Control
 
-    /// <summary>
     /// Set master volume
-    /// </summary>
     public void SetMasterVolume(float volume)
     {
         masterVolume = Mathf.Clamp01(volume);
         UpdateVolumes();
     }
 
-    /// <summary>
     /// Set music volume
-    /// </summary>
     public void SetMusicVolume(float volume)
     {
         musicVolume = Mathf.Clamp01(volume);
         UpdateVolumes();
     }
 
-    /// <summary>
     /// Set SFX volume
-    /// </summary>
     public void SetSFXVolume(float volume)
     {
         sfxVolume = Mathf.Clamp01(volume);
         UpdateVolumes();
     }
 
-    /// <summary>
     /// Get master volume
-    /// </summary>
     public float GetMasterVolume() => masterVolume;
 
-    /// <summary>
     /// Get music volume
-    /// </summary>
     public float GetMusicVolume() => musicVolume;
 
-    /// <summary>
     /// Get SFX volume
-    /// </summary>
     public float GetSFXVolume() => sfxVolume;
 
     #endregion

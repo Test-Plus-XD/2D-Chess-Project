@@ -24,7 +24,7 @@ public class HexGridGenerator : MonoBehaviour
     // Change row expanding mode.
     public ExtraRowMode extraRowMode = ExtraRowMode.FullWidth;
     // Internal sqrt(3) cached for fast position calculation.
-    private readonly float sqrt3 = Mathf.Sqrt(3f);
+    private readonly float SQRT_3 = Mathf.Sqrt(3f);
 
     // Orientation enum for clearer Inspector control.
     public enum Orientation
@@ -71,10 +71,10 @@ public class HexGridGenerator : MonoBehaviour
             {
                 placed.Add(new Vector2Int(q, r));
                 Vector2 localPos = AxialToLocal(q, r);
-                GameObject go = Instantiate(hexPrefab, parentContainer);
-                go.transform.localPosition = new Vector3(localPos.x, localPos.y, 0f);
-                go.transform.localRotation = Quaternion.Euler(0f, 0f, rotationOffsetDegrees);
-                go.name = $"Hex_{q}_{r}";
+                GameObject gameObject = Instantiate(hexPrefab, parentContainer);
+                gameObject.transform.localPosition = new Vector3(localPos.x, localPos.y, 0f);
+                gameObject.transform.localRotation = Quaternion.Euler(0f, 0f, rotationOffsetDegrees);
+                gameObject.name = $"Hex_{q}_{r}";
             }
             if (r > currentTopR) currentTopR = r; // update top row tracker
         }
@@ -137,10 +137,10 @@ public class HexGridGenerator : MonoBehaviour
             {
                 placed.Add(topCoord);
                 Vector2 lp = AxialToLocal(topCoord.x, topCoord.y);
-                GameObject go = Instantiate(hexPrefab, parentContainer);
-                go.transform.localPosition = new Vector3(lp.x, lp.y, 0f);
-                go.transform.localRotation = Quaternion.Euler(0f, 0f, rotationOffsetDegrees);
-                go.name = $"Hex_{topCoord.x}_{topCoord.y}";
+                GameObject gameObject = Instantiate(hexPrefab, parentContainer);
+                gameObject.transform.localPosition = new Vector3(lp.x, lp.y, 0f);
+                gameObject.transform.localRotation = Quaternion.Euler(0f, 0f, rotationOffsetDegrees);
+                gameObject.name = $"Hex_{topCoord.x}_{topCoord.y}";
             }
 
             // Spawn bottom-left chain by repeatedly applying bottomLeftDelta, radius steps.
@@ -151,10 +151,10 @@ public class HexGridGenerator : MonoBehaviour
                 if (placed.Contains(currLeft)) continue; // skip duplicates if present
                 placed.Add(currLeft);
                 Vector2 lp = AxialToLocal(currLeft.x, currLeft.y);
-                GameObject go = Instantiate(hexPrefab, parentContainer);
-                go.transform.localPosition = new Vector3(lp.x, lp.y, 0f);
-                go.transform.localRotation = Quaternion.Euler(0f, 0f, rotationOffsetDegrees);
-                go.name = $"Hex_{currLeft.x}_{currLeft.y}";
+                GameObject gameObject = Instantiate(hexPrefab, parentContainer);
+                gameObject.transform.localPosition = new Vector3(lp.x, lp.y, 0f);
+                gameObject.transform.localRotation = Quaternion.Euler(0f, 0f, rotationOffsetDegrees);
+                gameObject.name = $"Hex_{currLeft.x}_{currLeft.y}";
             }
 
             // Spawn bottom-right chain by repeatedly applying bottomRightDelta, radius steps.
@@ -165,10 +165,10 @@ public class HexGridGenerator : MonoBehaviour
                 if (placed.Contains(currRight)) continue; // skip duplicates if present
                 placed.Add(currRight);
                 Vector2 lp = AxialToLocal(currRight.x, currRight.y);
-                GameObject go = Instantiate(hexPrefab, parentContainer);
-                go.transform.localPosition = new Vector3(lp.x, lp.y, 0f);
-                go.transform.localRotation = Quaternion.Euler(0f, 0f, rotationOffsetDegrees);
-                go.name = $"Hex_{currRight.x}_{currRight.y}";
+                GameObject gameObject = Instantiate(hexPrefab, parentContainer);
+                gameObject.transform.localPosition = new Vector3(lp.x, lp.y, 0f);
+                gameObject.transform.localRotation = Quaternion.Euler(0f, 0f, rotationOffsetDegrees);
+                gameObject.name = $"Hex_{currRight.x}_{currRight.y}";
             }
             // Promote the newly-added top row to be the current top for the next iteration.
             currentTopR = topNewR;
@@ -182,18 +182,18 @@ public class HexGridGenerator : MonoBehaviour
         if (hexOrientation == Orientation.PointyTop)
         {
             // Pointy topped formula
-            // x = (sqrt3/2 * tileSize) * (q + r/2)
+            // x = (sqrt_3/2 * tileSize) * (q + r/2)
             // y = (3/4 * tileSize) * r
-            float x = tileSize * (sqrt3 / 2f) * (q + r / 2f);
+            float x = tileSize * (SQRT_3 / 2f) * (q + r / 2f);
             float y = tileSize * 0.75f * r;
             return new Vector2(x, y);
         }
         else
         {
             // Flat topped formula
-            // x = (sqrt3/2 * tileSize) * q
+            // x = (sqrt_3/2 * tileSize) * q
             // y = tileSize * (r + q/2)
-            float x = tileSize * (sqrt3 / 2f) * q;
+            float x = tileSize * (SQRT_3 / 2f) * q;
             float y = tileSize * (r + q / 2f);
             return new Vector2(x, y);
         }
@@ -230,17 +230,17 @@ public class HexGridGenerator : MonoBehaviour
             Debug.LogWarning("[HexGridGenerator] AutoSetTileSizeFromPrefab failed: hexPrefab is null.");
             return;
         }
-        SpriteRenderer sr = hexPrefab.GetComponent<SpriteRenderer>();
-        if (sr == null)
+        SpriteRenderer spriteRenderer = hexPrefab.GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
         {
-            sr = hexPrefab.GetComponentInChildren<SpriteRenderer>();
-            if (sr == null)
+            spriteRenderer = hexPrefab.GetComponentInChildren<SpriteRenderer>();
+            if (spriteRenderer == null)
             {
                 Debug.LogWarning("[HexGridGenerator] AutoSetTileSizeFromPrefab failed: no SpriteRenderer found on prefab.");
                 return;
             }
         }
-        float spriteHeight = sr.bounds.size.y / hexPrefab.transform.localScale.y; // Remove prefab scale to get base sprite units
+        float spriteHeight = spriteRenderer.bounds.size.y / hexPrefab.transform.localScale.y; // Remove prefab scale to get base sprite units
         tileSize = spriteHeight; // Set tileSize so top-bottom distance equals sprite height
         Debug.Log($"[HexGridGenerator] tileSize auto-set to {tileSize:F3} from prefab sprite bounds.");
     }
@@ -256,33 +256,25 @@ public class HexGridGenerator : MonoBehaviour
 
     #region Public Setters for Level Manager
 
-    /// <summary>
     /// Set the grid radius
-    /// </summary>
     public void SetRadius(int newRadius)
     {
         radius = Mathf.Max(1, newRadius);
     }
 
-    /// <summary>
     /// Set extra rows
-    /// </summary>
     public void SetExtraRow(int newExtraRow)
     {
         extraRow = Mathf.Max(0, newExtraRow);
     }
 
-    /// <summary>
     /// Set tile size
-    /// </summary>
     public void SetTileSize(float newTileSize)
     {
         tileSize = Mathf.Max(0.1f, newTileSize);
     }
 
-    /// <summary>
     /// Set hex orientation
-    /// </summary>
     public void SetOrientation(Orientation newOrientation)
     {
         hexOrientation = newOrientation;

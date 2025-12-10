@@ -151,7 +151,7 @@ public class WeaponSystem : MonoBehaviour
     private Vector2 currentAimDirection = Vector2.right;
     private Vector2 targetAimDirection = Vector2.right;
     private float lastShotTime = -999f;
-    private Rigidbody2D rb;
+    private Rigidbody2D rigidBody;
     private PawnController pawnController;
     private Vector2[] hexDirections = new Vector2[6];
 
@@ -167,7 +167,7 @@ public class WeaponSystem : MonoBehaviour
             audioSource = gameObject.AddComponent<AudioSource>();
         }
 
-        rb = GetComponent<Rigidbody2D>();
+        rigidBody = GetComponent<Rigidbody2D>();
         pawnController = GetComponent<PawnController>();
 
         InitializeHexDirections();
@@ -460,7 +460,7 @@ public class WeaponSystem : MonoBehaviour
             Destroy(flash, 0.1f);
         }
 
-        if (isInStandoffMode && enableRecoil && rb != null)
+        if (isInStandoffMode && enableRecoil && rigidBody != null)
         {
             ApplyRecoil();
         }
@@ -483,9 +483,9 @@ public class WeaponSystem : MonoBehaviour
 
     private void ApplyRecoil()
     {
-        if (rb == null) return;
+        if (rigidBody == null) return;
         Vector2 recoilDirection = -currentAimDirection.normalized;
-        rb.AddForce(recoilDirection * recoilForce, ForceMode2D.Impulse);
+        rigidBody.AddForce(recoilDirection * recoilForce, ForceMode2D.Impulse);
     }
 
     private void FireSpread()
@@ -575,15 +575,15 @@ public class ProjectileBehavior : MonoBehaviour
     private int damage;
     private string sourceTag;
     private Vector2 startPosition;
-    private Rigidbody2D rb;
+    private Rigidbody2D rigidBody;
     private bool isInitialized = false;
 
     private void Awake()
     {
-        rb = GetComponent<Rigidbody2D>();
-        if (rb != null)
+        rigidBody = GetComponent<Rigidbody2D>();
+        if (rigidBody != null)
         {
-            rb.gravityScale = 0f;
+            rigidBody.gravityScale = 0f;
         }
     }
 
@@ -591,7 +591,7 @@ public class ProjectileBehavior : MonoBehaviour
     {
         if (!isInitialized) return;
 
-        rb.linearVelocity = direction * speed;
+        rigidBody.linearVelocity = direction * speed;
 
         float traveledDistance = Vector2.Distance(startPosition, transform.position);
         if (traveledDistance >= maxRange)

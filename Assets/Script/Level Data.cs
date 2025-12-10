@@ -1,8 +1,6 @@
 using UnityEngine;
 
-/// <summary>
 /// Data structure for level configuration
-/// </summary>
 [CreateAssetMenu(fileName = "NewLevel", menuName = "Game/Level Data")]
 public class LevelData : ScriptableObject
 {
@@ -83,17 +81,13 @@ public class LevelData : ScriptableObject
 
     #region Public Methods
 
-    /// <summary>
     /// Get total opponent count for this level
-    /// </summary>
     public int GetTotalOpponentCount()
     {
         return BasicPawnCount + HandcannonCount + ShotgunCount + SniperCount;
     }
 
-    /// <summary>
     /// Validate level data
-    /// </summary>
     public bool IsValid()
     {
         if (GridRadius < 1) return false;
