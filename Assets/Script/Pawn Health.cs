@@ -16,61 +16,59 @@ public class PawnHealth : MonoBehaviour
 
     #endregion
 
-    #region Inspector Fields
-
     [Header("Pawn Configuration")]
     [Tooltip("Whether this is a player or opponent pawn")]
+    // Whether this pawn is player-controlled or AI-controlled.
     public PawnType pawnType = PawnType.Player;
 
     [Header("Health Settings")]
     [Tooltip("Maximum HP for the pawn")]
+    // Maximum health points this pawn can have.
     public int MaxHP = 3;
-
     [Tooltip("Starting HP applied on spawn")]
+    // Initial HP when the pawn spawns.
     public int startingHP = 2;
-
     [Tooltip("Current HP")]
+    // Current health points.
     public int HP;
 
     [Header("Visual")]
     [Tooltip("SpriteRenderer to display the pawn")]
+    // SpriteRenderer component for displaying the pawn sprite.
     public SpriteRenderer spriteRenderer;
-
     [Tooltip("Array of sprites where index 0 => 0 HP")]
+    // Array of sprites representing different HP states.
     public Sprite[] hpSprites;
 
     [Header("Events")]
     [Tooltip("Called when HP changes")]
+    // Event invoked when pawn HP changes.
     public UnityEvent<int> OnHPChanged;
-
-    #endregion
-
-    #region Inspector Fields - Opponent Death Physics
 
     [Header("Death Physics (Opponent Only)")]
     [Tooltip("Horizontal impulse magnitude")]
+    // Horizontal force applied when opponent is defeated.
     public float expelForce = 8f;
-
     [Tooltip("Upward impulse component")]
+    // Upward force applied when opponent is defeated.
     public float verticalImpulse = 4f;
-
     [Tooltip("Rotational impulse")]
+    // Rotational force applied when opponent is defeated.
     public float expelTorque = 6f;
-
     [Tooltip("Seconds before applying expulsion")]
+    // Delay before applying defeat physics.
     public float expelDelay = 1f;
-
     [Tooltip("Seconds before destroy after physics")]
+    // Delay before destroying the pawn after expulsion.
     public float destroyDelay = 1.6f;
 
     [Header("Death Visual (Opponent Only)")]
     [Tooltip("Scale multiplier when bringing closer")]
+    // Scale multiplier for defeat animation.
     public float bringCloserScale = 1.2f;
-
     [Tooltip("Duration of scale animation")]
+    // Duration of the defeat animation.
     public float bringCloserDuration = 0.2f;
-
-    #endregion
 
     #region Private Fields
 

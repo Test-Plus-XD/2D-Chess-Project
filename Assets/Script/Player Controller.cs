@@ -33,29 +33,38 @@ public class PlayerController : MonoBehaviour
     private bool isPointerDown = false;
     #endregion
 
-    #region Standoff Mode Fields
     [Header("Standoff Mode Settings")]
     [Tooltip("Movement speed in Standoff mode")]
+    // Horizontal movement speed in standoff platformer mode.
     public float standoffMoveSpeed = 5f;
     [Tooltip("Jump force")]
+    // Upward velocity applied when jumping.
     public float jumpForce = 10f;
     [Tooltip("Maximum fall speed")]
+    // Maximum downward velocity when falling.
     public float maxFallSpeed = 15f;
     [Tooltip("Ground check distance")]
+    // Distance for ground detection raycast.
     public float groundCheckDistance = 0.1f;
     [Tooltip("Layer mask for ground detection")]
+    // Layer mask for detecting ground tiles.
     public LayerMask groundLayer;
     [Tooltip("Air control multiplier (0-1)")]
     [Range(0f, 1f)]
+    // Multiplier for movement control while airborne.
     public float airControl = 0.8f;
 
     // Standoff mode state
+    // Whether currently in standoff platformer mode.
     private bool isStandoffMode = false;
+    // Rigidbody2D component for physics-based movement.
     private Rigidbody2D rigidBody;
+    // Whether the pawn is currently touching ground.
     private bool isGrounded = false;
+    // Whether jump input can be processed this frame.
     private bool canJump = true;
+    // SpriteRenderer for sprite flipping based on direction.
     private SpriteRenderer spriteRenderer;
-    #endregion
 
     #region Shared Fields
     // Cached camera reference for screen->world conversion.

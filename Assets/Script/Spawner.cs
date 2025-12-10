@@ -6,75 +6,65 @@ using UnityEngine;
 // Consolidates PlayerSpawner and PawnSpawner functionality.
 public class Spawner : MonoBehaviour
 {
-    #region Inspector Fields - References
-
     [Header("Grid Reference")]
     [Tooltip("Reference to the HexGridGenerator")]
+    // Hex grid generator for board layout and tile management.
     public HexGridGenerator gridGenerator;
-
     [Tooltip("Reference to the Checkerboard")]
+    // Turn coordinator for player/opponent registration.
     public Checkerboard checkerboard;
-
-    #endregion
-
-    #region Inspector Fields - Player Spawning
 
     [Header("Player Spawning")]
     [Tooltip("Player pawn prefab")]
+    // Prefab to instantiate for the player pawn.
     public GameObject playerPawnPrefab;
-
     [Tooltip("Parent for player pawn")]
+    // Parent transform for the spawned player pawn.
     public Transform playerPawnParent;
-
     [Tooltip("Vertical offset for player spawn")]
+    // Vertical offset adjustment for player spawn position.
     public float playerVerticalOffset = 0f;
-
-    #endregion
-
-    #region Inspector Fields - Opponent Spawning
 
     [Header("Opponent Prefabs")]
     [Tooltip("Basic pawn prefab")]
+    // Prefab for basic opponent pawns.
     public GameObject pawnPrefab;
-
     [Tooltip("Handcannon pawn prefab")]
+    // Prefab for handcannon opponent pawns.
     public GameObject handcannonPrefab;
-
     [Tooltip("Shotgun pawn prefab")]
+    // Prefab for shotgun opponent pawns.
     public GameObject shotgunPrefab;
-
     [Tooltip("Sniper pawn prefab")]
+    // Prefab for sniper opponent pawns.
     public GameObject sniperPrefab;
 
     [Header("Opponent Spawn Counts")]
     [Tooltip("Number of Basic pawns")]
+    // Number of basic pawns to spawn.
     public int pawnCount = 0;
-
     [Tooltip("Number of Handcannon pawns")]
+    // Number of handcannon pawns to spawn.
     public int handcannonCount = 0;
-
     [Tooltip("Number of Shotgun pawns")]
+    // Number of shotgun pawns to spawn.
     public int shotgunCount = 0;
-
     [Tooltip("Number of Sniper pawns")]
+    // Number of sniper pawns to spawn.
     public int sniperCount = 0;
 
     [Header("Opponent Spawning Settings")]
     [Tooltip("Parent for spawned opponent pawns")]
+    // Parent transform for all spawned opponent pawns.
     public Transform opponentSpawnParent;
-
     [Tooltip("Allow multiple pawns on same tile")]
+    // Whether multiple pawns can spawn on the same tile.
     public bool allowStacking = false;
-
-    #endregion
-
-    #region Inspector Fields - General
 
     [Header("General Settings")]
     [Tooltip("Allow scene-wide collider search")]
+    // Whether to search entire scene for colliders if needed.
     public bool allowSceneWideColliderSearch = true;
-
-    #endregion
 
     #region Private Fields
 

@@ -43,52 +43,55 @@ public class Platform : MonoBehaviour
 
     #endregion
 
-    #region Inspector Fields
-
     [Header("Tile Prefabs")]
     [Tooltip("Prefab for floor tiles")]
+    // Prefab to instantiate for floor tiles.
     [SerializeField] private GameObject floorTilePrefab;
-
     [Tooltip("Prefab for platform tiles")]
+    // Prefab to instantiate for platform tiles.
     [SerializeField] private GameObject platformTilePrefab;
 
     [Header("Grid Settings")]
     [Tooltip("Size of hex tiles (distance from top to bottom)")]
+    // Size of hexagonal tiles in world units.
     [SerializeField] private float tileSize = 1f;
-
     [Tooltip("Hex orientation")]
+    // Orientation of the hexagonal grid (FlatTop or PointyTop).
     [SerializeField] private HexOrientation hexOrientation = HexOrientation.FlatTop;
-
     [Tooltip("Rotation offset for tile sprites")]
+    // Rotation offset in degrees for tile sprites.
     [SerializeField] private float tileRotationOffset = 0f;
 
     [Header("Floor Generation")]
     [Tooltip("Number of floor tiles to generate (default 6)")]
+    // Number of base floor tiles to generate.
     [SerializeField] private int floorTileCount = 6;
-
     [Tooltip("Height multiplier for platform elevation")]
+    // Multiplier for platform height in world units.
     [SerializeField] private float platformHeightMultiplier = 1f;
 
     [Header("Platform Generation")]
     [Tooltip("Which floor tile index to build platform above (0-based)")]
+    // Index of floor tile to build platform above.
     [SerializeField] private int platformBaseIndex = 2;
-
     [Tooltip("Number of times to expand the platform")]
+    // Number of platform tile expansions.
     [SerializeField] private int platformExpansions = 2;
 
     [Header("Random Tiles")]
     [Tooltip("Number of random tiles to attach to the arena")]
+    // Number of random connecting tiles to add.
     [SerializeField] private int randomTileCount = 3;
 
     [Header("Organization")]
     [Tooltip("Parent container for spawned tiles")]
+    // Parent transform for all spawned tiles.
     [SerializeField] private Transform parentContainer;
 
     [Header("Debug")]
     [Tooltip("Show debug information")]
+    // Enable debug logging for arena generation.
     [SerializeField] private bool showDebug = true;
-
-    #endregion
 
     #region Private Fields
 
