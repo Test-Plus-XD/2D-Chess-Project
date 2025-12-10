@@ -60,6 +60,7 @@ public class PlayerController : MonoBehaviour
     #region Shared Fields
     // Cached camera reference for screen->world conversion.
     private Camera cam;
+    #endregion
 
     // Enable EnhancedTouch when this component is enabled to get reliable touch phases.
     private void OnEnable()
