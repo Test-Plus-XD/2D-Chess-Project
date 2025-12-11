@@ -410,32 +410,17 @@ public class GameManager : MonoBehaviour
     {
         if (platformGenerator == null) return;
 
-        List<Platform.TileData> floorTiles = new List<Platform.TileData>();
-        foreach (var tile in platformGenerator.GetAllTiles())
-        {
-            if (tile.heightLevel == 0) floorTiles.Add(tile);
-        }
-
-        if (floorTiles.Count < 2) return;
-
-        Platform.TileData leftMostTile = floorTiles[0];
-        Platform.TileData rightMostTile = floorTiles[0];
-
-        foreach (var tile in floorTiles)
-        {
-            if (tile.position.x < leftMostTile.position.x) leftMostTile = tile;
-            if (tile.position.x > rightMostTile.position.x) rightMostTile = tile;
-        }
-
-        float tileHeight = currentLevelData != null ? currentLevelData.TileSize : 1f;
+        // Use Platform's built-in spawn position calculations.
+        // Player spawns at leftmost floor tile, opponent at rightmost.
+        // Both spawn one tile height above the highest tile in the arena.
+        Vector3 playerSpawnPos = platformGenerator.GetPlayerSpawnPosition();
+        Vector3 opponentSpawnPos = platformGenerator.GetOpponentSpawnPosition();
 
         if (playerController != null)
         {
-            Vector3 playerPos = leftMostTile.position;
-            playerPos.y += tileHeight;
-            playerController.transform.position = playerPos;
+            playerController.transform.position = playerSpawnPos;
 
-            if (showDebug) Debug.Log($"Player positioned at {playerPos}");
+            if (showDebug) Debug.Log($"Player positioned at {playerSpawnPos}");
         }
 
         if (checkerboard != null)
@@ -443,11 +428,9 @@ public class GameManager : MonoBehaviour
             var opponents = checkerboard.GetOpponentControllers();
             if (opponents.Count > 0)
             {
-                Vector3 opponentPos = rightMostTile.position;
-                opponentPos.y += tileHeight;
-                opponents[0].transform.position = opponentPos;
+                opponents[0].transform.position = opponentSpawnPos;
 
-                if (showDebug) Debug.Log($"Opponent positioned at {opponentPos}");
+                if (showDebug) Debug.Log($"Opponent positioned at {opponentSpawnPos}");
             }
         }
     }
