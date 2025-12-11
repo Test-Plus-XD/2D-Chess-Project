@@ -66,6 +66,11 @@ public class UIManager : MonoBehaviour
     [Tooltip("Pause button")]
     [SerializeField] private Button pauseButton;
 
+    [Header("Mobile Controls")]
+    [Tooltip("Mobile controls container (joystick and jump button for Standoff mode)")]
+    // Container for mobile controls (joystick and jump button) shown in Standoff mode.
+    [SerializeField] private GameObject mobileControlsPanel;
+
     #endregion
 
     #region Inspector Fields - Pause Menu
@@ -242,6 +247,7 @@ public class UIManager : MonoBehaviour
         if (victoryPanel != null) victoryPanel.SetActive(false);
         if (defeatPanel != null) defeatPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
+        if (mobileControlsPanel != null) mobileControlsPanel.SetActive(false);
 
         if (showDebug) Debug.Log("[UIManager] All panels initialised to inactive state");
     }
@@ -951,6 +957,13 @@ public class UIManager : MonoBehaviour
 
             // Red colour indicates standoff mode, white indicates chess mode
             gameModeText.color = GameManager.Instance.IsStandoffMode ? Color.red : Color.white;
+
+            // Show/hide mobile controls based on game mode
+            // Mobile controls (joystick and jump button) are only needed in Standoff mode
+            if (mobileControlsPanel != null)
+            {
+                mobileControlsPanel.SetActive(GameManager.Instance.IsStandoffMode);
+            }
         }
     }
 

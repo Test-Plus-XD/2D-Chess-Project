@@ -179,6 +179,23 @@ public class PawnCustomiser : ScriptableObject
     [Tooltip("Timing parameters for AI thinking and animation")]
     public AIThinking aiThinking = new AIThinking();
 
+    [Header("Modifier Visual Icons")]
+    [Tooltip("Sprite for Tenacious modifier icon")]
+    // Icon sprite displayed for Tenacious modifier (shield/armor).
+    public Sprite tenaciousIcon;
+    [Tooltip("Sprite for Confrontational modifier icon")]
+    // Icon sprite displayed for Confrontational modifier (sword/aggressive).
+    public Sprite confrontationalIcon;
+    [Tooltip("Sprite for Fleet modifier icon")]
+    // Icon sprite displayed for Fleet modifier (speed/wings).
+    public Sprite fleetIcon;
+    [Tooltip("Sprite for Observant modifier icon")]
+    // Icon sprite displayed for Observant modifier (eye).
+    public Sprite observantIcon;
+    [Tooltip("Sprite for Reflexive modifier icon")]
+    // Icon sprite displayed for Reflexive modifier (target/crosshair).
+    public Sprite reflexiveIcon;
+
     /// Get chess mode weight for a tile based on AI type and distance to player
     public float GetChessModeWeight(PawnController.AIType aiType, bool isClosest, bool isFarthest, int directionIndex)
     {
@@ -250,6 +267,26 @@ public class PawnCustomiser : ScriptableObject
                 return modifierEffects.fleetMoveSpeedMultiplier;
             default:
                 return 1.0f;
+        }
+    }
+
+    /// Get the sprite icon for a specific modifier
+    public Sprite GetModifierIcon(PawnController.Modifier modifier)
+    {
+        switch (modifier)
+        {
+            case PawnController.Modifier.Tenacious:
+                return tenaciousIcon;
+            case PawnController.Modifier.Confrontational:
+                return confrontationalIcon;
+            case PawnController.Modifier.Fleet:
+                return fleetIcon;
+            case PawnController.Modifier.Observant:
+                return observantIcon;
+            case PawnController.Modifier.Reflexive:
+                return reflexiveIcon;
+            default:
+                return null;
         }
     }
 }

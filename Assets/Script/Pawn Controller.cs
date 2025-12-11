@@ -46,17 +46,8 @@ public class PawnController : MonoBehaviour
 
     [Header("Modifier Visual")]
     [Tooltip("UI image displaying the modifier icon at top-right of pawn")]
+    // UI Image component for displaying modifier icon (icon sprites are in Pawn Customiser).
     public UnityEngine.UI.Image modifierIconImage;
-    [Tooltip("Sprite for Tenacious modifier")]
-    public Sprite tenaciousIcon;
-    [Tooltip("Sprite for Confrontational modifier")]
-    public Sprite confrontationalIcon;
-    [Tooltip("Sprite for Fleet modifier")]
-    public Sprite fleetIcon;
-    [Tooltip("Sprite for Observant modifier")]
-    public Sprite observantIcon;
-    [Tooltip("Sprite for Reflexive modifier")]
-    public Sprite reflexiveIcon;
 
     // Neighbour axial deltas (must match your project's convention).
     private readonly int[] DIR_Q = { 1, 1, 0, -1, -1, 0 };
@@ -485,59 +476,13 @@ public class PawnController : MonoBehaviour
         // Use Basic AI behavior if no customiser assigned
         if (pawnCustomiser == null)
         {
-            // Basic AI: Closest tile gets weight 5, others get weight 1
-            foreach (var c in candidates) c.weight = 0f;
-
-            // Get current tile world position for Y-axis comparison (world space)
-            Vector3 currentWorldPos;
-            if (!TryGetTileWorldCentre(q, r, out currentWorldPos))
-            {
-                // Fallback to allowing all 3 directions if can't get world pos (directional check only)
-                foreach (var c in candidates)
-                {
-                    int dq = c.q - q; int dr = c.r - r;
-                    // Allow only: (0,-1) bottom, (-1,0) bottom-left, (1,-1) bottom-right
-                    if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
-                    {
-                        c.weight = 1f;
-                    }
-                }
-                // Give extra weight to closest tile
-                float bestDist = float.PositiveInfinity;
-                foreach (var c in candidates) if (c.weight > 0f) bestDist = Mathf.Min(bestDist, c.distToPlayer);
-                foreach (var c in candidates) if (c.weight > 0f && c.distToPlayer == bestDist) c.weight = 5f;
-                return;
-            }
-
+            // Without customiser, use simple distance-based weighting for all AI types
+            // Only Basic AI has movement restrictions (handled in the switch case below)
             foreach (var c in candidates)
             {
-                // Get candidate tile world position to compare Y values
-                Vector3 candidateWorldPos;
-                if (!TryGetTileWorldCentre(c.q, c.r, out candidateWorldPos))
-                {
-                    c.weight = 0f;
-                    continue;
-                }
-
-                // Block any move that increases Y (moving backward/upward in world space means can't move up)
-                if (candidateWorldPos.y > currentWorldPos.y)
-                {
-                    c.weight = 0f;
-                    continue;
-                }
-
-                int dq = c.q - q; int dr = c.r - r;
-                // Check if direction is one of the allowed 3 bottom directions
-                // bottom = (0,-1); bottom-left = (-1,0); bottom-right = (1,-1)
-                if ((dq == 0 && dr == -1) || (dq == -1 && dr == 0) || (dq == 1 && dr == -1))
-                {
-                    c.weight = 1f;
-                }
+                // Simple weighting: closer to player = higher weight
+                c.weight = (c.distToPlayer == minDist) ? 5f : 1f;
             }
-            // Give extra weight to allowed tile(s) that are closest to player (prioritize approaching)
-            float bestDist2 = float.PositiveInfinity;
-            foreach (var c in candidates) if (c.weight > 0f) bestDist2 = Mathf.Min(bestDist2, c.distToPlayer);
-            foreach (var c in candidates) if (c.weight > 0f && c.distToPlayer == bestDist2) c.weight = 5f;
             return;
         }
 
@@ -775,30 +720,14 @@ public class PawnController : MonoBehaviour
     {
         if (modifierIconImage == null) return;
 
+        // Get modifier icon from Pawn Customiser (centralized icon storage)
         Sprite iconSprite = null;
-        switch (modifier)
+        if (pawnCustomiser != null)
         {
-            case Modifier.Tenacious:
-                iconSprite = tenaciousIcon;
-                break;
-            case Modifier.Confrontational:
-                iconSprite = confrontationalIcon;
-                break;
-            case Modifier.Fleet:
-                iconSprite = fleetIcon;
-                break;
-            case Modifier.Observant:
-                iconSprite = observantIcon;
-                break;
-            case Modifier.Reflexive:
-                iconSprite = reflexiveIcon;
-                break;
-            case Modifier.None:
-            default:
-                iconSprite = null;
-                break;
+            iconSprite = pawnCustomiser.GetModifierIcon(modifier);
         }
 
+        // Display icon if found, otherwise hide the image
         if (iconSprite != null)
         {
             modifierIconImage.sprite = iconSprite;
