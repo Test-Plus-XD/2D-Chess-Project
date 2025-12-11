@@ -46,17 +46,8 @@ public class PawnController : MonoBehaviour
 
     [Header("Modifier Visual")]
     [Tooltip("UI image displaying the modifier icon at top-right of pawn")]
+    // UI Image component for displaying modifier icon (icon sprites are in Pawn Customiser).
     public UnityEngine.UI.Image modifierIconImage;
-    [Tooltip("Sprite for Tenacious modifier")]
-    public Sprite tenaciousIcon;
-    [Tooltip("Sprite for Confrontational modifier")]
-    public Sprite confrontationalIcon;
-    [Tooltip("Sprite for Fleet modifier")]
-    public Sprite fleetIcon;
-    [Tooltip("Sprite for Observant modifier")]
-    public Sprite observantIcon;
-    [Tooltip("Sprite for Reflexive modifier")]
-    public Sprite reflexiveIcon;
 
     // Neighbour axial deltas (must match your project's convention).
     private readonly int[] DIR_Q = { 1, 1, 0, -1, -1, 0 };
@@ -729,30 +720,14 @@ public class PawnController : MonoBehaviour
     {
         if (modifierIconImage == null) return;
 
+        // Get modifier icon from Pawn Customiser (centralized icon storage)
         Sprite iconSprite = null;
-        switch (modifier)
+        if (pawnCustomiser != null)
         {
-            case Modifier.Tenacious:
-                iconSprite = tenaciousIcon;
-                break;
-            case Modifier.Confrontational:
-                iconSprite = confrontationalIcon;
-                break;
-            case Modifier.Fleet:
-                iconSprite = fleetIcon;
-                break;
-            case Modifier.Observant:
-                iconSprite = observantIcon;
-                break;
-            case Modifier.Reflexive:
-                iconSprite = reflexiveIcon;
-                break;
-            case Modifier.None:
-            default:
-                iconSprite = null;
-                break;
+            iconSprite = pawnCustomiser.GetModifierIcon(modifier);
         }
 
+        // Display icon if found, otherwise hide the image
         if (iconSprite != null)
         {
             modifierIconImage.sprite = iconSprite;
