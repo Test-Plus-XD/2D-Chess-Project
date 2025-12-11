@@ -1,82 +1,43 @@
 using System;
 using UnityEngine;
 
-/// ScriptableObject for configuring opponent pawn AI behaviors and modifiers.
+/// ScriptableObject for configuring opponent pawn AI behaviours and modifiers.
 /// Create instances via Assets → Create → Game → Pawn Customiser to tweak AI parameters in Unity Editor.
-/// Reference this in Pawn Controller to apply custom AI behavior and modifier configurations.
+/// Reference this in Pawn Controller to apply custom AI behaviour and modifier configurations.
 [CreateAssetMenu(fileName = "New Pawn Customiser", menuName = "Game/Pawn Customiser", order = 2)]
 public class PawnCustomiser : ScriptableObject
 {
-    /// Configuration for chess mode AI movement weights
+    // Configuration for per-AI-type chess mode weights.
     [Serializable]
-    public class ChessModeWeights
+    public class AITypeWeights
     {
-        [Header("Basic AI Type")]
-        [Tooltip("Weight for tiles closest to player (Basic AI)")]
+        [Tooltip("Weight for the tile closest to player")]
         [Range(0f, 10f)]
-        public float basicClosestWeight = 5f;
-        [Tooltip("Weight for other allowed tiles (Basic AI)")]
+        public float closestWeight = 5f;
+        [Tooltip("Weight for diagonal moves (Shotgun AI only)")]
         [Range(0f, 10f)]
-        public float basicOtherWeight = 1f;
-
-        [Header("Handcannon AI Type")]
-        [Tooltip("Weight for tiles closest to player (Handcannon AI)")]
+        public float diagonalWeight = 3f;
+        [Tooltip("Weight for side moves (Shotgun AI only)")]
         [Range(0f, 10f)]
-        public float handcannonClosestWeight = 3f;
-        [Tooltip("Weight for other tiles (Handcannon AI)")]
+        public float sideWeight = 2f;
+        [Tooltip("Weight for tiles farthest from player")]
         [Range(0f, 10f)]
-        public float handcannonOtherWeight = 1f;
-
-        [Header("Shotgun AI Type")]
-        [Tooltip("Weight for tiles closest to player (Shotgun AI - highest priority)")]
-        [Range(0f, 10f)]
-        public float shotgunClosestWeight = 4f;
-        [Tooltip("Weight for diagonal upper moves (Shotgun AI - flanking)")]
-        [Range(0f, 10f)]
-        public float shotgunDiagonalWeight = 3f;
-        [Tooltip("Weight for side moves (Shotgun AI)")]
-        [Range(0f, 10f)]
-        public float shotgunSideWeight = 2f;
-        [Tooltip("Weight for tiles farthest from player (Shotgun AI - lowest priority)")]
-        [Range(0f, 10f)]
-        public float shotgunFarthestWeight = 1f;
-
-        [Header("Sniper AI Type")]
-        [Tooltip("Weight for tiles farthest from player (Sniper AI - defensive positioning)")]
-        [Range(0f, 10f)]
-        public float sniperFarthestWeight = 4f;
-        [Tooltip("Weight for medium distance tiles (Sniper AI)")]
-        [Range(0f, 10f)]
-        public float sniperMediumWeight = 2f;
-        [Tooltip("Weight for tiles closest to player (Sniper AI - avoid close quarters)")]
-        [Range(0f, 10f)]
-        public float sniperClosestWeight = 1f;
+        public float farthestWeight = 1f;
     }
 
-    /// Configuration for standoff mode AI distance preferences
+    // Configuration for per-AI-type standoff mode distance preferences.
     [Serializable]
-    public class StandoffModeDistances
+    public class AITypeStandoffDistances
     {
-        [Header("Basic/Shotgun AI Type")]
-        [Tooltip("Distance threshold for Basic/Shotgun to approach player (Standoff mode)")]
+        [Tooltip("Minimum optimal distance for this AI type (Standoff mode)")]
         [Range(0f, 10f)]
-        public float aggressiveApproachDistance = 1.5f;
-
-        [Header("Handcannon AI Type")]
-        [Tooltip("Minimum optimal distance for Handcannon (Standoff mode)")]
+        public float minDistance = 2f;
+        [Tooltip("Maximum optimal distance for this AI type (Standoff mode)")]
         [Range(0f, 10f)]
-        public float handcannonMinDistance = 2f;
-        [Tooltip("Maximum optimal distance for Handcannon (Standoff mode)")]
-        [Range(0f, 10f)]
-        public float handcannonMaxDistance = 4f;
-
-        [Header("Sniper AI Type")]
-        [Tooltip("Retreat distance threshold for Sniper (Standoff mode)")]
-        [Range(0f, 15f)]
-        public float sniperRetreatDistance = 6f;
+        public float maxDistance = 4f;
     }
 
-    /// Configuration for modifier effects and multipliers
+    // Configuration for modifier effects and multipliers.
     [Serializable]
     public class ModifierEffects
     {
@@ -106,7 +67,7 @@ public class PawnCustomiser : ScriptableObject
         public float reflexiveFiringDelayMultiplier = 0.75f;
     }
 
-    /// Configuration for platformer movement and jumping
+    // Configuration for platformer movement and jumping.
     [Serializable]
     public class PlatformerMovement
     {
@@ -144,7 +105,7 @@ public class PawnCustomiser : ScriptableObject
         public float farGroundCheckDistance = 2f;
     }
 
-    /// Configuration for AI decision-making timing
+    // Configuration for AI decision-making timing.
     [Serializable]
     public class AIThinking
     {
@@ -159,13 +120,25 @@ public class PawnCustomiser : ScriptableObject
         public float standoffThinkInterval = 0.5f;
     }
 
-    [Header("Chess Mode AI Weights")]
-    [Tooltip("Weight configurations for chess mode AI movement strategies")]
-    public ChessModeWeights chessModeWeights = new ChessModeWeights();
+    [Header("Chess Mode Weights")]
+    [Tooltip("Weight configurations for Basic AI type in chess mode")]
+    public AITypeWeights basicChessWeights = new AITypeWeights() { closestWeight = 5f, farthestWeight = 1f };
+    [Tooltip("Weight configurations for Handcannon AI type in chess mode")]
+    public AITypeWeights handcannonChessWeights = new AITypeWeights() { closestWeight = 3f, farthestWeight = 1f };
+    [Tooltip("Weight configurations for Shotgun AI type in chess mode")]
+    public AITypeWeights shotgunChessWeights = new AITypeWeights() { closestWeight = 4f, diagonalWeight = 3f, sideWeight = 2f, farthestWeight = 1f };
+    [Tooltip("Weight configurations for Sniper AI type in chess mode")]
+    public AITypeWeights sniperChessWeights = new AITypeWeights() { closestWeight = 1f, farthestWeight = 4f };
 
     [Header("Standoff Mode Distances")]
-    [Tooltip("Distance preferences for standoff mode AI positioning")]
-    public StandoffModeDistances standoffDistances = new StandoffModeDistances();
+    [Tooltip("Distance preferences for Basic AI type in standoff mode")]
+    public AITypeStandoffDistances basicStandoffDistances = new AITypeStandoffDistances() { minDistance = 1.5f, maxDistance = 10f };
+    [Tooltip("Distance preferences for Handcannon AI type in standoff mode")]
+    public AITypeStandoffDistances handcannonStandoffDistances = new AITypeStandoffDistances() { minDistance = 2f, maxDistance = 4f };
+    [Tooltip("Distance preferences for Shotgun AI type in standoff mode")]
+    public AITypeStandoffDistances shotgunStandoffDistances = new AITypeStandoffDistances() { minDistance = 1.5f, maxDistance = 10f };
+    [Tooltip("Distance preferences for Sniper AI type in standoff mode")]
+    public AITypeStandoffDistances sniperStandoffDistances = new AITypeStandoffDistances() { minDistance = 6f, maxDistance = 20f };
 
     [Header("Modifier Effects")]
     [Tooltip("Multipliers and values for modifier effects")]
@@ -181,112 +154,84 @@ public class PawnCustomiser : ScriptableObject
 
     [Header("Modifier Visual Icons")]
     [Tooltip("Sprite for Tenacious modifier icon")]
-    // Icon sprite displayed for Tenacious modifier (shield/armor).
     public Sprite tenaciousIcon;
     [Tooltip("Sprite for Confrontational modifier icon")]
-    // Icon sprite displayed for Confrontational modifier (sword/aggressive).
     public Sprite confrontationalIcon;
     [Tooltip("Sprite for Fleet modifier icon")]
-    // Icon sprite displayed for Fleet modifier (speed/wings).
     public Sprite fleetIcon;
     [Tooltip("Sprite for Observant modifier icon")]
-    // Icon sprite displayed for Observant modifier (eye).
     public Sprite observantIcon;
     [Tooltip("Sprite for Reflexive modifier icon")]
-    // Icon sprite displayed for Reflexive modifier (target/crosshair).
     public Sprite reflexiveIcon;
 
-    /// Get chess mode weight for a tile based on AI type and distance to player
-    public float GetChessModeWeight(PawnController.AIType aiType, bool isClosest, bool isFarthest, int directionIndex)
+    // Get chess mode weights for the specified AI type.
+    public AITypeWeights GetChessWeights(PawnController.AIType aiType)
     {
-        switch (aiType)
+        return aiType switch
         {
-            case PawnController.AIType.Basic:
-                return isClosest ? chessModeWeights.basicClosestWeight : chessModeWeights.basicOtherWeight;
-
-            case PawnController.AIType.Handcannon:
-                return isClosest ? chessModeWeights.handcannonClosestWeight : chessModeWeights.handcannonOtherWeight;
-
-            case PawnController.AIType.Shotgun:
-                if (isClosest)
-                    return chessModeWeights.shotgunClosestWeight;
-                else if (isFarthest)
-                    return chessModeWeights.shotgunFarthestWeight;
-                else if (directionIndex == 1 || directionIndex == 2) // Diagonal upper
-                    return chessModeWeights.shotgunDiagonalWeight;
-                else if (directionIndex == 4 || directionIndex == 5) // Side
-                    return chessModeWeights.shotgunSideWeight;
-                else
-                    return chessModeWeights.shotgunFarthestWeight;
-
-            case PawnController.AIType.Sniper:
-                if (isFarthest)
-                    return chessModeWeights.sniperFarthestWeight;
-                else if (isClosest)
-                    return chessModeWeights.sniperClosestWeight;
-                else
-                    return chessModeWeights.sniperMediumWeight;
-
-            default:
-                return 1f;
-        }
+            PawnController.AIType.Basic => basicChessWeights,
+            PawnController.AIType.Handcannon => handcannonChessWeights,
+            PawnController.AIType.Shotgun => shotgunChessWeights,
+            PawnController.AIType.Sniper => sniperChessWeights,
+            _ => basicChessWeights
+        };
     }
 
-    /// Get fire interval multiplier for a modifier
+    // Get standoff mode distances for the specified AI type.
+    public AITypeStandoffDistances GetStandoffDistances(PawnController.AIType aiType)
+    {
+        return aiType switch
+        {
+            PawnController.AIType.Basic => basicStandoffDistances,
+            PawnController.AIType.Handcannon => handcannonStandoffDistances,
+            PawnController.AIType.Shotgun => shotgunStandoffDistances,
+            PawnController.AIType.Sniper => sniperStandoffDistances,
+            _ => basicStandoffDistances
+        };
+    }
+
+    // Get fire interval multiplier for a modifier.
     public float GetFireIntervalMultiplier(PawnController.Modifier modifier)
     {
-        switch (modifier)
+        return modifier switch
         {
-            case PawnController.Modifier.Confrontational:
-                return modifierEffects.confrontationalFireIntervalMultiplier;
-            default:
-                return 1.0f;
-        }
+            PawnController.Modifier.Confrontational => modifierEffects.confrontationalFireIntervalMultiplier,
+            _ => 1.0f
+        };
     }
 
-    /// Get firing delay multiplier for a modifier
+    // Get firing delay multiplier for a modifier.
     public float GetFiringDelayMultiplier(PawnController.Modifier modifier)
     {
-        switch (modifier)
+        return modifier switch
         {
-            case PawnController.Modifier.Observant:
-                return modifierEffects.observantFiringDelayMultiplier;
-            case PawnController.Modifier.Reflexive:
-                return modifierEffects.reflexiveFiringDelayMultiplier;
-            default:
-                return 1.0f;
-        }
+            PawnController.Modifier.Observant => modifierEffects.observantFiringDelayMultiplier,
+            PawnController.Modifier.Reflexive => modifierEffects.reflexiveFiringDelayMultiplier,
+            _ => 1.0f
+        };
     }
 
-    /// Get movement speed multiplier for a modifier
+    // Get movement speed multiplier for a modifier.
     public float GetMoveSpeedMultiplier(PawnController.Modifier modifier)
     {
-        switch (modifier)
+        return modifier switch
         {
-            case PawnController.Modifier.Fleet:
-                return modifierEffects.fleetMoveSpeedMultiplier;
-            default:
-                return 1.0f;
-        }
+            PawnController.Modifier.Fleet => modifierEffects.fleetMoveSpeedMultiplier,
+            _ => 1.0f
+        };
     }
 
-    /// Get the sprite icon for a specific modifier
+    // Get the sprite icon for a specific modifier.
     public Sprite GetModifierIcon(PawnController.Modifier modifier)
     {
-        switch (modifier)
+        return modifier switch
         {
-            case PawnController.Modifier.Tenacious:
-                return tenaciousIcon;
-            case PawnController.Modifier.Confrontational:
-                return confrontationalIcon;
-            case PawnController.Modifier.Fleet:
-                return fleetIcon;
-            case PawnController.Modifier.Observant:
-                return observantIcon;
-            case PawnController.Modifier.Reflexive:
-                return reflexiveIcon;
-            default:
-                return null;
-        }
+            PawnController.Modifier.Tenacious => tenaciousIcon,
+            PawnController.Modifier.Confrontational => confrontationalIcon,
+            PawnController.Modifier.Fleet => fleetIcon,
+            PawnController.Modifier.Observant => observantIcon,
+            PawnController.Modifier.Reflexive => reflexiveIcon,
+            _ => null
+        };
     }
 }
