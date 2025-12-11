@@ -149,7 +149,8 @@ public class GameManager : MonoBehaviour
     {
         if (checkerboard == null) checkerboard = FindFirstObjectByType<Checkerboard>();
         if (platformGenerator == null) platformGenerator = FindFirstObjectByType<Platform>();
-        if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
+        // Don't find player controller here - it will be spawned later
+        // playerController will be found dynamically when needed
     }
 
     private void Update()
@@ -344,14 +345,22 @@ public class GameManager : MonoBehaviour
     private void SetupChessMode()
     {
         if (checkerboard != null) checkerboard.gameObject.SetActive(true);
+        if (gridGenerator != null) gridGenerator.gameObject.SetActive(true);
         if (platformGenerator != null) platformGenerator.gameObject.SetActive(false);
+
+        // Find player controller if not already assigned
+        if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
         if (playerController != null) playerController.SetStandoffMode(false);
     }
 
     private void SetupStandoffMode()
     {
         if (checkerboard != null) checkerboard.gameObject.SetActive(false);
+        if (gridGenerator != null) gridGenerator.gameObject.SetActive(false);
         if (platformGenerator != null) platformGenerator.gameObject.SetActive(true);
+
+        // Find player controller if not already assigned
+        if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
         if (playerController != null) playerController.SetStandoffMode(true);
         OnStandoffBegin?.Invoke();
     }
@@ -415,6 +424,9 @@ public class GameManager : MonoBehaviour
         // Both spawn one tile height above the highest tile in the arena.
         Vector3 playerSpawnPos = platformGenerator.GetPlayerSpawnPosition();
         Vector3 opponentSpawnPos = platformGenerator.GetOpponentSpawnPosition();
+
+        // Find player controller if not already assigned
+        if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
 
         if (playerController != null)
         {

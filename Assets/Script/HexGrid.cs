@@ -36,6 +36,12 @@ public class HexGridGenerator : MonoBehaviour
     }
     public enum ExtraRowMode { FullWidth, Tapered };
 
+    private void Awake()
+    {
+        // Disable the GameObject on start so it only activates in Chess mode.
+        gameObject.SetActive(false);
+    }
+
     // Generate grid on Start when playing.
     void Start()
     {

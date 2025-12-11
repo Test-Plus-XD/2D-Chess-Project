@@ -85,11 +85,12 @@ public class PlayerController : MonoBehaviour
 
     // Initialise the pawn with starting coords and a reference to the grid generator.
     // Call this from your spawner after parsing q,r.
-    public void Initialise(int startQ, int startR, HexGridGenerator generator, Checkerboard checkerboard)
+    public void Initialise(int startQ, int startR, HexGridGenerator generator, Checkerboard board)
     {
         q = startQ;
         r = startR;
         gridGenerator = generator;
+        checkerboard = board;
         camera = Camera.main;
         checkerboard.RegisterPlayer(this);
         // Try to position pawn at the tile's collider centre if present.
