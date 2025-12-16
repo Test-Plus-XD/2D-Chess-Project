@@ -10,8 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 2678433943973702008}
   - component: {fileID: 9000784705327563910}
+  - component: {fileID: -6720222712524503381}
   - component: {fileID: 1096486293663263737}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Default Tile
   m_TagString: Tile
   m_Icon: {fileID: 0}
@@ -44,7 +45,60 @@ PolygonCollider2D:
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: 62c77a89793fc5d45852680dcebe5600, type: 2}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0.5, y: 0.5}
+    oldSize: {x: 10, y: 8.75}
+    newSize: {x: 10, y: 8.75}
+    adaptiveTilingThreshold: 0.5
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  m_Points:
+    m_Paths:
+    - - {x: 0.56599295, y: -0.0007577315}
+      - {x: 0.28496516, y: 0.48982573}
+      - {x: -0.28590244, y: 0.48961633}
+      - {x: -0.56780195, y: -0.0016063144}
+      - {x: -0.2846624, y: -0.48976904}
+      - {x: 0.28380457, y: -0.49009213}
+  m_UseDelaunayMesh: 1
+--- !u!61 &-6720222712524503381
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1975399349913774470}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 6200000, guid: 62c77a89793fc5d45852680dcebe5600, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -71,22 +125,15 @@ PolygonCollider2D:
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 10, y: 8.75}
-    newSize: {x: 10, y: 8.75}
-    adaptiveTilingThreshold: 0.5
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Points:
-    m_Paths:
-    - - {x: 0.56599295, y: -0.0007577315}
-      - {x: 0.28496516, y: 0.48982573}
-      - {x: -0.28590244, y: 0.48961633}
-      - {x: -0.56780195, y: -0.0016063144}
-      - {x: -0.2846624, y: -0.48976904}
-      - {x: 0.28380457, y: -0.49009213}
-  m_UseDelaunayMesh: 1
+  m_Size: {x: 1, y: 1}
+  m_EdgeRadius: 0
 --- !u!251 &1096486293663263737
 PlatformEffector2D:
   m_ObjectHideFlags: 0
@@ -98,7 +145,7 @@ PlatformEffector2D:
   m_UseColliderMask: 1
   m_ColliderMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 9
   m_RotationalOffset: 0
   m_UseOneWay: 1
   m_UseOneWayGrouping: 1

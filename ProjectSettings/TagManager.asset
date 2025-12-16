@@ -4,12 +4,14 @@
 TagManager:
   serializedVersion: 3
   tags:
+  - Pawn
   - Tile
+  - Bullet
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Ground
   - Water
   - UI
   - 

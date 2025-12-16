@@ -42,8 +42,7 @@ RenderSettings:
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
-  serializedVersion: 13
-  m_BakeOnSceneLoad: 0
+  serializedVersion: 12
   m_GISettings:
     serializedVersion: 2
     m_BounceScale: 1
@@ -3675,7 +3674,6 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
@@ -4797,6 +4795,7 @@ MonoBehaviour:
   opponentsText: {fileID: 0}
   gameModeText: {fileID: 0}
   pauseButton: {fileID: 885328390}
+  mobileControlsPanel: {fileID: 0}
   pauseMenuPanel: {fileID: 1813778512}
   resumeButton: {fileID: 1316989340}
   restartButton: {fileID: 151562281}
@@ -5253,7 +5252,6 @@ GameObject:
   m_IsActive: 1
 --- !u!212 &1170832051
 SpriteRenderer:
-  serializedVersion: 2
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -5272,8 +5270,6 @@ SpriteRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -5295,11 +5291,9 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: -5
-  m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: e88f49d89b2e9c14badeb2210a9fd342, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 0.78431374}
   m_FlipX: 0
@@ -5309,7 +5303,8 @@ SpriteRenderer:
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
-  m_SpriteSortPoint: 0
+  m_MaskInteraction: 2
+  m_SpriteSortPoint: 1
 --- !u!4 &1170832052
 Transform:
   m_ObjectHideFlags: 0
@@ -5320,7 +5315,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 2.5}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.25, y: 1.25, z: 1.25}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -5336,7 +5331,7 @@ GameObject:
   - component: {fileID: 1225933544}
   - component: {fileID: 1225933545}
   m_Layer: 2
-  m_Name: InputSystem
+  m_Name: Input System
   m_TagString: GameController
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6205,7 +6200,7 @@ GameObject:
   - component: {fileID: 1614843269}
   - component: {fileID: 1614843270}
   m_Layer: 2
-  m_Name: TimeController
+  m_Name: Time Controller
   m_TagString: GameController
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6756,7 +6751,7 @@ MonoBehaviour:
   standoffTransitionDelay: 1.5
   standoffTriggerCount: 1
   levels:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 3275ef88a4d1c0d4189da0a979a1f926, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   currentLevelData: {fileID: 0}
@@ -7702,7 +7697,7 @@ GameObject:
   - component: {fileID: 1948431341}
   - component: {fileID: 1948431342}
   m_Layer: 2
-  m_Name: AudioManager
+  m_Name: Audio Manager
   m_TagString: GameController
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8483,7 +8478,7 @@ GameObject:
   - component: {fileID: 2097288720}
   - component: {fileID: 2097288719}
   m_Layer: 2
-  m_Name: EventSystem
+  m_Name: Event System
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

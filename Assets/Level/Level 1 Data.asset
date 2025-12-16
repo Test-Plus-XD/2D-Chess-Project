@@ -31,5 +31,5 @@ MonoBehaviour:
   RandomTileCount: 3
   OpponentFireRate: 1.5
   DetectionRange: 10
-  BackgroundMusic: {fileID: 0}
-  Skybox: {fileID: 0}
+  BackgroundMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
+  Skybox: {fileID: 2100000, guid: 72deae4d18418f94688abef8e8483df0, type: 2}
