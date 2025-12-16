@@ -155,7 +155,8 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        if (currentState == GameState.ChessMode && !hasTransitionedToStandoff)
+        // Only check standoff condition after a delay to allow spawning to complete
+        if (currentState == GameState.ChessMode && !hasTransitionedToStandoff && Time.time > 1f)
         {
             CheckStandoffCondition();
         }
@@ -329,11 +330,29 @@ public class GameManager : MonoBehaviour
 
         switch (to)
         {
+            case GameState.MainMenu:
+            case GameState.LevelSelect:
+                // Play universal menu music
+                if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlayMenuMusic();
+                }
+                break;
             case GameState.ChessMode:
                 SetupChessMode();
+                // Play Chess mode music from level data
+                if (currentLevelData != null && currentLevelData.ChessModeMusic != null && AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlayMusic(currentLevelData.ChessModeMusic);
+                }
                 break;
             case GameState.Standoff:
                 SetupStandoffMode();
+                // Play Standoff mode music from level data
+                if (currentLevelData != null && currentLevelData.StandoffModeMusic != null && AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlayMusic(currentLevelData.StandoffModeMusic);
+                }
                 break;
             case GameState.Victory:
             case GameState.Defeat:
@@ -370,8 +389,12 @@ public class GameManager : MonoBehaviour
         if (checkerboard == null) return;
 
         int remainingOpponents = checkerboard.GetOpponentControllers().Count;
-        if (remainingOpponents <= standoffTriggerCount)
+        // Only trigger standoff if opponents were spawned and now only 1 remains
+        // Initial spawn count check prevents triggering before spawning completes
+        if (remainingOpponents > 0 && remainingOpponents <= standoffTriggerCount)
         {
+            // Ensure we have exactly standoffTriggerCount (1) opponent left
+            // This prevents triggering at game start when count is 0
             TriggerStandoff();
         }
     }
@@ -492,11 +515,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // Play background music
-        if (currentLevelData.BackgroundMusic != null && AudioManager.Instance != null)
-        {
-            AudioManager.Instance.PlayMusic(currentLevelData.BackgroundMusic);
-        }
+        // Music is now handled by HandleStateTransition to support Chess/Standoff mode switching
     }
 
     #endregion

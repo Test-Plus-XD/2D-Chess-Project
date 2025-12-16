@@ -321,35 +321,79 @@ public class UIManager : MonoBehaviour
         }
         levelButtons.Clear();
 
-        // Level buttons are instantiated for each available level
-        LevelData[] levels = GameManager.Instance.GetAllLevels();
-        for (int i = 0; i < levels.Length; i++)
+        // Get level count from Game Manager
+        int levelCount = GameManager.Instance.TotalLevels;
+        if (levelCount == 0)
         {
-            if (levels[i] == null) continue;
+            if (showDebug) Debug.LogWarning("[UIManager] No levels found in Game Manager");
+            return;
+        }
 
-            // Button GameObject is instantiated from prefab
-            GameObject buttonObject = Instantiate(levelButtonPrefab, levelButtonContainer);
-            levelButtons.Add(buttonObject);
+        // Calculate centre index (for odd counts, true centre; for even counts, left-of-centre)
+        int centreIndex = levelCount / 2;
 
-            // Button component and text are retrieved
-            Button button = buttonObject.GetComponent<Button>();
-            TextMeshProUGUI buttonText = buttonObject.GetComponentInChildren<TextMeshProUGUI>();
+        // Level buttons are instantiated starting from centre
+        LevelData[] levels = GameManager.Instance.GetAllLevels();
 
-            // Button text is set to display level number and name
-            if (buttonText != null)
+        // Render centre button first
+        if (levels[centreIndex] != null)
+        {
+            GameObject centreButton = CreateLevelButton(levels[centreIndex], centreIndex, isCentre: true);
+            levelButtons.Add(centreButton);
+        }
+
+        // Render buttons alternating left and right from centre
+        for (int offset = 1; offset <= levelCount / 2; offset++)
+        {
+            // Right side button
+            int rightIndex = centreIndex + offset;
+            if (rightIndex < levels.Length && levels[rightIndex] != null)
             {
-                buttonText.text = $"Level {i + 1}\n{levels[i].LevelName}";
+                GameObject rightButton = CreateLevelButton(levels[rightIndex], rightIndex, isCentre: false);
+                levelButtons.Add(rightButton);
             }
 
-            // Button click listener is registered with captured level index
-            int levelIndex = i;
-            if (button != null)
+            // Left side button
+            int leftIndex = centreIndex - offset;
+            if (leftIndex >= 0 && levels[leftIndex] != null)
             {
-                button.onClick.AddListener(() => OnLevelButtonClicked(levelIndex));
+                GameObject leftButton = CreateLevelButton(levels[leftIndex], leftIndex, isCentre: false);
+                levelButtons.Add(leftButton);
             }
         }
 
-        if (showDebug) Debug.Log($"[UIManager] Generated {levelButtons.Count} level buttons");
+        if (showDebug) Debug.Log($"[UIManager] Generated {levelButtons.Count} level buttons from centre (index {centreIndex})");
+    }
+
+    /// Create a level button with optional centre scaling
+    private GameObject CreateLevelButton(LevelData levelData, int levelIndex, bool isCentre)
+    {
+        // Button GameObject is instantiated from prefab
+        GameObject buttonObject = Instantiate(levelButtonPrefab, levelButtonContainer);
+
+        // Button component and text are retrieved
+        Button button = buttonObject.GetComponent<Button>();
+        TextMeshProUGUI buttonText = buttonObject.GetComponentInChildren<TextMeshProUGUI>();
+
+        // Button text is set to display level number and name
+        if (buttonText != null)
+        {
+            buttonText.text = $"Level {levelIndex + 1}\n{levelData.LevelName}";
+        }
+
+        // Centre button is scaled larger (1.2x scale)
+        if (isCentre)
+        {
+            buttonObject.transform.localScale = Vector3.one * 1.2f;
+        }
+
+        // Button click listener is registered with captured level index
+        if (button != null)
+        {
+            button.onClick.AddListener(() => OnLevelButtonClicked(levelIndex));
+        }
+
+        return buttonObject;
     }
 
     #endregion
@@ -564,16 +608,6 @@ public class UIManager : MonoBehaviour
         ShowLevelSelect();
 
         if (showDebug) Debug.Log("[UIManager] Play button clicked - showing level select");
-    }
-
-    private void OnLevelSelectClicked()
-    {
-        // Button click sound is played
-        PlayButtonSound();
-        // Level select screen is shown
-        ShowLevelSelect();
-
-        if (showDebug) Debug.Log("[UIManager] Level select button clicked");
     }
 
     private void OnSettingsClicked()

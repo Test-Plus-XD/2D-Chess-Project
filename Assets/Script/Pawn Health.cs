@@ -81,7 +81,18 @@ public class PawnHealth : MonoBehaviour
 
     private void Awake()
     {
-        HP = pawnType == PawnType.Player ? startingHP : MaxHP;
+        // Player always has 3 MaxHP and starts with 2 HP
+        if (pawnType == PawnType.Player)
+        {
+            MaxHP = 3;
+            startingHP = 2;
+            HP = startingHP;
+        }
+        else
+        {
+            HP = MaxHP;
+        }
+
         pawnController = GetComponent<PawnController>();
         if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
         rigidBody = GetComponent<Rigidbody2D>();
@@ -92,10 +103,12 @@ public class PawnHealth : MonoBehaviour
     {
         if (pawnType == PawnType.Player)
         {
-            if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
-            if (MaxHP < 1) MaxHP = 1;
-            startingHP = Mathf.Clamp(startingHP, 0, MaxHP);
+            // Enforce player HP rules: always 3 MaxHP, starts with 2 HP
+            MaxHP = 3;
+            startingHP = 2;
             HP = startingHP;
+
+            if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
             UpdateSpriteForHP();
             OnHPChanged?.Invoke(HP);
         }

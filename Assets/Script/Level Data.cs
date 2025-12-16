@@ -75,9 +75,12 @@ public class LevelData : ScriptableObject
     public float DetectionRange = 10f;
 
     [Header("Visual Settings")]
-    [Tooltip("Background music clip")]
-    // Music track to play during this level.
-    public AudioClip BackgroundMusic;
+    [Tooltip("Background music clip for Chess mode")]
+    // Music track to play during Chess mode for this level.
+    public AudioClip ChessModeMusic;
+    [Tooltip("Background music clip for Standoff mode")]
+    // Music track to play during Standoff mode for this level.
+    public AudioClip StandoffModeMusic;
     [Tooltip("Skybox material")]
     // Skybox material for the level's background.
     public Material Skybox;

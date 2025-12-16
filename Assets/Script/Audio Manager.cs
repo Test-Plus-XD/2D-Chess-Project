@@ -35,6 +35,11 @@ public class AudioManager : MonoBehaviour
     // Whether background music should loop when playing.
     [SerializeField] private bool loopMusic = true;
 
+    [Header("Music Library")]
+    [Tooltip("Universal menu background music (Main Menu and Level Select)")]
+    // Music track played in main menu and level select screens.
+    [SerializeField] private AudioClip menuMusic;
+
     [Header("Sound Effects Library")]
     [Tooltip("Button click sound")]
     // Sound effect played when UI buttons are clicked.
@@ -115,6 +120,9 @@ public class AudioManager : MonoBehaviour
     {
         if (clip == null) return;
 
+        // Don't restart if already playing the same clip
+        if (musicSource.clip == clip && musicSource.isPlaying) return;
+
         if (fade)
         {
             if (musicFadeCoroutine != null)
@@ -132,6 +140,15 @@ public class AudioManager : MonoBehaviour
         if (showDebug)
         {
             Debug.Log($"Playing music: {clip.name}");
+        }
+    }
+
+    /// Play universal menu music
+    public void PlayMenuMusic()
+    {
+        if (menuMusic != null)
+        {
+            PlayMusic(menuMusic, fade: true);
         }
     }
 
