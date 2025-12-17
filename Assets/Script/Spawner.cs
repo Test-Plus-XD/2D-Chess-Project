@@ -75,6 +75,8 @@ public class Spawner : MonoBehaviour
         public float weight;
     }
 
+    private int opponentHP = 1;
+
     #endregion
 
     #region Unity Lifecycle
@@ -240,6 +242,11 @@ public class Spawner : MonoBehaviour
         sniperCount = Mathf.Max(0, sniper);
     }
 
+    public void SetOpponentHP(int hp)
+    {
+        opponentHP = Mathf.Max(1, hp);
+    }
+
     public void SetPawnCount(int n) { pawnCount = Mathf.Max(0, n); }
     public void SetHandcannonCount(int n) { handcannonCount = Mathf.Max(0, n); }
     public void SetShotgunCount(int n) { shotgunCount = Mathf.Max(0, n); }
@@ -344,6 +351,11 @@ public class Spawner : MonoBehaviour
             pawnController.gridGenerator = gridGenerator;
             pawnController.aiType = aiType;
             pawnController.SetCoordsAndSnap(chosen.x, chosen.y);
+
+            // Initialize opponent HP from the configured opponentHP value
+            PawnHealth pawnHealth = gameObject.GetComponent<PawnHealth>();
+            if (pawnHealth == null) pawnHealth = gameObject.AddComponent<PawnHealth>();
+            pawnHealth.SetOpponentHP(opponentHP);
 
             Vector3 world;
             if (TryGetTileWorldCentre(chosen.x, chosen.y, out world))

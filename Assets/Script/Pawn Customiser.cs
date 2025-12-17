@@ -42,9 +42,9 @@ public class PawnCustomiser : ScriptableObject
     public class ModifierEffects
     {
         [Header("Tenacious Modifier")]
-        [Tooltip("Max HP granted by Tenacious modifier")]
-        [Range(1, 10)]
-        public int tenaciousMaxHP = 2;
+        [Tooltip("HP multiplier for Tenacious modifier (opponent HP is multiplied by this value, floored to int)")]
+        [Range(1f, 5f)]
+        public float tenaciousHPMultiplier = 2f;
 
         [Header("Confrontational Modifier")]
         [Tooltip("Fire interval multiplier for Confrontational modifier (Standoff mode)")]

@@ -109,6 +109,7 @@ Transform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &2866554566310926884
 SpriteRenderer:
+  serializedVersion: 2
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -127,6 +128,8 @@ SpriteRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -148,9 +151,11 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 1
+  m_MaskInteraction: 2
   m_Sprite: {fileID: 21300000, guid: e991c1a6202c3dd46a6c89015983baca, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -160,7 +165,6 @@ SpriteRenderer:
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
-  m_MaskInteraction: 2
   m_SpriteSortPoint: 1
 --- !u!1 &1490730411366956168
 GameObject:
@@ -172,9 +176,10 @@ GameObject:
   m_Component:
   - component: {fileID: 8220362534732780499}
   - component: {fileID: 4125179561108870762}
+  - component: {fileID: 5188984890951382328}
   - component: {fileID: 4718072739672187271}
   - component: {fileID: -2306292687554822088}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Pawn
   m_TagString: Pawn
   m_Icon: {fileID: 0}
@@ -211,7 +216,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0b1e8222d1f54046a22335b64a96fa8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PawnController
-  pawnCustomiser: {fileID: 11400000, guid: 44f34b346c9a7d94da01a2115d4beae9, type: 2}
+  pawnCustomiser: {fileID: 11400000, guid: acfe182b3a450bf498cc272cfe876448, type: 2}
   aiType: 0
   modifier: 0
   gridGenerator: {fileID: 0}
@@ -222,6 +227,38 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
+--- !u!114 &5188984890951382328
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1490730411366956168}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97602aeec0258b644913b43ae9564396, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PawnHealth
+  pawnType: 1
+  MaxHP: 1
+  startingHP: 1
+  HP: 1
+  playerHPSprites: []
+  opponentHPSprites:
+  - {fileID: 21300000, guid: b3e1163275d819d4598cb182bb245b3e, type: 3}
+  - {fileID: 21300000, guid: e991c1a6202c3dd46a6c89015983baca, type: 3}
+  - {fileID: 21300000, guid: 076a243e841acce41b6e5b43fc17f296, type: 3}
+  spriteRenderer: {fileID: 2866554566310926884}
+  expelForce: 8
+  verticalImpulse: 4
+  expelTorque: 6
+  expelDelay: 1
+  destroyDelay: 1.6
+  bringCloserScale: 1.2
+  bringCloserDuration: 0.2
+  OnHPChanged:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!61 &4718072739672187271
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -294,7 +331,7 @@ Rigidbody2D:
   m_Interpolate: 2
   m_SleepingMode: 2
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!1 &2072157923862801182
 GameObject:
   m_ObjectHideFlags: 0
@@ -352,6 +389,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
+  m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 0
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
@@ -431,6 +469,7 @@ Transform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &3903002934593926708
 SpriteRenderer:
+  serializedVersion: 2
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -449,6 +488,8 @@ SpriteRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -470,9 +511,11 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 076a243e841acce41b6e5b43fc17f296, type: 3}
   m_Color: {r: 1, g: 0, b: 0.09803922, a: 0.8039216}
   m_FlipX: 0
@@ -482,5 +525,4 @@ SpriteRenderer:
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
-  m_MaskInteraction: 0
   m_SpriteSortPoint: 1

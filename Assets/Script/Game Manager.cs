@@ -496,6 +496,7 @@ public class GameManager : MonoBehaviour
                 currentLevelData.ShotgunCount,
                 currentLevelData.SniperCount
             );
+            spawnerSystem.SetOpponentHP(currentLevelData.OpponentHP);
             spawnerSystem.SpawnAll();
         }
 

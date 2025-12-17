@@ -335,7 +335,7 @@ public class PlayerController : MonoBehaviour
             PawnHealth opPawn = opponent.GetComponent<PawnHealth>();
             if (opPawn != null)
             {
-                opPawn.TakeDamage(opPawn.MaxHP, "Player Capture");
+                opPawn.TakeDamage(opPawn.GetCurrentHP(), "Player Capture");
             }
 
             // Trigger victory
@@ -520,8 +520,8 @@ public class PlayerController : MonoBehaviour
                 PawnHealth opPawn = opp.GetComponent<PawnHealth>();
                 if (opPawn != null)
                 {
-                    // Capture deals damage equal to opponent HP (this kills 1HP opponents).
-                    opPawn.TakeDamage(opPawn.MaxHP, "Player");
+                    // Capture deals damage equal to opponent's current HP (this kills them).
+                    opPawn.TakeDamage(opPawn.GetCurrentHP(), "Player");
                 }
                 else
                 {

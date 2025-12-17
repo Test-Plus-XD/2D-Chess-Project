@@ -1,0 +1,11 @@
+{
+    "asset": "cfaba06940907f745941a0a5722a1922",
+    "fileName": "019b2d31-30d4-7044-94b7-9bec884a55c7.pose.json",
+    "prompt": "Please make a 2D animation for a firearm shooting a single time. I want moderate recoil after shot and a quick gun spin near the end of this animation. The pivot is the gun rear grip. ",
+    "negativePrompt": "",
+    "model": "9e46c009-67d8-4254-a3a0-32e3168247ee",
+    "modelName": "Text to Motion",
+    "customSeed": 501512071,
+    "w3CTraceId": "58c9ec0ca9fda416850cad6b7f6639a8",
+    "isTrimmed": false
+}

@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f26327ecb6c03044b82461e235ef1a1, type: 3}
+  m_Name: Level 5
+  m_EditorClassIdentifier: Assembly-CSharp::LevelData
+  LevelName: Level 5
+  Description: Defeat all enemy pieces
+  LevelNumber: 5
+  GridRadius: 4
+  ExtraRows: 2
+  TileSize: 1
+  BasicPawnCount: 1
+  HandcannonCount: 4
+  ShotgunCount: 3
+  SniperCount: 2
+  OpponentHP: 1
+  AllowStacking: 0
+  pawnCustomiser: {fileID: 11400000, guid: acfe182b3a450bf498cc272cfe876448, type: 2}
+  ModifierCount: 10
+  TenaciousModifier: 1
+  ConfrontationalModifier: 1
+  FleetModifier: 1
+  ObservantModifier: 1
+  ReflexiveModifier: 1
+  AllowDuplicateModifiers: 1
+  PlayerStartHP: 2
+  PlayerMaxHP: 3
+  StandoffFloorTiles: 10
+  PlatformBaseIndex: 5
+  PlatformExpansions: 5
+  RandomTileCount: 5
+  OpponentFireRate: 1
+  DetectionRange: 10
+  ChessModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
+  StandoffModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
+  Skybox: {fileID: 2100000, guid: 72deae4d18418f94688abef8e8483df0, type: 2}

@@ -3,7 +3,8 @@ using UnityEngine;
 using UnityEngine.Events;
 
 // Unified health system for both player and opponent pawns.
-// Consolidates PlayerPawn and OpponentPawn functionality.
+// Player: Fixed 3 MaxHP, 2 starting HP with sprite array in PawnHealth.
+// Opponent: Variable HP without MaxHP, with individual sprite array.
 public class PawnHealth : MonoBehaviour
 {
     #region Enums
@@ -18,57 +19,49 @@ public class PawnHealth : MonoBehaviour
 
     [Header("Pawn Configuration")]
     [Tooltip("Whether this is a player or opponent pawn")]
-    // Whether this pawn is player-controlled or AI-controlled.
     public PawnType pawnType = PawnType.Player;
 
-    [Header("Health Settings")]
-    [Tooltip("Maximum HP for the pawn")]
-    // Maximum health points this pawn can have.
+    [Header("Health Settings (Player Only)")]
+    [Tooltip("Maximum HP for the player")]
     public int MaxHP = 3;
     [Tooltip("Starting HP applied on spawn")]
-    // Initial HP when the pawn spawns.
     public int startingHP = 2;
     [Tooltip("Current HP")]
-    // Current health points.
     public int HP;
 
-    [Header("Visual")]
-    [Tooltip("SpriteRenderer to display the pawn")]
-    // SpriteRenderer component for displaying the pawn sprite.
-    public SpriteRenderer spriteRenderer;
-    [Tooltip("Array of sprites where index 0 => 0 HP")]
-    // Array of sprites representing different HP states.
-    public Sprite[] hpSprites;
+    [Header("Visual - Player")]
+    [Tooltip("Array of sprites for player (index 0 = 0 HP, index 3 = 3 HP)")]
+    public Sprite[] playerHPSprites = new Sprite[4];
 
-    [Header("Events")]
-    [Tooltip("Called when HP changes")]
-    // Event invoked when pawn HP changes.
-    public UnityEvent<int> OnHPChanged;
+    [Header("Visual - Opponent")]
+    [Tooltip("Array of sprites for opponent (index matches HP, uses highest if HP exceeds array)")]
+    public Sprite[] opponentHPSprites;
+
+    [Header("Sprite Renderer")]
+    [Tooltip("SpriteRenderer to display the pawn")]
+    public SpriteRenderer spriteRenderer;
 
     [Header("Death Physics (Opponent Only)")]
     [Tooltip("Horizontal impulse magnitude")]
-    // Horizontal force applied when opponent is defeated.
     public float expelForce = 8f;
     [Tooltip("Upward impulse component")]
-    // Upward force applied when opponent is defeated.
     public float verticalImpulse = 4f;
     [Tooltip("Rotational impulse")]
-    // Rotational force applied when opponent is defeated.
     public float expelTorque = 6f;
     [Tooltip("Seconds before applying expulsion")]
-    // Delay before applying defeat physics.
     public float expelDelay = 1f;
     [Tooltip("Seconds before destroy after physics")]
-    // Delay before destroying the pawn after expulsion.
     public float destroyDelay = 1.6f;
 
     [Header("Death Visual (Opponent Only)")]
     [Tooltip("Scale multiplier when bringing closer")]
-    // Scale multiplier for defeat animation.
     public float bringCloserScale = 1.2f;
     [Tooltip("Duration of scale animation")]
-    // Duration of the defeat animation.
     public float bringCloserDuration = 0.2f;
+
+    [Header("Events")]
+    [Tooltip("Called when player HP changes")]
+    public UnityEvent<int> OnHPChanged;
 
     #region Private Fields
 
@@ -90,7 +83,8 @@ public class PawnHealth : MonoBehaviour
         }
         else
         {
-            HP = MaxHP;
+            // Opponent: default to 1 HP if not set
+            if (HP == 0) HP = 1;
         }
 
         pawnController = GetComponent<PawnController>();
@@ -128,14 +122,21 @@ public class PawnHealth : MonoBehaviour
             // Clamp HP at 0 (don't allow negative values)
             HP = 0;
             UpdateSpriteForHP();
+            if (pawnType == PawnType.Player)
+            {
+                OnHPChanged?.Invoke(HP);
+            }
             Debug.Log($"[PawnHealth] {pawnType} killed by {source} at HP 0.");
             Death(); // Trigger death behavior (player defeat or opponent expulsion)
             return true; // Indicate that pawn died
         }
-        // Pawn survived - update visuals and notify listeners of HP change
-        Debug.Log($"[PawnHealth] {pawnType} took {amount} dmg from {source}. HP now {HP}/{MaxHP}.");
+        // Pawn survived - update visuals
+        Debug.Log($"[PawnHealth] {pawnType} took {amount} dmg from {source}. HP now {HP}.");
         UpdateSpriteForHP();
-        OnHPChanged?.Invoke(HP);
+        if (pawnType == PawnType.Player)
+        {
+            OnHPChanged?.Invoke(HP);
+        }
         return false; // Indicate that pawn survived
     }
 
@@ -153,39 +154,56 @@ public class PawnHealth : MonoBehaviour
 
     public void SetHP(int newHP)
     {
-        int clamped = Mathf.Clamp(newHP, 0, MaxHP);
+        int clamped = pawnType == PawnType.Player 
+            ? Mathf.Clamp(newHP, 0, MaxHP)
+            : Mathf.Max(0, newHP);
+        
         if (clamped == HP) return;
         HP = clamped;
         UpdateSpriteForHP();
-        OnHPChanged?.Invoke(HP);
+        
+        if (pawnType == PawnType.Player)
+        {
+            OnHPChanged?.Invoke(HP);
+        }
+        
         if (HP == 0) Death();
     }
 
     public void ResetToSpawnHP()
     {
-        SetHP(startingHP);
+        if (pawnType == PawnType.Player)
+        {
+            SetHP(startingHP);
+        }
     }
 
     public void SetMaxHP(int newMaxHP)
     {
-        MaxHP = Mathf.Max(1, newMaxHP);
-        HP = Mathf.Clamp(HP, 0, MaxHP);
-        UpdateSpriteForHP();
-        OnHPChanged?.Invoke(HP);
+        if (pawnType == PawnType.Player)
+        {
+            MaxHP = Mathf.Max(1, newMaxHP);
+            HP = Mathf.Clamp(HP, 0, MaxHP);
+            UpdateSpriteForHP();
+            OnHPChanged?.Invoke(HP);
+        }
+    }
+
+    public void SetOpponentHP(int newHP)
+    {
+        if (pawnType == PawnType.Opponent)
+        {
+            HP = Mathf.Max(0, newHP);
+            UpdateSpriteForHP();
+        }
     }
 
     #endregion
 
     #region Public Methods - Getters
 
-    public float GetHealthFraction()
-    {
-        if (MaxHP <= 0) return 0f;
-        return (float)HP / (float)MaxHP;
-    }
-
     public int GetCurrentHP() => HP;
-    public int GetMaxHP() => MaxHP;
+    public int GetMaxHP() => pawnType == PawnType.Player ? MaxHP : -1;
 
     #endregion
 
@@ -193,12 +211,32 @@ public class PawnHealth : MonoBehaviour
 
     private void UpdateSpriteForHP()
     {
-        if (spriteRenderer == null || hpSprites == null || hpSprites.Length == 0)
+        if (spriteRenderer == null)
         {
             return;
         }
-        int spriteIndex = Mathf.Clamp(HP, 0, hpSprites.Length - 1);
-        spriteRenderer.sprite = hpSprites[spriteIndex];
+
+        if (pawnType == PawnType.Player)
+        {
+            // Player uses playerHPSprites array (index 0 = 0 HP, index 3 = 3 HP)
+            if (playerHPSprites == null || playerHPSprites.Length == 0)
+            {
+                return;
+            }
+            int spriteIndex = Mathf.Clamp(HP, 0, playerHPSprites.Length - 1);
+            spriteRenderer.sprite = playerHPSprites[spriteIndex];
+        }
+        else
+        {
+            // Opponent uses opponentHPSprites array
+            if (opponentHPSprites == null || opponentHPSprites.Length == 0)
+            {
+                return;
+            }
+            // Use HP as index, but clamp to highest available sprite if HP exceeds array length
+            int spriteIndex = Mathf.Min(HP, opponentHPSprites.Length - 1);
+            spriteRenderer.sprite = opponentHPSprites[spriteIndex];
+        }
     }
 
     #endregion
@@ -403,12 +441,6 @@ public class PawnHealth : MonoBehaviour
             yield return null;
         }
         transform.localScale = origScale * bringCloserScale;
-    }
-
-    private string GetCoordsString()
-    {
-        if (pawnController != null) return $"{pawnController.q}_{pawnController.r}";
-        return transform.position.ToString("F2");
     }
 
     #endregion

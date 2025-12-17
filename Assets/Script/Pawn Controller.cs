@@ -630,15 +630,15 @@ public class PawnController : MonoBehaviour
         // Basic AI has no modifiers.
         if(pawnCustomiser == null) return;
 
-        // Apply Tenacious: Set health based on customiser value.
+        // Apply Tenacious: Multiply opponent HP (floor to int).
         if(modifier == Modifier.Tenacious)
         {
             PawnHealth pawnHealth = GetComponent<PawnHealth>();
-            if(pawnHealth != null)
+            if(pawnHealth != null && pawnHealth.pawnType == PawnHealth.PawnType.Opponent)
             {
-                int maxHP = pawnCustomiser.modifierEffects.tenaciousMaxHP;
-                pawnHealth.MaxHP = maxHP;
-                pawnHealth.SetHP(maxHP);
+                float multiplier = pawnCustomiser.modifierEffects.tenaciousHPMultiplier;
+                int multipliedHP = Mathf.FloorToInt(pawnHealth.GetCurrentHP() * multiplier);
+                pawnHealth.SetOpponentHP(multipliedHP);
             }
         }
 
@@ -701,7 +701,7 @@ public class PawnController : MonoBehaviour
         return modifier == Modifier.Reflexive && isStandoffMode;
     }
 
-    /// Convert Basic type to Handcannon (used when last opponent enters standoff).
+    /// Convert Basic to Handcannon (used when last opponent enters standoff).
     public void ConvertBasicToHandcannon()
     {
         if(aiType == AIType.Basic)

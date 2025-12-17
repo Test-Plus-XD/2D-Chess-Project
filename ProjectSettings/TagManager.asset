@@ -6,7 +6,9 @@ TagManager:
   tags:
   - Pawn
   - Tile
-  - Bullet
+  - Projectile
+  - Wall
+  - Obstacle
   layers:
   - Default
   - TransparentFX
@@ -14,10 +16,10 @@ TagManager:
   - Ground
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
+  - 'Tile '
+  - 'Pawn '
+  - 'Player '
+  - 'Projectile '
   - 
   - 
   - 

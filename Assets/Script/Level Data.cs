@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// Data structure for level configuration
 [CreateAssetMenu(fileName = "NewLevel", menuName = "Game/Level Data")]
@@ -36,13 +37,42 @@ public class LevelData : ScriptableObject
     public int HandcannonCount = 1;
     [Tooltip("Number of Shotgun pawns")]
     // Number of Shotgun type opponent pawns to spawn.
-    public int ShotgunCount = 1;
+    public int ShotgunCount = 0;
     [Tooltip("Number of Sniper pawns")]
     // Number of Sniper type opponent pawns to spawn.
     public int SniperCount = 0;
+    [Tooltip("HP for opponent pawns")]
+    // Health points for opponent pawns (default 1).
+    public int OpponentHP = 1;
     [Tooltip("Allow multiple pawns on same tile")]
     // Whether multiple pawns can occupy the same tile.
     public bool AllowStacking = false;
+
+    [Header("Modifier Configuration")]
+    [Tooltip("Reference to Pawn Customiser for available modifiers")]
+    // Pawn Customiser containing all modifier definitions and icons.
+    public PawnCustomiser pawnCustomiser;
+    [Tooltip("Number of modifiers to randomly apply to opponents")]
+    // Total count of modifiers to distribute among spawned opponents.
+    public int ModifierCount = 1;
+    [Tooltip("Allow Tenacious modifier in this level")]
+    // Tenacious modifier doubles opponent HP.
+    public bool TenaciousModifier = false;
+    [Tooltip("Allow Confrontational modifier in this level")]
+    // Confrontational modifier enhances opponent firing.
+    public bool ConfrontationalModifier = false;
+    [Tooltip("Allow Fleet modifier in this level")]
+    // Fleet modifier increases opponent movement speed.
+    public bool FleetModifier = false;
+    [Tooltip("Allow Observant modifier in this level")]
+    // Observant modifier improves opponent perception.
+    public bool ObservantModifier = false;
+    [Tooltip("Allow Reflexive modifier in this level")]
+    // Reflexive modifier makes opponent react faster.
+    public bool ReflexiveModifier = false;
+    [Tooltip("Allow the same modifier to appear on multiple pawns")]
+    // Whether duplicate modifiers are allowed on different pawns.
+    public bool AllowDuplicateModifiers = false;
 
     [Header("Player Settings")]
     [Tooltip("Player starting HP")]
@@ -89,6 +119,36 @@ public class LevelData : ScriptableObject
     public int GetTotalOpponentCount()
     {
         return BasicPawnCount + HandcannonCount + ShotgunCount + SniperCount;
+    }
+
+    /// Get list of allowed modifiers for this level
+    public List<PawnController.Modifier> GetAllowedModifiers()
+    {
+        List<PawnController.Modifier> allowedModifiers = new List<PawnController.Modifier>();
+        
+        if (TenaciousModifier)
+            allowedModifiers.Add(PawnController.Modifier.Tenacious);
+        if (ConfrontationalModifier)
+            allowedModifiers.Add(PawnController.Modifier.Confrontational);
+        if (FleetModifier)
+            allowedModifiers.Add(PawnController.Modifier.Fleet);
+        if (ObservantModifier)
+            allowedModifiers.Add(PawnController.Modifier.Observant);
+        if (ReflexiveModifier)
+            allowedModifiers.Add(PawnController.Modifier.Reflexive);
+        
+        return allowedModifiers;
+    }
+
+    /// Get a random modifier from allowed modifiers
+    public PawnController.Modifier GetRandomAllowedModifier()
+    {
+        List<PawnController.Modifier> allowedModifiers = GetAllowedModifiers();
+        if (allowedModifiers.Count == 0)
+        {
+            return PawnController.Modifier.None;
+        }
+        return allowedModifiers[Random.Range(0, allowedModifiers.Count)];
     }
 
     /// Validate level data
