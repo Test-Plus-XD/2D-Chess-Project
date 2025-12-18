@@ -38,8 +38,8 @@ public class HexGridGenerator : MonoBehaviour
 
     private void Awake()
     {
-        // Disable the GameObject on start so it only activates in Chess mode.
-        gameObject.SetActive(false);
+        // Grid activation is now handled by GameManager.SetupChessMode()
+        // Do not disable here to allow proper initialization order
     }
 
     // Generate grid on Start when playing.

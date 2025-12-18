@@ -86,9 +86,27 @@ public class Spawner : MonoBehaviour
         if (gridGenerator == null) gridGenerator = FindFirstObjectByType<HexGridGenerator>();
         if (checkerboard == null) checkerboard = FindFirstObjectByType<Checkerboard>();
 
+        // Wait for grid to be generated (ensure tiles exist before spawning)
         yield return new WaitForEndOfFrame();
 
-        SpawnAll();
+        // Wait until the grid has generated tiles (check parent container has children)
+        int waitFrames = 0;
+        const int maxWaitFrames = 60; // Maximum frames to wait
+        Transform tileParent = gridGenerator != null
+            ? (gridGenerator.parentContainer ?? gridGenerator.transform)
+            : null;
+
+        while (tileParent != null && tileParent.childCount == 0 && waitFrames < maxWaitFrames)
+        {
+            yield return null;
+            waitFrames++;
+        }
+
+        // Only spawn if not being managed by GameManager (GameManager will call SpawnAll directly)
+        if (GameManager.Instance == null || GameManager.Instance.CurrentState == GameManager.GameState.ChessMode)
+        {
+            SpawnAll();
+        }
     }
 
     #endregion
@@ -185,21 +203,29 @@ public class Spawner : MonoBehaviour
             0f
         );
 
+        // Parse tile coordinates before instantiation
+        string tileName = chosenCollider.gameObject.name;
+        string[] parts = tileName.Split('_');
+        int q = 0, r = 0;
+        if (parts.Length >= 3)
+        {
+            int.TryParse(parts[1], out q);
+            int.TryParse(parts[2], out r);
+        }
+
+        // Instantiate player at correct position immediately
         GameObject playerPawn = playerPawnParent == null
             ? Instantiate(playerPawnPrefab, spawnPos, Quaternion.identity)
             : Instantiate(playerPawnPrefab, spawnPos, Quaternion.identity, playerPawnParent);
 
-        string name = chosenCollider.gameObject.name;
-        string[] parts = name.Split('_');
-        int q = 0, r = 0;
-        if (parts.Length >= 3 && int.TryParse(parts[1], out q) && int.TryParse(parts[2], out r))
+        // Initialize player controller with coordinates
+        PlayerController playerController = playerPawn.GetComponent<PlayerController>();
+        if (playerController != null)
         {
-            PlayerController playerController = playerPawn.GetComponent<PlayerController>();
-            if (playerController != null)
-            {
-                playerController.Initialise(q, r, gridGenerator, checkerboard);
-            }
+            playerController.Initialise(q, r, gridGenerator, checkerboard);
         }
+
+        Debug.Log($"[Spawner] Player spawned at tile {q}_{r} position {spawnPos}");
     }
 
     public void SpawnOpponents()
@@ -343,25 +369,29 @@ public class Spawner : MonoBehaviour
                 break;
             }
 
-            GameObject gameObject = Instantiate(prefab, opponentSpawnParent);
+            // Get tile world position FIRST before instantiating
+            Vector3 spawnPosition = Vector3.zero;
+            if (!TryGetTileWorldCentre(chosen.x, chosen.y, out spawnPosition))
+            {
+                Debug.LogWarning($"[Spawner] Could not find tile position for {chosen.x}_{chosen.y}, using origin.");
+            }
+
+            // Instantiate at the correct position immediately
+            GameObject gameObject = Instantiate(prefab, spawnPosition, Quaternion.identity, opponentSpawnParent);
 
             PawnController pawnController = gameObject.GetComponent<PawnController>();
             if (pawnController == null) pawnController = gameObject.AddComponent<PawnController>();
 
             pawnController.gridGenerator = gridGenerator;
             pawnController.aiType = aiType;
-            pawnController.SetCoordsAndSnap(chosen.x, chosen.y);
+            // Set coords without snapping since we already positioned correctly
+            pawnController.q = chosen.x;
+            pawnController.r = chosen.y;
 
             // Initialize opponent HP from the configured opponentHP value
             PawnHealth pawnHealth = gameObject.GetComponent<PawnHealth>();
             if (pawnHealth == null) pawnHealth = gameObject.AddComponent<PawnHealth>();
             pawnHealth.SetOpponentHP(opponentHP);
-
-            Vector3 world;
-            if (TryGetTileWorldCentre(chosen.x, chosen.y, out world))
-            {
-                gameObject.transform.position = world;
-            }
 
             gameObject.name = $"Opponent {prefab.name}: {chosen.x}_{chosen.y}";
 

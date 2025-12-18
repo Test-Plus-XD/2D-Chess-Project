@@ -87,6 +87,9 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
    - Universal Menu BGM via `PlayMenuMusic()` method
    - Separate Chess Mode and Standoff Mode BGM per level (from Level Data)
    - Prevents music restart if already playing the same clip
+   - **New Methods:**
+     - `PlayChessModeMusic(LevelData)` - Plays Chess BGM from level data
+     - `PlayStandoffModeMusic(LevelData)` - Plays Standoff BGM from level data
 
 5. **Time Controller.cs** - SUPERHOT-style slow motion in Standoff mode
    - Slows time when player stops moving
@@ -107,15 +110,22 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
    - Fire modes: Manual, OnLineOfSight, TrackPlayer, Timed
    - Projectile types: Single, Spread, Beam
    - Includes ProjectileBehavior as nested class
+   - **AI type-based firing**: Each AI type has unique firing patterns
+   - **Muzzle flash rotation control**: Adjustable rotation offset for muzzle flash orientation
 
 9. **Input System.cs** - Unified input (merged MobileInputManager + VirtualJoystick)
    - Mobile touch joystick and desktop keyboard fallback
 
 10. **UI Manager.cs** - Unified UI (merged 6 UI scripts)
-   - Main menu, level select, game HUD, pause menu, victory/defeat, settings
-   - Automatic panel activation/deactivation based on game state
-   - Level buttons rendered from centre outward with centre button 1.2x larger
-   - Mobile controls automatically shown/hidden in Standoff mode
+    - Main menu, level select, game HUD, pause menu, victory/defeat, settings
+    - Automatic panel activation/deactivation based on game state
+    - Level buttons rendered in sequential order (1, 2, 3...) with centre button 1.2x larger
+    - Mobile controls automatically shown/hidden in Standoff mode
+    - **Turn Indicator**: Displays "Your Turn" / "Opponent Turn" during Chess mode
+    - **Announcer System**: Animated notifications with slide-in and fade-out
+      - Methods: `ShowAnnouncement(string)`, `ShowOpponentDeathMessage()`, `ShowDamageTakenMessage()`, `ShowStageChangeMessage()`
+      - Text in `[brackets]` automatically highlighted in vibrant orange
+    - **Level Selection**: Swipeable with ScrollRect support
 
 11. **Player Controller.cs** - Player movement in both modes
     - Chess: Swipe-based hex movement with 6 direction arrows
@@ -133,15 +143,20 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
     - Automatic conversion: Basic → Handcannon when last opponent enters Standoff
 
 13. **Chequerboard.cs** - Turn-based coordination
+    - Updates turn indicator via `UIManager.SetTurnIndicator(bool)`
+    - Manages opponent turn sequence with firing and movement
 
 14. **HexGrid.cs** (class: HexGridGenerator) - Procedural hex grid generation
+    - Grid activation managed by GameManager.SetupChessMode()
 
 15. **Platform.cs** - Procedural Standoff arena generation
 
 16. **Follow Camera.cs** (class: FollowCamera) - Orthographic camera with auto-tracking
-    - Auto-discovers and tracks all hex grid tiles
+    - Auto-discovers and tracks all hex grid tiles (active tiles only)
     - Scales camera to fit all tiles with minimal border spacing
     - Zoom pulse effects on opponent defeat with kill aggregation
+    - **Refreshes grid discovery** on game state changes (ChessMode, Standoff)
+    - Includes Platform containers for Standoff mode bounds
 
 ---
 
@@ -626,3 +641,59 @@ AllowDuplicateModifiers = true;   // Same modifier can appear on multiple pawns
 - **Fleet**: Count moves per turn (should be 2 in Chess), check movement speed (Standoff)
 - **Observant**: Verify bullets only damage player in Chess, check firing delay in Standoff
 - **Reflexive**: Watch aim recalculation after player moves (Chess), verify instant tracking (Standoff)
+
+---
+
+## UI System API Reference
+
+### Turn Indicator
+
+Call from Checkerboard or any script when turn changes:
+```csharp
+// Set turn to player
+UIManager.Instance.SetTurnIndicator(true);
+
+// Set turn to opponent
+UIManager.Instance.SetTurnIndicator(false);
+```
+
+### Announcer System
+
+Display animated announcements with highlighted text:
+```csharp
+// Generic announcement (text in [brackets] highlighted in orange)
+UIManager.Instance.ShowAnnouncement("[Important] message here!");
+
+// Opponent death message
+UIManager.Instance.ShowOpponentDeathMessage(PawnController.AIType.Sniper);
+// Output: "Sniper pawn has been captured."
+
+// Damage taken message
+UIManager.Instance.ShowDamageTakenMessage(PawnController.AIType.Shotgun, 2, 1);
+// Output: "Shotgun pawn dealt 2 damage to your pawn, your pawn has 1 HP left."
+
+// Stage change message (entering Standoff)
+UIManager.Instance.ShowStageChangeMessage(PawnController.AIType.Handcannon);
+// Output: "Down to one opponent pawn, you are now in a duel with Handcannon pawn."
+```
+
+### Announcer Configuration (Inspector)
+- `announcerSlideDistance`: 0.25 (25% of screen width, or 500px fallback)
+- `announcerSlideInDuration`: 0.3s
+- `announcerDisplayDuration`: 2.0s
+- `announcerFadeOutDuration`: 0.5s
+- `announcerHighlightColor`: Vibrant orange (#FF8000)
+
+---
+
+## Setup Guide
+
+For detailed setup instructions including:
+- Initial scene setup
+- UI Manager configuration
+- Spawner setup
+- Weapon System setup
+- Tags, layers, and physics configuration
+- Troubleshooting
+
+**See: [Assets/Script/SETUP_GUIDE.md](Assets/Script/SETUP_GUIDE.md)**

@@ -341,17 +341,22 @@ public class GameManager : MonoBehaviour
             case GameState.ChessMode:
                 SetupChessMode();
                 // Play Chess mode music from level data
-                if (currentLevelData != null && currentLevelData.ChessModeMusic != null && AudioManager.Instance != null)
+                if (AudioManager.Instance != null)
                 {
-                    AudioManager.Instance.PlayMusic(currentLevelData.ChessModeMusic);
+                    AudioManager.Instance.PlayChessModeMusic(currentLevelData);
+                }
+                // Initialize turn indicator to player's turn
+                if (UIManager.Instance != null)
+                {
+                    UIManager.Instance.SetTurnIndicator(true);
                 }
                 break;
             case GameState.Standoff:
                 SetupStandoffMode();
                 // Play Standoff mode music from level data
-                if (currentLevelData != null && currentLevelData.StandoffModeMusic != null && AudioManager.Instance != null)
+                if (AudioManager.Instance != null)
                 {
-                    AudioManager.Instance.PlayMusic(currentLevelData.StandoffModeMusic);
+                    AudioManager.Instance.PlayStandoffModeMusic(currentLevelData);
                 }
                 break;
             case GameState.Victory:
@@ -406,24 +411,35 @@ public class GameManager : MonoBehaviour
         if (showDebug) Debug.Log("Transitioning to Standoff mode...");
 
         // Convert Basic type to Handcannon if last opponent
+        PawnController.AIType lastOpponentType = PawnController.AIType.Basic;
         if (checkerboard != null)
         {
             var opponents = checkerboard.GetOpponentControllers();
             if (opponents.Count == 1)
             {
                 PawnController lastOpponent = opponents[0];
-                if (lastOpponent != null && lastOpponent.aiType == PawnController.AIType.Basic)
+                if (lastOpponent != null)
                 {
-                    lastOpponent.ConvertBasicToHandcannon();
-
-                    // Ensure the converted opponent has a weapon system
-                    WeaponSystem weaponSystem = lastOpponent.GetComponent<WeaponSystem>();
-                    if (weaponSystem == null)
+                    if (lastOpponent.aiType == PawnController.AIType.Basic)
                     {
-                        weaponSystem = lastOpponent.gameObject.AddComponent<WeaponSystem>();
+                        lastOpponent.ConvertBasicToHandcannon();
+
+                        // Ensure the converted opponent has a weapon system
+                        WeaponSystem weaponSystem = lastOpponent.GetComponent<WeaponSystem>();
+                        if (weaponSystem == null)
+                        {
+                            weaponSystem = lastOpponent.gameObject.AddComponent<WeaponSystem>();
+                        }
                     }
+                    lastOpponentType = lastOpponent.aiType;
                 }
             }
+        }
+
+        // Show stage change announcement
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ShowStageChangeMessage(lastOpponentType);
         }
 
         yield return new WaitForSeconds(standoffTransitionDelay);

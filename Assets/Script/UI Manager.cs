@@ -35,12 +35,20 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject levelSelectPanel;
     [Tooltip("Level button prefab")]
     [SerializeField] private GameObject levelButtonPrefab;
-    [Tooltip("Container for level buttons")]
+    [Tooltip("Container for level buttons (should have HorizontalLayoutGroup)")]
     [SerializeField] private Transform levelButtonContainer;
     [Tooltip("Back button (level select)")]
     [SerializeField] private Button levelSelectBackButton;
     [Tooltip("Level select title")]
     [SerializeField] private TextMeshProUGUI levelSelectTitleText;
+    [Tooltip("ScrollRect for swipeable level selection (optional)")]
+    [SerializeField] private UnityEngine.UI.ScrollRect levelSelectScrollRect;
+    [Tooltip("Spacing between level buttons")]
+    [SerializeField] private float levelButtonSpacing = 50f;
+    [Tooltip("Base size for level buttons")]
+    [SerializeField] private float levelButtonSize = 100f;
+    [Tooltip("Scale multiplier for center button")]
+    [SerializeField] private float centerButtonScale = 1.2f;
 
     #endregion
 
@@ -65,6 +73,30 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI gameModeText;
     [Tooltip("Pause button")]
     [SerializeField] private Button pauseButton;
+
+    [Header("Turn Indicator")]
+    [Tooltip("Text showing whose turn it is (Your Turn / Opponent Turn)")]
+    [SerializeField] private TextMeshProUGUI turnIndicatorText;
+    [Tooltip("Color for player's turn")]
+    [SerializeField] private Color playerTurnColor = new Color(0.2f, 0.8f, 0.2f); // Green
+    [Tooltip("Color for opponent's turn")]
+    [SerializeField] private Color opponentTurnColor = new Color(0.8f, 0.2f, 0.2f); // Red
+
+    [Header("Announcer System")]
+    [Tooltip("Announcer panel positioned at top-right, animates left when triggered")]
+    [SerializeField] private GameObject announcerPanel;
+    [Tooltip("Announcer text for displaying messages")]
+    [SerializeField] private TextMeshProUGUI announcerText;
+    [Tooltip("Animation slide distance (percentage of screen width, 0.25 = 25%)")]
+    [SerializeField] private float announcerSlideDistance = 0.25f;
+    [Tooltip("Animation slide-in duration")]
+    [SerializeField] private float announcerSlideInDuration = 0.3f;
+    [Tooltip("Duration to display message before fading")]
+    [SerializeField] private float announcerDisplayDuration = 2.0f;
+    [Tooltip("Animation fade-out duration")]
+    [SerializeField] private float announcerFadeOutDuration = 0.5f;
+    [Tooltip("Highlight color for bracketed text (vibrant orange)")]
+    [SerializeField] private Color announcerHighlightColor = new Color(1f, 0.5f, 0f); // Vibrant orange
 
     [Header("Mobile Controls")]
     [Tooltip("Mobile controls container (joystick and jump button for Standoff mode)")]
@@ -153,6 +185,11 @@ public class UIManager : MonoBehaviour
     private PawnHealth playerHealth;
     private Checkerboard checkerboard;
     private bool isInitialised = false;
+    private Coroutine announcerCoroutine;
+    private RectTransform announcerRectTransform;
+    private CanvasGroup announcerCanvasGroup;
+    private Vector2 announcerStartPosition;
+    private bool isPlayerTurn = true;
 
     #endregion
 
@@ -204,11 +241,40 @@ public class UIManager : MonoBehaviour
         // Level selection buttons are dynamically generated from available levels
         GenerateLevelButtons();
 
+        // Initialize announcer system
+        InitializeAnnouncer();
+
         // Main menu is displayed as the initial screen
         ShowMainMenu();
 
         // Initialisation is marked as complete
         isInitialised = true;
+    }
+
+    /// Initialize the announcer panel for animations.
+    private void InitializeAnnouncer()
+    {
+        if (announcerPanel != null)
+        {
+            // Get or add RectTransform for position animation
+            announcerRectTransform = announcerPanel.GetComponent<RectTransform>();
+
+            // Get or add CanvasGroup for fade animation
+            announcerCanvasGroup = announcerPanel.GetComponent<CanvasGroup>();
+            if (announcerCanvasGroup == null)
+            {
+                announcerCanvasGroup = announcerPanel.AddComponent<CanvasGroup>();
+            }
+
+            // Store initial position for animation calculations
+            if (announcerRectTransform != null)
+            {
+                announcerStartPosition = announcerRectTransform.anchoredPosition;
+            }
+
+            // Hide announcer initially
+            announcerPanel.SetActive(false);
+        }
     }
 
     private void Update()
@@ -329,40 +395,27 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        // Calculate centre index (for odd counts, true centre; for even counts, left-of-centre)
-        int centreIndex = levelCount / 2;
-
-        // Level buttons are instantiated starting from centre
+        // Level buttons are instantiated in sequential order (1, 2, 3, ...)
         LevelData[] levels = GameManager.Instance.GetAllLevels();
 
-        // Render centre button first
-        if (levels[centreIndex] != null)
-        {
-            GameObject centreButton = CreateLevelButton(levels[centreIndex], centreIndex, isCentre: true);
-            levelButtons.Add(centreButton);
-        }
+        // Calculate centre index for scaling (center button is larger)
+        int centreIndex = levelCount / 2;
 
-        // Render buttons alternating left and right from centre
-        for (int offset = 1; offset <= levelCount / 2; offset++)
+        // Generate buttons in order from left to right
+        for (int i = 0; i < levelCount; i++)
         {
-            // Right side button
-            int rightIndex = centreIndex + offset;
-            if (rightIndex < levels.Length && levels[rightIndex] != null)
+            if (levels[i] != null)
             {
-                GameObject rightButton = CreateLevelButton(levels[rightIndex], rightIndex, isCentre: false);
-                levelButtons.Add(rightButton);
-            }
+                bool isCentre = (i == centreIndex);
+                GameObject button = CreateLevelButton(levels[i], i, isCentre);
+                levelButtons.Add(button);
 
-            // Left side button
-            int leftIndex = centreIndex - offset;
-            if (leftIndex >= 0 && levels[leftIndex] != null)
-            {
-                GameObject leftButton = CreateLevelButton(levels[leftIndex], leftIndex, isCentre: false);
-                levelButtons.Add(leftButton);
+                // Set sibling index to maintain visual order
+                button.transform.SetSiblingIndex(i);
             }
         }
 
-        if (showDebug) Debug.Log($"[UIManager] Generated {levelButtons.Count} level buttons from centre (index {centreIndex})");
+        if (showDebug) Debug.Log($"[UIManager] Generated {levelButtons.Count} level buttons (center at index {centreIndex})");
     }
 
     /// Create a level button with optional centre scaling
@@ -375,10 +428,10 @@ public class UIManager : MonoBehaviour
         Button button = buttonObject.GetComponent<Button>();
         TextMeshProUGUI buttonText = buttonObject.GetComponentInChildren<TextMeshProUGUI>();
 
-        // Button text is set to display level number and name
+        // Button text is set to display level number only (e.g., "1", "2", "3")
         if (buttonText != null)
         {
-            buttonText.text = $"Level {levelIndex + 1}\n{levelData.LevelName}";
+            buttonText.text = $"{levelIndex + 1}";
         }
 
         // Centre button is scaled larger (1.2x scale)
@@ -950,11 +1003,8 @@ public class UIManager : MonoBehaviour
         // Level display is updated if Game Manager and level text exist
         if (levelText != null && GameManager.Instance != null)
         {
-            LevelData currentLevel = GameManager.Instance.CurrentLevel;
-            if (currentLevel != null)
-            {
-                levelText.text = $"Level {GameManager.Instance.CurrentLevelIndex + 1}: {currentLevel.LevelName}";
-            }
+            // Display only level number (e.g., "Level 1")
+            levelText.text = $"Level {GameManager.Instance.CurrentLevelIndex + 1}";
         }
     }
 
@@ -1098,6 +1148,176 @@ public class UIManager : MonoBehaviour
         {
             AudioManager.Instance.PlayButtonClick();
         }
+    }
+
+    #endregion
+
+    #region Turn Indicator
+
+    /// Update turn indicator text to show whose turn it is.
+    /// Call this from Checkerboard when turn changes.
+    public void SetTurnIndicator(bool isPlayersTurn)
+    {
+        isPlayerTurn = isPlayersTurn;
+        UpdateTurnIndicator();
+    }
+
+    /// Update the turn indicator display.
+    private void UpdateTurnIndicator()
+    {
+        if (turnIndicatorText == null) return;
+
+        // Only show turn indicator in Chess mode
+        if (GameManager.Instance == null || !GameManager.Instance.IsChessMode)
+        {
+            turnIndicatorText.gameObject.SetActive(false);
+            return;
+        }
+
+        turnIndicatorText.gameObject.SetActive(true);
+
+        if (isPlayerTurn)
+        {
+            turnIndicatorText.text = "Your Turn";
+            turnIndicatorText.color = playerTurnColor;
+        }
+        else
+        {
+            turnIndicatorText.text = "Opponent Turn";
+            turnIndicatorText.color = opponentTurnColor;
+        }
+    }
+
+    #endregion
+
+    #region Announcer System
+
+    /// Show an announcement message with slide-in animation and fade-out.
+    /// Text in square brackets will be highlighted in orange.
+    /// Example: ShowAnnouncement("[Sniper] pawn has been captured.");
+    public void ShowAnnouncement(string message)
+    {
+        if (announcerPanel == null || announcerText == null) return;
+
+        // Stop any existing announcement
+        if (announcerCoroutine != null)
+        {
+            StopCoroutine(announcerCoroutine);
+        }
+
+        // Start new announcement
+        announcerCoroutine = StartCoroutine(AnnouncementCoroutine(message));
+    }
+
+    /// Display opponent death message.
+    /// Usage: ShowOpponentDeathMessage(PawnController.AIType.Sniper);
+    public void ShowOpponentDeathMessage(PawnController.AIType aiType)
+    {
+        ShowAnnouncement($"[{aiType}] pawn has been captured.");
+    }
+
+    /// Display damage taken message.
+    /// Usage: ShowDamageTakenMessage(PawnController.AIType.Shotgun, 2, 1);
+    public void ShowDamageTakenMessage(PawnController.AIType aiType, int damage, int remainingHP)
+    {
+        ShowAnnouncement($"[{aiType}] pawn dealt [{damage}] damage to your pawn, your pawn has [{remainingHP}] HP left.");
+    }
+
+    /// Display stage change message (entering Standoff mode).
+    /// Usage: ShowStageChangeMessage(PawnController.AIType.Handcannon);
+    public void ShowStageChangeMessage(PawnController.AIType aiType)
+    {
+        ShowAnnouncement($"Down to one opponent pawn, you are now in a duel with [{aiType}] pawn.");
+    }
+
+    /// Coroutine handling the announcement animation: slide-in, display, fade-out.
+    private System.Collections.IEnumerator AnnouncementCoroutine(string message)
+    {
+        // Format message with highlighted text (replace [text] with orange colored text)
+        string formattedMessage = FormatAnnouncementText(message);
+        announcerText.text = formattedMessage;
+
+        // Reset state
+        announcerPanel.SetActive(true);
+        if (announcerCanvasGroup != null)
+        {
+            announcerCanvasGroup.alpha = 1f;
+        }
+
+        // Calculate slide distance in pixels (based on screen width percentage)
+        float slidePixels = Screen.width * announcerSlideDistance;
+        if (slidePixels < 100f) slidePixels = 500f; // Fallback to 500px minimum
+
+        // Set initial position (off-screen to the right)
+        Vector2 startPos = announcerStartPosition + new Vector2(slidePixels, 0f);
+        Vector2 endPos = announcerStartPosition;
+
+        if (announcerRectTransform != null)
+        {
+            announcerRectTransform.anchoredPosition = startPos;
+        }
+
+        // Slide-in animation
+        float elapsed = 0f;
+        while (elapsed < announcerSlideInDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / announcerSlideInDuration);
+            // Ease out cubic for smooth deceleration
+            float eased = 1f - Mathf.Pow(1f - t, 3f);
+
+            if (announcerRectTransform != null)
+            {
+                announcerRectTransform.anchoredPosition = Vector2.Lerp(startPos, endPos, eased);
+            }
+
+            yield return null;
+        }
+
+        // Ensure final position
+        if (announcerRectTransform != null)
+        {
+            announcerRectTransform.anchoredPosition = endPos;
+        }
+
+        // Display duration
+        yield return new WaitForSecondsRealtime(announcerDisplayDuration);
+
+        // Fade-out animation
+        elapsed = 0f;
+        while (elapsed < announcerFadeOutDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / announcerFadeOutDuration);
+
+            if (announcerCanvasGroup != null)
+            {
+                announcerCanvasGroup.alpha = 1f - t;
+            }
+
+            yield return null;
+        }
+
+        // Hide panel
+        announcerPanel.SetActive(false);
+        announcerCoroutine = null;
+    }
+
+    /// Format announcement text with TMP rich text tags for highlighting.
+    /// Converts [text] to <color=#FF8000>text</color> (vibrant orange).
+    private string FormatAnnouncementText(string input)
+    {
+        // Convert Color to hex string for TMP
+        string hexColor = ColorUtility.ToHtmlStringRGB(announcerHighlightColor);
+
+        // Replace [text] with <color=#hex>text</color>
+        string result = System.Text.RegularExpressions.Regex.Replace(
+            input,
+            @"\[([^\]]+)\]",
+            $"<color=#{hexColor}>$1</color>"
+        );
+
+        return result;
     }
 
     #endregion
