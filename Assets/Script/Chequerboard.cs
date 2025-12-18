@@ -77,6 +77,8 @@ public class Checkerboard : MonoBehaviour
     {
         // Lock player input while opponents are moving
         playerTurn = false;
+        // Update turn indicator to show opponent's turn
+        if (UIManager.Instance != null) UIManager.Instance.SetTurnIndicator(false);
         // Ensure opponent list is fresh (in case pawns were spawned since last refresh)
         RefreshOpponents();
         // Reset Moved flags before starting so each opponent's Moved flag starts false
@@ -172,6 +174,8 @@ public class Checkerboard : MonoBehaviour
         }
         // Opponents done - unlock player input for next turn
         playerTurn = true;
+        // Update turn indicator to show player's turn
+        if (UIManager.Instance != null) UIManager.Instance.SetTurnIndicator(true);
     }
 
     // Return a copy of current opponent axial coordinates as Vector2Int list.

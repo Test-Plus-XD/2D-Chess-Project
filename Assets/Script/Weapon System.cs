@@ -76,6 +76,12 @@ public class WeaponSystem : MonoBehaviour
     [Tooltip("Muzzle flash effect (optional)")]
     // Visual effect spawned at barrel when firing.
     [SerializeField] private GameObject muzzleFlashPrefab;
+    [Tooltip("Rotation offset for muzzle flash in degrees (adjusts visual orientation)")]
+    // Rotation offset applied to muzzle flash prefab when spawning.
+    [SerializeField] private float muzzleFlashRotationOffset = 0f;
+    [Tooltip("Duration muzzle flash stays visible before auto-destroy")]
+    // How long the muzzle flash effect remains visible.
+    [SerializeField] private float muzzleFlashDuration = 0.1f;
     [Tooltip("Point where projectiles spawn")]
     // Transform marking where projectiles are created.
     [SerializeField] private Transform firePoint;
@@ -514,11 +520,14 @@ public class WeaponSystem : MonoBehaviour
             gunAnimator.SetTrigger(fireAnimationTrigger);
         }
 
-        // Spawn muzzle flash visual effect (auto-destroy after 0.1s)
+        // Spawn muzzle flash visual effect with rotation offset
         if (muzzleFlashPrefab != null)
         {
-            GameObject flash = Instantiate(muzzleFlashPrefab, firePoint.position, Quaternion.identity);
-            Destroy(flash, 0.1f);
+            // Calculate rotation: aim direction angle + offset
+            float aimAngle = Mathf.Atan2(currentAimDirection.y, currentAimDirection.x) * Mathf.Rad2Deg;
+            Quaternion flashRotation = Quaternion.Euler(0f, 0f, aimAngle + muzzleFlashRotationOffset);
+            GameObject flash = Instantiate(muzzleFlashPrefab, firePoint.position, flashRotation);
+            Destroy(flash, muzzleFlashDuration);
         }
 
         // Apply physical recoil in Standoff mode (pushes pawn backward)

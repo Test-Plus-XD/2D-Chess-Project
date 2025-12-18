@@ -87,6 +87,9 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
    - Universal Menu BGM via `PlayMenuMusic()` method
    - Separate Chess Mode and Standoff Mode BGM per level (from Level Data)
    - Prevents music restart if already playing the same clip
+   - **New Methods:**
+     - `PlayChessModeMusic(LevelData)` - Plays Chess BGM from level data
+     - `PlayStandoffModeMusic(LevelData)` - Plays Standoff BGM from level data
 
 5. **Time Controller.cs** - SUPERHOT-style slow motion in Standoff mode
    - Slows time when player stops moving
@@ -107,15 +110,22 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
    - Fire modes: Manual, OnLineOfSight, TrackPlayer, Timed
    - Projectile types: Single, Spread, Beam
    - Includes ProjectileBehavior as nested class
+   - **AI type-based firing**: Each AI type has unique firing patterns
+   - **Muzzle flash rotation control**: Adjustable rotation offset for muzzle flash orientation
 
 9. **Input System.cs** - Unified input (merged MobileInputManager + VirtualJoystick)
    - Mobile touch joystick and desktop keyboard fallback
 
 10. **UI Manager.cs** - Unified UI (merged 6 UI scripts)
-   - Main menu, level select, game HUD, pause menu, victory/defeat, settings
-   - Automatic panel activation/deactivation based on game state
-   - Level buttons rendered from centre outward with centre button 1.2x larger
-   - Mobile controls automatically shown/hidden in Standoff mode
+    - Main menu, level select, game HUD, pause menu, victory/defeat, settings
+    - Automatic panel activation/deactivation based on game state
+    - Level buttons rendered in sequential order (1, 2, 3...) with centre button 1.2x larger
+    - Mobile controls automatically shown/hidden in Standoff mode
+    - **Turn Indicator**: Displays "Your Turn" / "Opponent Turn" during Chess mode
+    - **Announcer System**: Animated notifications with slide-in and fade-out
+      - Methods: `ShowAnnouncement(string)`, `ShowOpponentDeathMessage()`, `ShowDamageTakenMessage()`, `ShowStageChangeMessage()`
+      - Text in `[brackets]` automatically highlighted in vibrant orange
+    - **Level Selection**: Swipeable with ScrollRect support
 
 11. **Player Controller.cs** - Player movement in both modes
     - Chess: Swipe-based hex movement with 6 direction arrows
@@ -133,15 +143,20 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
     - Automatic conversion: Basic → Handcannon when last opponent enters Standoff
 
 13. **Chequerboard.cs** - Turn-based coordination
+    - Updates turn indicator via `UIManager.SetTurnIndicator(bool)`
+    - Manages opponent turn sequence with firing and movement
 
 14. **HexGrid.cs** (class: HexGridGenerator) - Procedural hex grid generation
+    - Grid activation managed by GameManager.SetupChessMode()
 
 15. **Platform.cs** - Procedural Standoff arena generation
 
 16. **Follow Camera.cs** (class: FollowCamera) - Orthographic camera with auto-tracking
-    - Auto-discovers and tracks all hex grid tiles
+    - Auto-discovers and tracks all hex grid tiles (active tiles only)
     - Scales camera to fit all tiles with minimal border spacing
     - Zoom pulse effects on opponent defeat with kill aggregation
+    - **Refreshes grid discovery** on game state changes (ChessMode, Standoff)
+    - Includes Platform containers for Standoff mode bounds
 
 ---
 
@@ -626,3 +641,257 @@ AllowDuplicateModifiers = true;   // Same modifier can appear on multiple pawns
 - **Fleet**: Count moves per turn (should be 2 in Chess), check movement speed (Standoff)
 - **Observant**: Verify bullets only damage player in Chess, check firing delay in Standoff
 - **Reflexive**: Watch aim recalculation after player moves (Chess), verify instant tracking (Standoff)
+
+---
+
+## UI System API Reference
+
+### Turn Indicator
+
+Call from Checkerboard or any script when turn changes:
+```csharp
+// Set turn to player
+UIManager.Instance.SetTurnIndicator(true);
+
+// Set turn to opponent
+UIManager.Instance.SetTurnIndicator(false);
+```
+
+### Announcer System
+
+Display animated announcements with highlighted text:
+```csharp
+// Generic announcement (text in [brackets] highlighted in orange)
+UIManager.Instance.ShowAnnouncement("[Important] message here!");
+
+// Opponent death message
+UIManager.Instance.ShowOpponentDeathMessage(PawnController.AIType.Sniper);
+// Output: "Sniper pawn has been captured."
+
+// Damage taken message
+UIManager.Instance.ShowDamageTakenMessage(PawnController.AIType.Shotgun, 2, 1);
+// Output: "Shotgun pawn dealt 2 damage to your pawn, your pawn has 1 HP left."
+
+// Stage change message (entering Standoff)
+UIManager.Instance.ShowStageChangeMessage(PawnController.AIType.Handcannon);
+// Output: "Down to one opponent pawn, you are now in a duel with Handcannon pawn."
+```
+
+### Announcer Configuration (Inspector)
+- `announcerSlideDistance`: 0.25 (25% of screen width, or 500px fallback)
+- `announcerSlideInDuration`: 0.3s
+- `announcerDisplayDuration`: 2.0s
+- `announcerFadeOutDuration`: 0.5s
+- `announcerHighlightColor`: Vibrant orange (#FF8000)
+
+---
+
+## Setup Guide
+
+### Initial Scene Setup
+
+1. **Create Core GameObjects:**
+   ```
+   Main Scene
+   ├── GameManager (Game Manager.cs)
+   ├── AudioManager (Audio Manager.cs)
+   ├── InputManager (Input System.cs)
+   ├── TimeController (Time Controller.cs)
+   ├── Checkerboard (Chequerboard.cs)
+   ├── HexGrid (HexGridGenerator) [disabled initially]
+   │   └── Tiles container
+   ├── PlatformGenerator (Platform.cs) [disabled initially]
+   ├── Spawner (Spawner.cs)
+   ├── Main Camera (Follow Camera.cs)
+   └── UI Canvas (UI Manager.cs)
+   ```
+
+2. **Configure GameManager:**
+   - Create LevelData ScriptableObjects
+   - Add to `GameManager.levels[]` array
+   - Assign references: Checkerboard, HexGridGenerator, PlatformGenerator
+
+3. **Configure UI Canvas:**
+   - Create UI panels: MainMenu, LevelSelect, GameUI, Pause, Victory, Defeat, Settings
+   - Assign all panel references to UIManager
+
+### UI Manager Setup
+
+**Game UI Panel Setup:**
+```
+Game UI Panel
+├── Level Text (TextMeshProUGUI) → levelText
+├── Pause Button (Button) → pauseButton
+├── Turn Indicator Text (TextMeshProUGUI) → turnIndicatorText
+└── Announcer Panel (RectTransform, anchored top-right) → announcerPanel
+    └── Announcer Text (TextMeshProUGUI) → announcerText
+```
+
+**Announcer Panel Configuration:**
+1. Create Panel at top-right anchor (pivot: 1, 1)
+2. Add CanvasGroup component (auto-added if missing)
+3. Add TextMeshProUGUI child
+4. Position off-screen to the right (will animate in)
+
+**Level Select Panel Setup:**
+```
+Level Select Panel
+├── Title Text
+├── Scroll View (optional, for swipe support)
+│   └── Viewport
+│       └── Content (levelButtonContainer with HorizontalLayoutGroup)
+└── Back Button
+```
+
+### Spawner Setup
+
+1. Assign references:
+   - `gridGenerator`: HexGridGenerator
+   - `checkerboard`: Checkerboard
+   - `playerPawnPrefab`: Player prefab
+   - `opponentSpawnParent`: Parent transform for pawns
+
+2. Assign opponent prefabs:
+   - `pawnPrefab`: Basic opponent
+   - `handcannonPrefab`: Handcannon opponent
+   - `shotgunPrefab`: Shotgun opponent
+   - `sniperPrefab`: Sniper opponent
+
+### Weapon System Setup
+
+**Inspector Fields:**
+- `muzzleFlashRotationOffset`: Rotation offset in degrees (e.g., -90 if flash is vertical)
+- `muzzleFlashDuration`: How long flash displays (default 0.1s)
+- `projectilePrefab`: Bullet prefab
+- `firePoint`: Transform where bullets spawn
+
+---
+
+## Tags, Layers, and Physics Configuration
+
+### Required Tags
+
+Create these tags in Unity (Edit → Project Settings → Tags and Layers):
+
+| Tag | Used By | Purpose |
+|-----|---------|---------|
+| `Player` | Player Pawn | Identifies player for opponent AI targeting |
+| `Tile` | Hex tiles | Projectile collision detection |
+| `Wall` | Platform walls | Projectile collision detection |
+| `Obstacle` | Obstacles | Projectile collision and AI navigation |
+
+### Required Layers
+
+Create these layers:
+
+| Layer # | Name | Purpose |
+|---------|------|---------|
+| 6 | `Ground` | Ground detection for pawns |
+| 7 | `Player` | Player collision layer |
+| 8 | `Opponent` | Opponent collision layer |
+| 9 | `Projectile` | Bullet collision layer |
+| 10 | `Tile` | Hex tile collision layer |
+| 11 | `Wall` | Wall/obstacle collision layer |
+
+### Layer Mask Configuration
+
+**PawnController Inspector:**
+- `groundLayer`: Ground (layer 6)
+
+**WeaponSystem Inspector:**
+- `targetLayer`: Player | Opponent (layers 7, 8)
+- `obstacleLayer`: Wall | Tile (layers 10, 11)
+
+### Physics 2D Settings
+
+Configure in Edit → Project Settings → Physics 2D:
+
+**Layer Collision Matrix:**
+```
+             Player  Opponent  Projectile  Tile  Wall  Ground
+Player         -        ✓         ✓         ✓     ✓      ✓
+Opponent       ✓        -         ✓         ✓     ✓      ✓
+Projectile     ✓        ✓         -         ✓     ✓      -
+Tile           ✓        ✓         ✓         -     -      -
+Wall           ✓        ✓         ✓         -     -      -
+Ground         ✓        ✓         -         -     -      -
+```
+
+**Recommended Settings:**
+- Gravity: Y = -9.81 (or -20 for faster falling)
+- Default Contact Offset: 0.01
+- Velocity Iterations: 8
+- Position Iterations: 3
+
+### Prefab Layer Assignment
+
+| Prefab | Layer | Tag |
+|--------|-------|-----|
+| Player Pawn | Player | Player |
+| Basic Pawn | Opponent | - |
+| Handcannon Pawn | Opponent | - |
+| Shotgun Pawn | Opponent | - |
+| Sniper Pawn | Opponent | - |
+| Hex Tile | Tile | Tile |
+| Platform Tile | Tile | Tile |
+| Bullet | Projectile | - |
+
+### Rigidbody2D Configuration
+
+**Player Pawn:**
+- Body Type: Dynamic (Standoff) / Kinematic (Chess)
+- Gravity Scale: 2 (Standoff only)
+- Freeze Rotation: Z = true
+- Collision Detection: Continuous
+
+**Opponent Pawn:**
+- Body Type: Dynamic (Standoff) / Kinematic (Chess)
+- Gravity Scale: 2 (Standoff only)
+- Freeze Rotation: Z = true
+- Collision Detection: Continuous
+
+**Projectile:**
+- Body Type: Dynamic
+- Gravity Scale: 0
+- Is Trigger: true (on Collider2D)
+
+### Collider2D Setup
+
+**Pawn Colliders:**
+- CircleCollider2D or CapsuleCollider2D
+- Is Trigger: false (for physical collision)
+
+**Projectile Colliders:**
+- CircleCollider2D (small radius)
+- Is Trigger: true (for OnTriggerEnter2D detection)
+
+**Tile Colliders:**
+- PolygonCollider2D (matches hex shape)
+- Is Trigger: false
+
+---
+
+## Troubleshooting
+
+### Camera Not Following Tiles
+- **Cause**: Tiles disabled when camera initializes
+- **Fix**: Camera now refreshes on game state change (automatic)
+- **Manual fix**: Call `FollowCamera.Instance.ForceRecalculate()`
+
+### Pawns Spawning at Origin
+- **Cause**: Grid not generated when spawning occurs
+- **Fix**: Spawner now waits for grid generation (automatic)
+- **Manual fix**: Ensure HexGridGenerator is active before spawning
+
+### Music Not Playing
+- **Cause**: Level data missing music clips
+- **Fix**: Assign ChessModeMusic and StandoffModeMusic in LevelData
+- **Fallback**: Menu music plays if level music is missing
+
+### Turn Indicator Not Showing
+- **Cause**: turnIndicatorText not assigned in UIManager
+- **Fix**: Create TextMeshProUGUI in GameUI panel and assign to UIManager
+
+### Announcer Not Animating
+- **Cause**: Missing RectTransform or CanvasGroup
+- **Fix**: Ensure announcerPanel has RectTransform (auto-added CanvasGroup)

@@ -69,9 +69,36 @@ public class FollowCamera : MonoBehaviour
         {
             Debug.LogWarning("[FollowCamera] Camera is not orthographic. Behaviour is designed for orthographic cameras.");
         }
+        // Subscribe to game state changes to refresh grid containers when entering gameplay modes
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnStateChanged.AddListener(OnGameStateChanged);
+        }
         // If no explicit containers provided and auto-find is enabled, discover grids now.
         if (autoFindGrids && (gridContainers == null || gridContainers.Count == 0)) AutoDiscoverGridContainers();
         // Perform initial calculation immediately so camera starts correctly.
+        ForceRecalculate();
+    }
+
+    // Handle game state changes to refresh grid discovery when tiles become active.
+    private void OnGameStateChanged(GameManager.GameState newState)
+    {
+        // Refresh grid containers when entering Chess or Standoff modes
+        if (newState == GameManager.GameState.ChessMode || newState == GameManager.GameState.Standoff)
+        {
+            // Delay refresh to allow tiles to fully activate
+            StartCoroutine(DelayedGridRefresh());
+        }
+    }
+
+    // Coroutine to wait one frame before refreshing grids (ensures tiles are fully enabled).
+    private IEnumerator DelayedGridRefresh()
+    {
+        // Wait for end of frame to ensure all tiles are enabled
+        yield return new WaitForEndOfFrame();
+        // Re-discover grid containers now that tiles should be active
+        if (autoFindGrids) AutoDiscoverGridContainers();
+        // Force recalculate bounds and camera position
         ForceRecalculate();
     }
 
@@ -91,15 +118,29 @@ public class FollowCamera : MonoBehaviour
     }
 
     // Discover HexGridGenerator instances and use their parentContainer (or the generator transform) as grid containers.
+    // Also discovers Platform generator for Standoff mode arena bounds.
     private void AutoDiscoverGridContainers()
     {
         gridContainers = new List<Transform>();
+
+        // Find HexGridGenerator containers (Chess mode)
         HexGridGenerator[] gens = Object.FindObjectsByType<HexGridGenerator>(FindObjectsSortMode.InstanceID);
         foreach (var g in gens)
         {
-            if (g == null) continue;
-            if (g.parentContainer != null) gridContainers.Add(g.parentContainer);
-            else gridContainers.Add(g.transform);
+            if (g == null || !g.gameObject.activeInHierarchy) continue;
+            if (g.parentContainer != null && g.parentContainer.gameObject.activeInHierarchy)
+                gridContainers.Add(g.parentContainer);
+            else if (g.gameObject.activeInHierarchy)
+                gridContainers.Add(g.transform);
+        }
+
+        // Find Platform containers (Standoff mode)
+        Platform[] platforms = Object.FindObjectsByType<Platform>(FindObjectsSortMode.InstanceID);
+        foreach (var p in platforms)
+        {
+            if (p == null || !p.gameObject.activeInHierarchy) continue;
+            // Use platform transform as container for bounds calculation
+            gridContainers.Add(p.transform);
         }
     }
 
@@ -143,17 +184,19 @@ public class FollowCamera : MonoBehaviour
     }
 
     // Compute a combined world-space Bounds that encapsulates Renderers and PolygonCollider2D of each container's children.
+    // Only includes active GameObjects to properly handle tiles that are disabled.
     private Bounds ComputeCombinedBounds()
     {
         bool hasAny = false;
         Bounds combined = new Bounds();
         foreach (var container in gridContainers)
         {
-            if (container == null) continue;
-            // Collect SpriteRenderers under the container for visual bounds.
-            SpriteRenderer[] srs = container.GetComponentsInChildren<SpriteRenderer>(includeInactive: true);
+            if (container == null || !container.gameObject.activeInHierarchy) continue;
+            // Collect SpriteRenderers under the container for visual bounds (active only).
+            SpriteRenderer[] srs = container.GetComponentsInChildren<SpriteRenderer>(includeInactive: false);
             foreach (var spriteRenderer in srs)
             {
+                if (spriteRenderer == null || !spriteRenderer.gameObject.activeInHierarchy) continue;
                 if (!hasAny)
                 {
                     combined = spriteRenderer.bounds; // Initialise with first found renderer bounds
@@ -161,10 +204,11 @@ public class FollowCamera : MonoBehaviour
                 }
                 else combined.Encapsulate(spriteRenderer.bounds);
             }
-            // Collect PolygonCollider2D under the container for physics bounds which often match visual trimmed shapes.
-            PolygonCollider2D[] pcs = container.GetComponentsInChildren<PolygonCollider2D>(includeInactive: true);
+            // Collect PolygonCollider2D under the container for physics bounds which often match visual trimmed shapes (active only).
+            PolygonCollider2D[] pcs = container.GetComponentsInChildren<PolygonCollider2D>(includeInactive: false);
             foreach (var polygonCollider in pcs)
             {
+                if (polygonCollider == null || !polygonCollider.gameObject.activeInHierarchy) continue;
                 if (!hasAny)
                 {
                     combined = polygonCollider.bounds; // Initialise if no renderer was found yet
@@ -172,11 +216,11 @@ public class FollowCamera : MonoBehaviour
                 }
                 else combined.Encapsulate(polygonCollider.bounds);
             }
-            // Fallback: include child transforms positions so single-point tiles without renderers still contribute.
-            Transform[] children = container.GetComponentsInChildren<Transform>(includeInactive: true);
+            // Fallback: include child transforms positions so single-point tiles without renderers still contribute (active only).
+            Transform[] children = container.GetComponentsInChildren<Transform>(includeInactive: false);
             foreach (var t in children)
             {
-                if (t == null) continue;
+                if (t == null || !t.gameObject.activeInHierarchy) continue;
                 if (!hasAny)
                 {
                     combined = new Bounds(t.position, Vector3.zero);

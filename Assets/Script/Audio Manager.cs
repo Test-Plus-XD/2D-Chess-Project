@@ -150,6 +150,37 @@ public class AudioManager : MonoBehaviour
         {
             PlayMusic(menuMusic, fade: true);
         }
+        else if (showDebug)
+        {
+            Debug.LogWarning("[AudioManager] Menu music clip not assigned.");
+        }
+    }
+
+    /// Play Chess mode music from level data
+    public void PlayChessModeMusic(LevelData levelData)
+    {
+        if (levelData != null && levelData.ChessModeMusic != null)
+        {
+            PlayMusic(levelData.ChessModeMusic, fade: true);
+        }
+        else if (showDebug)
+        {
+            Debug.LogWarning("[AudioManager] Chess mode music not found in level data, falling back to menu music.");
+            PlayMenuMusic();
+        }
+    }
+
+    /// Play Standoff mode music from level data
+    public void PlayStandoffModeMusic(LevelData levelData)
+    {
+        if (levelData != null && levelData.StandoffModeMusic != null)
+        {
+            PlayMusic(levelData.StandoffModeMusic, fade: true);
+        }
+        else if (showDebug)
+        {
+            Debug.LogWarning("[AudioManager] Standoff mode music not found in level data.");
+        }
     }
 
     /// Stop music

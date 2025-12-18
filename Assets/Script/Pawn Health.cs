@@ -136,6 +136,18 @@ public class PawnHealth : MonoBehaviour
         if (pawnType == PawnType.Player)
         {
             OnHPChanged?.Invoke(HP);
+
+            // Show damage announcement for player taking damage
+            if (UIManager.Instance != null && pawnController != null)
+            {
+                // Try to extract AI type from source (format: "Opponent_AIType")
+                PawnController.AIType attackerType = PawnController.AIType.Basic;
+                if (source.Contains("Handcannon")) attackerType = PawnController.AIType.Handcannon;
+                else if (source.Contains("Shotgun")) attackerType = PawnController.AIType.Shotgun;
+                else if (source.Contains("Sniper")) attackerType = PawnController.AIType.Sniper;
+
+                UIManager.Instance.ShowDamageTakenMessage(attackerType, amount, HP);
+            }
         }
         return false; // Indicate that pawn survived
     }
@@ -266,6 +278,12 @@ public class PawnHealth : MonoBehaviour
 
     private void OpponentDeath()
     {
+        // Show opponent death announcement
+        if (UIManager.Instance != null && pawnController != null)
+        {
+            UIManager.Instance.ShowOpponentDeathMessage(pawnController.aiType);
+        }
+
         // Fallback if no physics body present
         if (rigidBody == null)
         {
