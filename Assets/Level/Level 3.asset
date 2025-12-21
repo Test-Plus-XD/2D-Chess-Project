@@ -13,7 +13,10 @@ MonoBehaviour:
   m_Name: Level 3
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   LevelName: Level 3
-  Description: Defeat all enemy pieces
+  Description: "Sniper Pawn - Long-range defender that fires piercing bullets and
+    keeps distance.\nObservant \U0001F441\uFE0F - Bullets only damage the player
+    and fires with reduced delay.\r\nReflexive \U0001F3AF - Recalculates aim after
+    player moves and tracks instantly."
   LevelNumber: 3
   GridRadius: 3
   ExtraRows: 2
@@ -25,10 +28,10 @@ MonoBehaviour:
   OpponentHP: 1
   AllowStacking: 0
   pawnCustomiser: {fileID: 11400000, guid: acfe182b3a450bf498cc272cfe876448, type: 2}
-  ModifierCount: 4
-  TenaciousModifier: 1
-  ConfrontationalModifier: 1
-  FleetModifier: 1
+  ModifierCount: 2
+  TenaciousModifier: 0
+  ConfrontationalModifier: 0
+  FleetModifier: 0
   ObservantModifier: 1
   ReflexiveModifier: 1
   AllowDuplicateModifiers: 0
@@ -43,3 +46,4 @@ MonoBehaviour:
   ChessModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
   StandoffModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
   Skybox: {fileID: 2100000, guid: 72deae4d18418f94688abef8e8483df0, type: 2}
+  ShowInGameBackground: 1

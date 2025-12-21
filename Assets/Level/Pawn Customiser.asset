@@ -52,7 +52,7 @@ MonoBehaviour:
     reflexiveFiringDelayMultiplier: 0.75
   platformerMovement:
     baseMoveSpeed: 3
-    jumpForce: 8
+    jumpForce: 12
     maxJumpableHeight: 2
     maxJumpableGap: 2
     groundCheckDistance: 0.1

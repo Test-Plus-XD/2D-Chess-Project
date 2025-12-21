@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 // Unified weapon system handling shooting, projectiles, and gun aiming.
 // Consolidates Firearm, Projectile, and GunAiming functionality.
@@ -26,100 +27,91 @@ public class WeaponSystem : MonoBehaviour
 
     [Header("Firearm Settings")]
     [Tooltip("The fire mode this firearm uses")]
-    // Determines how and when this weapon fires.
     [SerializeField] private FireMode fireMode = FireMode.TrackPlayer;
     [Tooltip("The type of projectile this firearm shoots")]
-    // Type of projectile pattern (single, spread, or beam).
     [SerializeField] private ProjectileType projectileType = ProjectileType.Single;
     [Tooltip("Damage dealt per bullet")]
-    // Damage points each bullet inflicts.
     [SerializeField] private int damage = 1;
     [Tooltip("Time between shots in seconds (Standoff mode)")]
-    // Interval between shots in seconds.
     [SerializeField] private float fireInterval = 3f;
     [Tooltip("Firing delay before shot (Standoff mode)")]
-    // Delay between aiming and firing in seconds.
     [SerializeField] private float firingDelay = 0.5f;
     [Tooltip("Maximum range of bullets in world units")]
-    // Maximum distance bullets travel before despawning.
     [SerializeField] private float maxRange = 15f;
     [Tooltip("Speed of projectiles")]
-    // Speed at which projectiles travel.
     [SerializeField] private float projectileSpeed = 10f;
     [Tooltip("Angular velocity for tracking player (degrees/second)")]
-    // Speed of gun rotation when tracking player.
     [SerializeField] private float trackingAngularVelocity = 90f;
 
     [Header("Spread Settings")]
     [Tooltip("Number of bullets in spread shot")]
-    // Number of bullets in a spread pattern.
     [SerializeField] private int spreadCount = 3;
     [Tooltip("Angle between spread bullets in degrees")]
-    // Angle between each bullet in spread pattern.
     [SerializeField] private float spreadAngle = 30f;
 
     [Header("Line of Sight Settings")]
     [Tooltip("Detection range for line of sight mode")]
-    // Maximum distance to detect targets for line-of-sight mode.
     [SerializeField] private float detectionRange = 10f;
     [Tooltip("Layer mask for detecting targets")]
-    // Layer mask for what counts as a valid target.
     [SerializeField] private LayerMask targetLayer;
     [Tooltip("Layer mask for obstacles blocking line of sight")]
-    // Layer mask for obstacles that block line-of-sight.
     [SerializeField] private LayerMask obstacleLayer;
 
     [Header("Projectile Visuals")]
     [Tooltip("Projectile prefab to spawn")]
-    // Prefab to instantiate as a projectile.
     [SerializeField] private GameObject projectilePrefab;
     [Tooltip("Muzzle flash effect (optional)")]
-    // Visual effect spawned at barrel when firing.
     [SerializeField] private GameObject muzzleFlashPrefab;
     [Tooltip("Rotation and position offset for projectile and muzzle flash in degrees (adjusts orientation)")]
-    // Rotation offset applied to both projectile and muzzle flash when spawning.
     [SerializeField] private float fireOffset = 0f;
     [Tooltip("Duration muzzle flash stays visible before auto-destroy")]
-    // How long the muzzle flash effect remains visible.
     [SerializeField] private float muzzleFlashDuration = 0.1f;
     [Tooltip("Point where projectiles and muzzle flash spawn")]
-    // Transform marking where projectiles and muzzle flash are created.
     [SerializeField] private Transform firePoint;
 
     [Header("Gun Aiming")]
     [Tooltip("The gun transform to rotate")]
-    // Gun transform that rotates to aim.
     [SerializeField] private Transform gunTransform;
     [Tooltip("Gun offset from pawn center")]
-    // Offset of gun from the pawn's center position.
     [SerializeField] private Vector2 gunOffset = new Vector2(0.2f, 0f);
 
     [Header("Audio & Animation")]
     [Tooltip("Sound played when firing")]
-    // Audio clip played when weapon fires.
     [SerializeField] private AudioClip fireSound;
     [Tooltip("Volume of fire sound")]
-    // Volume multiplier for fire sound effect.
     [SerializeField][Range(0f, 1f)] private float fireVolume = 0.7f;
     [Tooltip("Animator for gun animations")]
-    // Animator controlling gun firing animations.
     [SerializeField] private Animator gunAnimator;
     [Tooltip("Name of fire animation trigger")]
-    // Animation trigger name to play firing animation.
     [SerializeField] private string fireAnimationTrigger = "Fire";
 
     [Header("Recoil (Standoff Mode)")]
     [Tooltip("Enable physical recoil when shooting")]
-    // Whether to apply physical recoil when firing.
     [SerializeField] private bool enableRecoil = true;
     [Tooltip("Recoil force magnitude")]
-    // Force magnitude applied as recoil.
     [SerializeField] private float recoilForce = 3f;
 
     [Header("Debug")]
     [Tooltip("Show debug lines")]
-    // Enable debug visualization for weapon system.
     [SerializeField] private bool showDebug = false;
+
+    [Header("Targeting Visualization")]
+    [Tooltip("Enable targeting visualization")]
+    [SerializeField] private bool enableTargetingVisualization = true;
+    [Tooltip("Chess Mode: Color to blink tiles")]
+    [SerializeField] private Color chessTileBlinkColor = new Color(1f, 0f, 0f, 0.5f);
+    [Tooltip("Chess Mode: Blink interval in seconds")]
+    [SerializeField] private float blinkInterval = 0.5f;
+    [Tooltip("Chess Mode: Maximum blinks before stopping (0 = infinite)")]
+    [SerializeField] private int maxBlinkCount = 2;
+    [Tooltip("Chess Mode: Maximum range in tiles to visualize")]
+    [SerializeField] private int maxTileRange = 10;
+    [Tooltip("Standoff Mode: Color of aiming line")]
+    [SerializeField] private Color standoffLineColor = Color.red;
+    [Tooltip("Standoff Mode: Width of aiming line")]
+    [SerializeField] private float lineWidth = 0.05f;
+    [Tooltip("Standoff Mode: Line material (leave null for default)")]
+    [SerializeField] private Material lineMaterial;
 
     #region Private Fields
 
@@ -127,19 +119,30 @@ public class WeaponSystem : MonoBehaviour
     private AudioSource audioSource;
     private Transform playerTransform;
     private bool isInStandoffMode = false;
-    private Vector2 currentAimDirection = Vector2.right;
-    private Vector2 targetAimDirection = Vector2.right;
+    private float currentAimAngle = 0f; // Angle in degrees
+    private float targetAimAngle = 0f;
     private float lastShotTime = -999f;
     private Rigidbody2D rigidBody;
     private PawnController pawnController;
-    private Vector2[] hexDirections = new Vector2[6];
     private PawnController.Modifier currentModifier = PawnController.Modifier.None;
 
     // Standoff firing state
     private float intervalStartTime = 0f;
     private bool isInFiringDelay = false;
     private float firingDelayStartTime = 0f;
-    private Vector2 lockedAimDirection = Vector2.right;
+    private float lockedAimAngle = 0f;
+
+    // Gun rotation freeze/unfreeze for animation
+    private bool isGunRotationFrozen = false;
+    private float gunUnfreezeTime = 0f;
+    private const float GUN_ANIMATION_DURATION = 1f;
+
+    // Targeting visualization state
+    private LineRenderer lineRenderer;
+    private List<GameObject> targetedTiles = new List<GameObject>();
+    private Dictionary<SpriteRenderer, Color> originalTileColors = new Dictionary<SpriteRenderer, Color>();
+    private Coroutine blinkCoroutine;
+    private HexGridGenerator gridGenerator;
 
     #endregion
 
@@ -156,8 +159,6 @@ public class WeaponSystem : MonoBehaviour
         rigidBody = GetComponent<Rigidbody2D>();
         pawnController = GetComponent<PawnController>();
 
-        InitializeHexDirections();
-
         if (firePoint == null)
         {
             GameObject firePointObj = new GameObject("FirePoint");
@@ -173,12 +174,25 @@ public class WeaponSystem : MonoBehaviour
             gunObj.transform.localPosition = gunOffset;
             gunTransform = gunObj.transform;
         }
+
+        // Initialize targeting visualization
+        if (enableTargetingVisualization)
+        {
+            InitializeTargetingVisualization();
+        }
     }
 
     private void Start()
     {
         FindPlayer();
+        gridGenerator = FindFirstObjectByType<HexGridGenerator>();
         lastFireTime = -fireInterval;
+
+        // Calculate initial aim on spawn (Chess mode step 0)
+        if (!isInStandoffMode)
+        {
+            RecalculateAim();
+        }
     }
 
     private void Update()
@@ -189,17 +203,39 @@ public class WeaponSystem : MonoBehaviour
             return;
         }
 
-        UpdateAimDirection();
+        // Only update aim continuously in Standoff mode
+        // In Chess mode, aim is calculated explicitly via RecalculateAim()
+        if (isInStandoffMode)
+        {
+            UpdateAimDirection();
+        }
+
         ApplyGunRotation();
         HandleFireModes();
+
+        // Update targeting visualization
+        if (enableTargetingVisualization)
+        {
+            UpdateTargetingVisualization();
+        }
+    }
+
+    private void OnDisable()
+    {
+        ClearChessVisualization();
+        if (lineRenderer != null)
+        {
+            lineRenderer.enabled = false;
+        }
     }
 
     private void OnDrawGizmos()
     {
         if (!showDebug || firePoint == null) return;
 
+        Vector2 aimDir = GetAimDirectionVector();
         Gizmos.color = Color.yellow;
-        Gizmos.DrawRay(firePoint.position, currentAimDirection * maxRange);
+        Gizmos.DrawRay(firePoint.position, aimDir * maxRange);
 
         if (fireMode == FireMode.OnLineOfSight)
         {
@@ -220,23 +256,30 @@ public class WeaponSystem : MonoBehaviour
         }
     }
 
-    public void SetAimDirection(Vector2 direction)
-    {
-        if (direction.sqrMagnitude > 0.01f)
-        {
-            currentAimDirection = direction.normalized;
-        }
-    }
-
     public void SetStandoffMode(bool standoffMode)
     {
         isInStandoffMode = standoffMode;
 
         if (standoffMode)
         {
-            // Initialize standoff firing state
             intervalStartTime = Time.time;
             isInFiringDelay = false;
+
+            if (enableTargetingVisualization)
+            {
+                ClearChessVisualization();
+                if (lineRenderer != null)
+                {
+                    lineRenderer.enabled = true;
+                }
+            }
+        }
+        else
+        {
+            if (enableTargetingVisualization && lineRenderer != null)
+            {
+                lineRenderer.enabled = false;
+            }
         }
     }
 
@@ -253,7 +296,7 @@ public class WeaponSystem : MonoBehaviour
 
     public Vector2 GetAimDirection()
     {
-        return currentAimDirection;
+        return GetAimDirectionVector();
     }
 
     public void OnShotFired()
@@ -261,45 +304,35 @@ public class WeaponSystem : MonoBehaviour
         lastShotTime = Time.time;
     }
 
-    /// Apply modifier effects to weapon system
     public void ApplyModifier(PawnController.Modifier modifier)
     {
         currentModifier = modifier;
     }
 
-    /// Fire once in Chess mode (called when turn starts)
     public void FireChessMode()
     {
         if (pawnController == null) return;
-
-        // Basic pawns don't shoot in chess mode
         if (pawnController.aiType == PawnController.AIType.Basic) return;
-
         Fire();
     }
 
-    /// Recalculate aim direction (for Reflexive modifier after player moves)
     public void RecalculateAim()
     {
         if (playerTransform == null) return;
-        Vector2 toPlayer = (playerTransform.position - transform.position).normalized;
-        currentAimDirection = GetNearestHexDirection(toPlayer);
+        UpdateAimDirection();
+    }
+
+    public void ClearTargetingVisualization()
+    {
+        if (enableTargetingVisualization)
+        {
+            ClearChessVisualization();
+        }
     }
 
     #endregion
 
     #region Private Methods - Initialization
-
-    private void InitializeHexDirections()
-    {
-        float angle = 0f;
-        for (int i = 0; i < 6; i++)
-        {
-            float rad = angle * Mathf.Deg2Rad;
-            hexDirections[i] = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
-            angle += 60f;
-        }
-    }
 
     private void FindPlayer()
     {
@@ -318,61 +351,57 @@ public class WeaponSystem : MonoBehaviour
     {
         if (playerTransform == null) return;
 
-        Vector2 toPlayer = (playerTransform.position - transform.position).normalized;
-
         if (isInStandoffMode)
         {
-            UpdateStandoffAiming(toPlayer);
+            UpdateStandoffAiming();
         }
         else
         {
-            UpdateChessAiming(toPlayer);
+            UpdateChessAiming();
         }
     }
 
-    private void UpdateChessAiming(Vector2 toPlayer)
+    private void UpdateChessAiming()
     {
-        targetAimDirection = GetNearestHexDirection(toPlayer);
-        currentAimDirection = targetAimDirection;
+        // In Chess mode, find the best hex direction angle
+        int bestHexIndex = GetBestAlignedHexDirection();
+        targetAimAngle = GetHexDirectionAngle(bestHexIndex);
+        currentAimAngle = targetAimAngle;
+
+        if (showDebug)
+        {
+            Debug.Log($"[WeaponSystem] Chess aim: hex index {bestHexIndex}, angle {currentAimAngle}°");
+        }
     }
 
-    private void UpdateStandoffAiming(Vector2 toPlayer)
+    private void UpdateStandoffAiming()
     {
-        // Get fire interval and delay with modifier adjustments (e.g., Confrontational -25%, Observant -50%)
         float adjustedInterval = GetAdjustedFireInterval();
         float adjustedDelay = GetAdjustedFiringDelay();
         float timeSinceIntervalStart = Time.time - intervalStartTime;
 
-        // Check if we should enter firing delay phase (after fire interval has elapsed)
         if (!isInFiringDelay && timeSinceIntervalStart >= adjustedInterval)
         {
-            // Lock current aim direction to prevent tracking during delay
             isInFiringDelay = true;
             firingDelayStartTime = Time.time;
-            lockedAimDirection = currentAimDirection;
+            lockedAimAngle = currentAimAngle;
 
             if (showDebug)
             {
-                Debug.Log($"[WeaponSystem] Entering firing delay. Locked aim at {lockedAimDirection}");
+                Debug.Log($"[WeaponSystem] Entering firing delay. Locked aim at {lockedAimAngle}°");
             }
         }
 
-        // If in firing delay phase (stop tracking, prepare to fire)
         if (isInFiringDelay)
         {
             float timeSinceDelayStart = Time.time - firingDelayStartTime;
+            currentAimAngle = lockedAimAngle;
 
-            // Hold position and aim frozen during delay period
-            currentAimDirection = lockedAimDirection; // FROZEN AIM
-
-            // Fire after delay completes
             if (timeSinceDelayStart >= adjustedDelay)
             {
-                Fire(); // SHOOT!
-
-                // Reset to tracking phase for next cycle
+                Fire();
                 isInFiringDelay = false;
-                intervalStartTime = Time.time; // RESTART INTERVAL
+                intervalStartTime = Time.time;
 
                 if (showDebug)
                 {
@@ -382,69 +411,159 @@ public class WeaponSystem : MonoBehaviour
         }
         else
         {
-            // Tracking phase: Follow player with angular velocity until interval expires
-            targetAimDirection = toPlayer;
+            // Calculate target angle to player
+            Vector2 toPlayer = (playerTransform.position - transform.position).normalized;
+            targetAimAngle = Mathf.Atan2(toPlayer.y, toPlayer.x) * Mathf.Rad2Deg;
 
-            // Reflexive modifier: Gun fixed on player (instant tracking, no lerp)
+            // Reflexive modifier: instant tracking
             if (pawnController != null && pawnController.ShouldFixGunOnPlayer())
             {
-                // Lock instantly to target (matches "Reflexive" modifier instant tracking)
-                currentAimDirection = targetAimDirection;
+                currentAimAngle = targetAimAngle;
             }
             else
             {
-                // Normal tracking with angular velocity (allows for slow gun turning)
-                // Calculate maximum rotation allowed this frame based on angular velocity
+                // Normal tracking with angular velocity
                 float maxRotationThisFrame = trackingAngularVelocity * Time.deltaTime;
-                // Convert current and target directions to angles for proper interpolation
-                float currentAngle = Mathf.Atan2(currentAimDirection.y, currentAimDirection.x) * Mathf.Rad2Deg;
-                float targetAngle = Mathf.Atan2(targetAimDirection.y, targetAimDirection.x) * Mathf.Rad2Deg;
-                // Use DeltaAngle to get shortest rotation path (handles 359→1 degree wrap)
-                float angleDiff = Mathf.DeltaAngle(currentAngle, targetAngle);
-                // Clamp rotation to max allowed this frame
+                float angleDiff = Mathf.DeltaAngle(currentAimAngle, targetAimAngle);
                 float rotationAmount = Mathf.Clamp(angleDiff, -maxRotationThisFrame, maxRotationThisFrame);
-                // Apply rotation and convert back to direction vector
-                float newAngle = currentAngle + rotationAmount;
-                currentAimDirection = new Vector2(Mathf.Cos(newAngle * Mathf.Deg2Rad), Mathf.Sin(newAngle * Mathf.Deg2Rad));
+                currentAimAngle += rotationAmount;
             }
         }
     }
 
-    private Vector2 GetNearestHexDirection(Vector2 targetDirection)
+    // Get the world-space angle for a hex direction index
+    private float GetHexDirectionAngle(int hexIndex)
     {
-        int bestIndex = 0;
-        float bestDot = -1f;
-
-        for (int i = 0; i < hexDirections.Length; i++)
+        // Hex directions for flat-top grid (prefabs point RIGHT by default):
+        // PlayerController.HEX_DIR_Q/R indices in flat-top mode:
+        // 0=(1,0)=TopRight, 1=(1,-1)=BottomRight, 2=(0,-1)=Bottom, 3=(-1,0)=BottomLeft, 4=(-1,1)=TopLeft, 5=(0,1)=Top
+        //
+        // World-space angles for flat-top grid:
+        // Top=90°, TopRight=30°, BottomRight=-30°, Bottom=-90°, BottomLeft=-150°(+X180), TopLeft=-210°(+X180)
+        switch (hexIndex)
         {
-            float dot = Vector2.Dot(targetDirection, hexDirections[i]);
-            if (dot > bestDot)
-            {
-                bestDot = dot;
-                bestIndex = i;
-            }
+            case 0: return 30f;      // (1,0) TopRight → 30°
+            case 1: return -30f;     // (1,-1) BottomRight → -30°
+            case 2: return -90f;     // (0,-1) Bottom → -90°
+            case 3: return -150f;    // (-1,0) BottomLeft → -150° with X-flip
+            case 4: return -210f;    // (-1,1) TopLeft → -210° with X-flip
+            case 5: return 90f;      // (0,1) Top → 90°
+            default: return 90f;
         }
+    }
 
-        return hexDirections[bestIndex];
+    // Convert aim angle to direction vector
+    private Vector2 GetAimDirectionVector()
+    {
+        float rad = currentAimAngle * Mathf.Deg2Rad;
+        return new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
     }
 
     private void ApplyGunRotation()
     {
         if (gunTransform == null) return;
 
-        float angle = Mathf.Atan2(currentAimDirection.y, currentAimDirection.x) * Mathf.Rad2Deg;
-        gunTransform.rotation = Quaternion.Euler(0f, 0f, angle);
-
-        Vector3 scale = gunTransform.localScale;
-        if (currentAimDirection.x < 0)
+        if (isGunRotationFrozen)
         {
-            scale.y = -Mathf.Abs(scale.y);
+            if (Time.time >= gunUnfreezeTime)
+            {
+                isGunRotationFrozen = false;
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        float zAngle = currentAimAngle;
+        float xRotation = 0f;
+        float yRotation = 0f;
+
+        // Determine flip based on mode
+        if (isInStandoffMode)
+        {
+            // Standoff: flip X-axis when aiming left (angle > 90 or < -90)
+            if (zAngle > 90f || zAngle < -90f)
+            {
+                xRotation = 180f;
+            }
         }
         else
         {
-            scale.y = Mathf.Abs(scale.y);
+            // Chess: flip for bottom-left (-150°) and top-left (-210°)
+            if (zAngle == -150f || zAngle == -210f)
+            {
+                xRotation = 180f;
+            }
         }
-        gunTransform.localScale = scale;
+
+        gunTransform.rotation = Quaternion.Euler(xRotation, yRotation, zAngle);
+
+        if (showDebug)
+        {
+            Debug.Log($"[WeaponSystem] Gun rotation: Z={zAngle:F1}°, X={xRotation}°, Y={yRotation}°");
+        }
+    }
+
+    // Find the best aligned hex direction using line-of-sight scoring
+    private int GetBestAlignedHexDirection()
+    {
+        if (pawnController == null || pawnController.gridGenerator == null)
+        {
+            if (showDebug) Debug.LogWarning("[WeaponSystem] No PawnController or grid generator");
+            return 0;
+        }
+
+        PlayerController playerController = FindFirstObjectByType<PlayerController>();
+        if (playerController == null)
+        {
+            if (showDebug) Debug.LogWarning("[WeaponSystem] No PlayerController found");
+            return 0;
+        }
+
+        int pawnQ = pawnController.q;
+        int pawnR = pawnController.r;
+        List<Vector2Int> playerArea = playerController.GetPlayerArea();
+
+        int bestIndex = 0;
+        int bestScore = -1;
+
+        for (int dirIndex = 0; dirIndex < 6; dirIndex++)
+        {
+            int score = 0;
+            int currentQ = pawnQ;
+            int currentR = pawnR;
+
+            for (int step = 1; step <= 999; step++)
+            {
+                currentQ += PlayerController.HEX_DIR_Q[dirIndex];
+                currentR += PlayerController.HEX_DIR_R[dirIndex];
+                Vector2Int currentTile = new Vector2Int(currentQ, currentR);
+
+                if (playerArea.Contains(currentTile))
+                {
+                    score += (1000 - step);
+                }
+            }
+
+            if (showDebug)
+            {
+                Debug.Log($"[WeaponSystem] Direction {dirIndex}: Score = {score}");
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestIndex = dirIndex;
+            }
+        }
+
+        if (showDebug)
+        {
+            Debug.Log($"[WeaponSystem] Best hex direction: {bestIndex} with score {bestScore}");
+        }
+
+        return bestIndex;
     }
 
     #endregion
@@ -504,73 +623,70 @@ public class WeaponSystem : MonoBehaviour
 
     private void Fire()
     {
-        // Record fire time for cooldown tracking
         lastFireTime = Time.time;
         lastShotTime = Time.time;
 
-        // Play firing sound effect
+        isGunRotationFrozen = true;
+        gunUnfreezeTime = Time.time + GUN_ANIMATION_DURATION;
+
         if (fireSound != null && audioSource != null)
         {
             audioSource.PlayOneShot(fireSound, fireVolume);
         }
 
-        // Trigger gun animation (e.g., recoil animation)
         if (gunAnimator != null && !string.IsNullOrEmpty(fireAnimationTrigger))
         {
             gunAnimator.SetTrigger(fireAnimationTrigger);
         }
 
-        // Spawn muzzle flash visual effect at firePoint with fireOffset rotation
+        // Spawn muzzle flash
         if (muzzleFlashPrefab != null && firePoint != null)
         {
-            // Calculate rotation: aim direction angle + fireOffset
-            float aimAngle = Mathf.Atan2(currentAimDirection.y, currentAimDirection.x) * Mathf.Rad2Deg;
-            Quaternion flashRotation = Quaternion.Euler(0f, 0f, aimAngle + fireOffset);
+            float zAngle = currentAimAngle + fireOffset;
+            float xRotation = (currentAimAngle > 90f && currentAimAngle < 270f) ? 180f : 0f;
+            Quaternion flashRotation = Quaternion.Euler(xRotation, 0f, zAngle);
             GameObject flash = Instantiate(muzzleFlashPrefab, firePoint.position, flashRotation);
             Destroy(flash, muzzleFlashDuration);
         }
 
-        // Apply physical recoil in Standoff mode (pushes pawn backward)
+        // Apply recoil in Standoff mode
         if (isInStandoffMode && enableRecoil && rigidBody != null)
         {
             ApplyRecoil();
         }
 
-        // Fire based on AI type (each type has unique firing pattern)
+        // Fire based on AI type
         if (pawnController != null)
         {
             switch (pawnController.aiType)
             {
                 case PawnController.AIType.Basic:
-                    // Basic doesn't shoot normally (but spawns projectile if converted to Handcannon)
-                    SpawnProjectile(currentAimDirection);
+                    SpawnProjectile(0f, damage: 1);
                     break;
 
                 case PawnController.AIType.Handcannon:
-                    // Handcannon: Single bullet, 1 damage (mid-range specialist)
-                    SpawnProjectile(currentAimDirection, damage: 1);
+                    SpawnProjectile(0f, damage: 1);
                     break;
 
                 case PawnController.AIType.Shotgun:
-                    // Shotgun: 3 bullets in spread pattern (0°, +60°, -60°), 1 damage each
-                    SpawnProjectile(currentAimDirection, damage: 1);
-                    SpawnProjectile(RotateVector(currentAimDirection, 60f), damage: 1);
-                    SpawnProjectile(RotateVector(currentAimDirection, -60f), damage: 1);
+                    // Shotgun: 3 bullets at 0°, +60°, -60° in BOTH stages
+                    SpawnProjectile(0f, damage: 1);
+                    SpawnProjectile(60f, damage: 1);
+                    SpawnProjectile(-60f, damage: 1);
                     break;
 
                 case PawnController.AIType.Sniper:
-                    // Sniper: Single bullet, 2 damage, pierces once for additional 1 damage (high damage, piercing)
-                    SpawnProjectile(currentAimDirection, damage: 2, piercing: true);
+                    SpawnProjectile(0f, damage: 2, piercing: true);
                     break;
             }
         }
         else
         {
-            // Fallback: Fire based on projectile type if no pawn controller found
+            // Fallback
             switch (projectileType)
             {
                 case ProjectileType.Single:
-                    SpawnProjectile(currentAimDirection);
+                    SpawnProjectile(0f);
                     break;
 
                 case ProjectileType.Spread:
@@ -584,28 +700,23 @@ public class WeaponSystem : MonoBehaviour
         }
     }
 
-    /// Get adjusted fire interval based on modifier applied to the pawn
     private float GetAdjustedFireInterval()
     {
         if (pawnController == null) return fireInterval;
-        // Apply modifier multiplier (e.g., Confrontational = 0.75x => 25% faster firing)
         return fireInterval * pawnController.GetFireIntervalMultiplier();
-        // Example: Confrontational modifier = 0.75x (25% reduced interval = fires more frequently)
     }
 
-    /// Get adjusted firing delay based on modifier applied to the pawn
     private float GetAdjustedFiringDelay()
     {
         if (pawnController == null) return firingDelay;
-        // Apply modifier multiplier (e.g., Observant = 0.5x => 50% faster, Reflexive = 0.75x => 25% faster)
         return firingDelay * pawnController.GetFiringDelayMultiplier();
-        // Example: Observant modifier = 0.5x (0.5s delay → 0.25s delay, fires sooner)
     }
 
     private void ApplyRecoil()
     {
         if (rigidBody == null) return;
-        Vector2 recoilDirection = -currentAimDirection.normalized;
+        Vector2 aimDir = GetAimDirectionVector();
+        Vector2 recoilDirection = -aimDir.normalized;
         rigidBody.AddForce(recoilDirection * recoilForce, ForceMode2D.Impulse);
     }
 
@@ -616,16 +727,16 @@ public class WeaponSystem : MonoBehaviour
         for (int i = 0; i < spreadCount; i++)
         {
             float angle = startAngle + (spreadAngle * i);
-            Vector2 direction = RotateVector(currentAimDirection, angle);
-            SpawnProjectile(direction);
+            SpawnProjectile(angle);
         }
     }
 
     private void FireBeam()
     {
+        Vector2 aimDir = GetAimDirectionVector();
         RaycastHit2D hit = Physics2D.Raycast(
             firePoint.position,
-            currentAimDirection,
+            aimDir,
             maxRange,
             targetLayer | obstacleLayer
         );
@@ -644,13 +755,14 @@ public class WeaponSystem : MonoBehaviour
         if (projectilePrefab != null)
         {
             GameObject beam = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
-            beam.transform.right = currentAimDirection;
+            beam.transform.right = aimDir;
             beam.transform.localScale = new Vector3(beamDistance, 1f, 1f);
             Destroy(beam, 0.2f);
         }
     }
 
-    private void SpawnProjectile(Vector2 direction, int damage = -1, bool piercing = false)
+    // Spawn projectile with angle offset relative to current aim angle
+    private void SpawnProjectile(float angleOffset, int damage = -1, bool piercing = false)
     {
         if (projectilePrefab == null)
         {
@@ -664,11 +776,36 @@ public class WeaponSystem : MonoBehaviour
             return;
         }
 
-        GameObject projectile = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
+        // Calculate final angle: current aim angle + offset + fire offset
+        float finalAngle = currentAimAngle + angleOffset + fireOffset;
 
-        // Apply fireOffset to projectile rotation
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        projectile.transform.rotation = Quaternion.Euler(0, 0, angle + fireOffset);
+        // Calculate bullet direction vector using final angle
+        float dirRad = finalAngle * Mathf.Deg2Rad;
+        Vector2 bulletDirection = new Vector2(Mathf.Cos(dirRad), Mathf.Sin(dirRad));
+
+        // Determine X-axis flip based on final angle
+        float xRotation = 0f;
+        if (isInStandoffMode)
+        {
+            // Standoff: flip when aiming left (angle > 90 or < -90)
+            if (finalAngle > 90f || finalAngle < -90f)
+            {
+                xRotation = 180f;
+            }
+        }
+        else
+        {
+            // Chess: flip for bottom-left (-150°) and top-left (-210°)
+            // Use base angle to determine flip, not the offset angle
+            if (currentAimAngle == -150f || currentAimAngle == -210f)
+            {
+                xRotation = 180f;
+            }
+        }
+
+        // Create projectile with correct rotation
+        GameObject projectile = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
+        projectile.transform.rotation = Quaternion.Euler(xRotation, 0f, finalAngle);
 
         ProjectileBehavior proj = projectile.GetComponent<ProjectileBehavior>();
         if (proj == null)
@@ -679,19 +816,267 @@ public class WeaponSystem : MonoBehaviour
         int finalDamage = damage < 0 ? this.damage : damage;
         bool onlyDamagePlayer = pawnController != null && pawnController.BulletsOnlyDamagePlayer();
 
-        // Pass source GameObject to prevent friendly fire
-        proj.Initialize(direction, projectileSpeed, maxRange, finalDamage, gameObject, piercing, onlyDamagePlayer);
+        proj.Initialize(bulletDirection, projectileSpeed, maxRange, finalDamage, gameObject, piercing, onlyDamagePlayer);
+
+        if (showDebug)
+        {
+            Debug.Log($"[WeaponSystem] Spawned projectile: angle={finalAngle:F1}°, offset={angleOffset}°, X-flip={xRotation}°, dir={bulletDirection}");
+        }
     }
 
-    private Vector2 RotateVector(Vector2 v, float degrees)
+    #endregion
+
+    #region Targeting Visualization
+
+    private void InitializeTargetingVisualization()
     {
-        float rad = degrees * Mathf.Deg2Rad;
-        float cos = Mathf.Cos(rad);
-        float sin = Mathf.Sin(rad);
-        return new Vector2(
-            v.x * cos - v.y * sin,
-            v.x * sin + v.y * cos
-        );
+        lineRenderer = gameObject.AddComponent<LineRenderer>();
+        lineRenderer.positionCount = 2;
+        lineRenderer.startWidth = lineWidth;
+        lineRenderer.endWidth = lineWidth;
+        lineRenderer.material = lineMaterial != null ? lineMaterial : CreateDefaultLineMaterial();
+        lineRenderer.startColor = standoffLineColor;
+        lineRenderer.endColor = standoffLineColor;
+        lineRenderer.enabled = false;
+        lineRenderer.sortingOrder = 10;
+    }
+
+    private Material CreateDefaultLineMaterial()
+    {
+        Shader shader = Shader.Find("Sprites/Default");
+        if (shader == null) shader = Shader.Find("Unlit/Color");
+
+        Material mat = new Material(shader);
+        mat.color = standoffLineColor;
+        return mat;
+    }
+
+    private void UpdateTargetingVisualization()
+    {
+        if (isInStandoffMode)
+        {
+            UpdateStandoffVisualization();
+        }
+        else
+        {
+            UpdateChessVisualization();
+        }
+    }
+
+    private void UpdateChessVisualization()
+    {
+        if (pawnController == null || gridGenerator == null || playerTransform == null)
+        {
+            return;
+        }
+
+        List<GameObject> newTargetedTiles = GetTilesInFiringDirection();
+
+        if (!TileListsMatch(targetedTiles, newTargetedTiles))
+        {
+            ClearChessVisualization();
+            targetedTiles = newTargetedTiles;
+
+            if (targetedTiles.Count > 0)
+            {
+                if (blinkCoroutine != null) StopCoroutine(blinkCoroutine);
+                blinkCoroutine = StartCoroutine(BlinkTilesCoroutine());
+            }
+        }
+    }
+
+    private List<GameObject> GetTilesInFiringDirection()
+    {
+        List<GameObject> tiles = new List<GameObject>();
+
+        if (pawnController == null || gridGenerator == null) return tiles;
+
+        int pawnQ = pawnController.q;
+        int pawnR = pawnController.r;
+        int hexIndex = GetBestAlignedHexDirection();
+
+        if (hexIndex < 0) return tiles;
+
+        bool isShotgun = pawnController.aiType == PawnController.AIType.Shotgun;
+
+        if (isShotgun)
+        {
+            // Shotgun: 3 directions
+            int[] directions = { hexIndex, (hexIndex + 1) % 6, (hexIndex + 5) % 6 };
+
+            foreach (int dirIndex in directions)
+            {
+                int currentQ = pawnQ;
+                int currentR = pawnR;
+
+                for (int step = 1; step <= maxTileRange; step++)
+                {
+                    currentQ += PlayerController.HEX_DIR_Q[dirIndex];
+                    currentR += PlayerController.HEX_DIR_R[dirIndex];
+
+                    GameObject tile = FindTileAtCoordinates(currentQ, currentR);
+                    if (tile != null && !tiles.Contains(tile))
+                    {
+                        tiles.Add(tile);
+                    }
+                }
+            }
+
+            if (showDebug)
+            {
+                Debug.Log($"[WeaponSystem] Shotgun targeting {tiles.Count} tiles in 3 directions");
+            }
+        }
+        else
+        {
+            // Single direction
+            int currentQ = pawnQ;
+            int currentR = pawnR;
+
+            for (int step = 1; step <= maxTileRange; step++)
+            {
+                currentQ += PlayerController.HEX_DIR_Q[hexIndex];
+                currentR += PlayerController.HEX_DIR_R[hexIndex];
+
+                GameObject tile = FindTileAtCoordinates(currentQ, currentR);
+                if (tile != null)
+                {
+                    tiles.Add(tile);
+                }
+            }
+
+            if (showDebug)
+            {
+                Debug.Log($"[WeaponSystem] Targeting {tiles.Count} tiles in direction {hexIndex}");
+            }
+        }
+
+        return tiles;
+    }
+
+    private GameObject FindTileAtCoordinates(int q, int r)
+    {
+        if (gridGenerator == null || gridGenerator.parentContainer == null) return null;
+
+        string targetName = $"Hex_{q}_{r}";
+
+        foreach (Transform child in gridGenerator.parentContainer)
+        {
+            if (child.name == targetName)
+            {
+                return child.gameObject;
+            }
+        }
+
+        return null;
+    }
+
+    private IEnumerator BlinkTilesCoroutine()
+    {
+        foreach (GameObject tile in targetedTiles)
+        {
+            SpriteRenderer spriteRenderer = tile.GetComponentInChildren<SpriteRenderer>();
+            if (spriteRenderer != null && !originalTileColors.ContainsKey(spriteRenderer))
+            {
+                originalTileColors[spriteRenderer] = spriteRenderer.color;
+            }
+        }
+
+        bool isBlinkOn = false;
+        int blinkCounter = 0;
+
+        while (true)
+        {
+            isBlinkOn = !isBlinkOn;
+
+            if (!isBlinkOn)
+            {
+                blinkCounter++;
+
+                if (maxBlinkCount > 0 && blinkCounter >= maxBlinkCount)
+                {
+                    foreach (var kvp in originalTileColors)
+                    {
+                        if (kvp.Key != null)
+                        {
+                            kvp.Key.color = kvp.Value;
+                        }
+                    }
+                    yield break;
+                }
+            }
+
+            foreach (GameObject tile in targetedTiles)
+            {
+                SpriteRenderer spriteRenderer = tile.GetComponentInChildren<SpriteRenderer>();
+                if (spriteRenderer != null)
+                {
+                    if (isBlinkOn)
+                    {
+                        spriteRenderer.color = chessTileBlinkColor;
+                    }
+                    else
+                    {
+                        if (originalTileColors.TryGetValue(spriteRenderer, out Color originalColor))
+                        {
+                            spriteRenderer.color = originalColor;
+                        }
+                    }
+                }
+            }
+
+            yield return new WaitForSeconds(blinkInterval);
+        }
+    }
+
+    private void ClearChessVisualization()
+    {
+        if (blinkCoroutine != null)
+        {
+            StopCoroutine(blinkCoroutine);
+            blinkCoroutine = null;
+        }
+
+        foreach (var kvp in originalTileColors)
+        {
+            if (kvp.Key != null)
+            {
+                kvp.Key.color = kvp.Value;
+            }
+        }
+
+        originalTileColors.Clear();
+        targetedTiles.Clear();
+    }
+
+    private bool TileListsMatch(List<GameObject> list1, List<GameObject> list2)
+    {
+        if (list1.Count != list2.Count) return false;
+
+        for (int i = 0; i < list1.Count; i++)
+        {
+            if (list1[i] != list2[i]) return false;
+        }
+
+        return true;
+    }
+
+    private void UpdateStandoffVisualization()
+    {
+        if (lineRenderer == null || !lineRenderer.enabled) return;
+
+        Vector3 startPos = transform.position;
+        Vector2 aimDir = GetAimDirectionVector();
+        Vector3 endPos = startPos + (Vector3)(aimDir.normalized * maxRange);
+
+        RaycastHit2D hit = Physics2D.Raycast(startPos, aimDir, maxRange);
+        if (hit.collider != null)
+        {
+            endPos = hit.point;
+        }
+
+        lineRenderer.SetPosition(0, startPos);
+        lineRenderer.SetPosition(1, endPos);
     }
 
     #endregion
@@ -706,14 +1091,14 @@ public class ProjectileBehavior : MonoBehaviour
     private float speed;
     private float maxRange;
     private int damage;
-    private GameObject sourceObject; // Source GameObject that fired this projectile
+    private GameObject sourceObject;
     private Vector2 startPosition;
     private Rigidbody2D rigidBody;
     private bool isInitialized = false;
     private bool isPiercing = false;
     private bool onlyDamagePlayer = false;
     private int pierceCount = 0;
-    private int maxPierceCount = 1; // Sniper bullets pierce once
+    private int maxPierceCount = 1;
 
     private void Awake()
     {
@@ -726,7 +1111,6 @@ public class ProjectileBehavior : MonoBehaviour
 
     private void Start()
     {
-        // Ignore collision with source object's colliders
         if (sourceObject != null)
         {
             Collider2D projectileCollider = GetComponent<Collider2D>();
@@ -760,7 +1144,6 @@ public class ProjectileBehavior : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // Don't damage the source that fired this projectile
         if (sourceObject != null && collision.gameObject == sourceObject)
         {
             return;
@@ -768,10 +1151,8 @@ public class ProjectileBehavior : MonoBehaviour
 
         PawnHealth pawnHealth = collision.GetComponent<PawnHealth>();
 
-        // Damage pawns
         if (pawnHealth != null)
         {
-            // Observant modifier: Only damage player
             if (onlyDamagePlayer)
             {
                 if (pawnHealth.pawnType == PawnHealth.PawnType.Player)
@@ -781,32 +1162,26 @@ public class ProjectileBehavior : MonoBehaviour
                 }
                 else
                 {
-                    // Don't damage or destroy bullet when hitting opponent
                     return;
                 }
             }
             else
             {
-                // Normal: Damage both sides (but not self)
                 string sourceName = sourceObject != null ? sourceObject.name : "Unknown";
                 pawnHealth.TakeDamage(damage, sourceName);
             }
 
-            // Handle piercing
             if (isPiercing && pierceCount < maxPierceCount)
             {
                 pierceCount++;
-                // Reduce damage after first pierce (Sniper: 2 damage first hit, 1 damage second)
                 damage = 1;
-                return; // Don't destroy bullet yet
+                return;
             }
 
-            // Destroy bullet after hitting (or after max pierces)
             Destroy(gameObject);
             return;
         }
 
-        // Destroy on hitting tiles/walls/obstacles
         if (collision.CompareTag("Tile") || collision.CompareTag("Wall") || collision.CompareTag("Obstacle"))
         {
             Destroy(gameObject);

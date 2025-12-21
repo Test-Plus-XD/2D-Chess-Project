@@ -108,6 +108,34 @@ public class PawnHealth : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        // Check if pawn fell below Y = -10 (death by falling)
+        if (HP > 0 && transform.position.y < -10f)
+        {
+            // Only apply fall-to-death during Standoff and not after Victory/Defeat
+            if (GameManager.Instance == null) return;
+            var state = GameManager.Instance.CurrentState;
+            if (state != GameManager.GameState.Standoff) return;
+
+            Debug.Log($"[PawnHealth] {pawnType} fell below Y = -10, triggering death.");
+            HP = 0;
+            UpdateSpriteForHP();
+            if (pawnType == PawnType.Player)
+            {
+                OnHPChanged?.Invoke(HP);
+            }
+
+            // Disable pawn controller
+            if (pawnController != null)
+            {
+                pawnController.enabled = false;
+            }
+
+            Death();
+        }
+    }
+
     #endregion
 
     #region Public Methods - Damage

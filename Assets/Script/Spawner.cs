@@ -359,6 +359,12 @@ public class Spawner : MonoBehaviour
     {
         if (prefab == null || count <= 0) return;
 
+        StartCoroutine(SpawnTypeCoroutine(prefab, aiType, count, candidates, occupied));
+    }
+
+    private IEnumerator SpawnTypeCoroutine(GameObject prefab, PawnController.AIType aiType, int count,
+        List<TileCandidate> candidates, HashSet<Vector2Int> occupied)
+    {
         for (int i = 0; i < count; i++)
         {
             Vector2Int chosen = ChooseWeightedTile(candidates, occupied, allowStacking);
@@ -396,6 +402,9 @@ public class Spawner : MonoBehaviour
             gameObject.name = $"Opponent {prefab.name}: {chosen.x}_{chosen.y}";
 
             if (!allowStacking) occupied.Add(chosen);
+
+            // Wait one frame before spawning next pawn to prevent duplicates
+            yield return null;
         }
     }
 

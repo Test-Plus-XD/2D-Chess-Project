@@ -42,9 +42,6 @@ public class PawnController : MonoBehaviour
     [Tooltip("UI image displaying the modifier icon at top-right of pawn")]
     public UnityEngine.UI.Image modifierIconImage;
 
-    // Neighbour axial deltas (must match project convention).
-    private readonly int[] DIR_Q = { 1, 1, 0, -1, -1, 0 };
-    private readonly int[] DIR_R = { 0, -1, -1, 0, 1, 1 };
     // Keep the original prefab/type label for nicer names (optional).
     private string typeLabel = "";
 
@@ -98,6 +95,16 @@ public class PawnController : MonoBehaviour
         {
             rigidBody.bodyType = RigidbodyType2D.Kinematic;
             rigidBody.gravityScale = 0f;
+        }
+
+        // Disable Canvas child if no modifier.
+        if(modifier == Modifier.None)
+        {
+            Transform canvasTransform = transform.Find("Canvas");
+            if(canvasTransform != null)
+            {
+                canvasTransform.gameObject.SetActive(false);
+            }
         }
 
         // Lightweight label for naming.
@@ -356,8 +363,8 @@ public class PawnController : MonoBehaviour
         List<Candidate> candidates = new List<Candidate>();
         for(int i = 0; i < 6; i++)
         {
-            int nq = q + DIR_Q[i];
-            int nr = r + DIR_R[i];
+            int nq = q + PlayerController.HEX_DIR_Q[i];
+            int nr = r + PlayerController.HEX_DIR_R[i];
             if(!TileExists(nq, nr)) continue;
             Candidate c = new Candidate() { q = nq, r = nr, index = i };
             candidates.Add(c);
@@ -488,7 +495,7 @@ public class PawnController : MonoBehaviour
                     int dirIndex = -1;
                     for(int i = 0; i < 6; i++)
                     {
-                        if(DIR_Q[i] == dq && DIR_R[i] == dr)
+                        if(PlayerController.HEX_DIR_Q[i] == dq && PlayerController.HEX_DIR_R[i] == dr)
                         {
                             dirIndex = i;
                             break;
@@ -576,12 +583,18 @@ public class PawnController : MonoBehaviour
         Debug.Log($"[PawnController] {typeLabel} moved {fromQ}_{fromR} -> {q}_{r}");
     }
 
-    /// Set initial coordinates and optionally reposition pawn to tile centre.
+    /// Set initial coordinates and optionally reposition pawn to tile centre (Chess mode only).
     public void SetCoordsAndSnap(int startQ, int startR)
     {
         q = startQ; r = startR;
-        Vector3 world;
-        if(TryGetTileWorldCentre(q, r, out world)) transform.position = world;
+
+        // Only snap to tile position in Chess mode, not in Standoff mode
+        if (!isStandoffMode)
+        {
+            Vector3 world;
+            if(TryGetTileWorldCentre(q, r, out world)) transform.position = world;
+        }
+
         UpdateNameWithCoords();
         Debug.Log($"[PawnController] {typeLabel} initialised at {q}_{r}");
     }
@@ -612,6 +625,19 @@ public class PawnController : MonoBehaviour
     /// Update the modifier icon UI display.
     private void UpdateModifierIcon()
     {
+        // If no modifier assigned, destroy the Canvas child GameObject entirely
+        if (modifier == Modifier.None)
+        {
+            // Find and destroy any Canvas child GameObject
+            Canvas canvasChild = GetComponentInChildren<Canvas>();
+            if (canvasChild != null)
+            {
+                Destroy(canvasChild.gameObject);
+                Debug.Log($"[PawnController] Removed Canvas child from {gameObject.name} (no modifier)");
+            }
+            return;
+        }
+
         if(modifierIconImage == null) return;
 
         // Get modifier icon from Pawn Customiser (centralised icon storage).
@@ -623,7 +649,14 @@ public class PawnController : MonoBehaviour
         {
             modifierIconImage.sprite = iconSprite;
             modifierIconImage.enabled = true;
-        } else modifierIconImage.enabled = false;
+            modifierIconImage.gameObject.SetActive(true);
+        }
+        else
+        {
+            modifierIconImage.sprite = null;
+            modifierIconImage.enabled = false;
+            modifierIconImage.gameObject.SetActive(false);
+        }
     }
 
     /// Apply modifier effects to components (health, weapon, movement).

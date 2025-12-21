@@ -227,6 +227,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
+  standoffGravityScale: 2
 --- !u!114 &5188984890951382328
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -313,14 +314,14 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1490730411366956168}
-  m_BodyType: 1
+  m_BodyType: 0
   m_Simulated: 1
   m_UseFullKinematicContacts: 1
-  m_UseAutoMass: 0
+  m_UseAutoMass: 1
   m_Mass: 1
   m_LinearDamping: 0
   m_AngularDamping: 0.05
-  m_GravityScale: 1
+  m_GravityScale: 2
   m_Material: {fileID: 6200000, guid: 62c77a89793fc5d45852680dcebe5600, type: 2}
   m_IncludeLayers:
     serializedVersion: 2

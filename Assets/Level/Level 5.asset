@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level 5
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   LevelName: Level 5
-  Description: Defeat all enemy pieces
+  Description: Defeat all enemy pieces.
   LevelNumber: 5
   GridRadius: 4
   ExtraRows: 2
@@ -43,3 +43,4 @@ MonoBehaviour:
   ChessModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
   StandoffModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
   Skybox: {fileID: 2100000, guid: 72deae4d18418f94688abef8e8483df0, type: 2}
+  ShowInGameBackground: 0

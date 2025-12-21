@@ -525,6 +525,10 @@ public class Platform : MonoBehaviour
 
             GameObject tileObj = Instantiate(prefab, tile.position, Quaternion.Euler(0, 0, tileRotationOffset), parentContainer);
             tileObj.name = $"{tile.tileType}_H{tile.heightLevel}_{tile.axialQ}_{tile.axialR}";
+
+            // Copy tag and layer from prefab to ensure platform tiles have proper collision settings
+            tileObj.tag = prefab.tag;
+            tileObj.layer = prefab.layer;
         }
     }
 

@@ -114,19 +114,8 @@ public class LevelData : ScriptableObject
     [Tooltip("Skybox material")]
     // Skybox material for the level's background.
     public Material Skybox;
-
-    [Header("Background Prefabs")]
-    [Tooltip("Main menu background prefab")]
-    // Background prefab to display in main menu.
-    public GameObject MainMenuBackgroundPrefab;
-    [Tooltip("Show main menu background")]
-    // Whether to display the main menu background.
-    public bool ShowMainMenuBackground = true;
-    [Tooltip("In-game background prefab")]
-    // Background prefab to display during gameplay.
-    public GameObject InGameBackgroundPrefab;
     [Tooltip("Show in-game background")]
-    // Whether to display the in-game background.
+    // Whether to display the in-game background during gameplay.
     public bool ShowInGameBackground = true;
 
     /// Get total opponent count for this level

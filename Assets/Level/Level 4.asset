@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: Level 4
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   LevelName: Level 4
-  Description: Defeat all enemy pieces
+  Description: "Tenacious \U0001F6E1\uFE0F - Requires two captures to defeat instead
+    of one."
   LevelNumber: 4
   GridRadius: 3
   ExtraRows: 3
@@ -43,3 +44,4 @@ MonoBehaviour:
   ChessModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
   StandoffModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
   Skybox: {fileID: 2100000, guid: 72deae4d18418f94688abef8e8483df0, type: 2}
+  ShowInGameBackground: 1

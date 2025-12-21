@@ -48,7 +48,7 @@ public class PlayerController : MonoBehaviour
     public float maxFallSpeed = 15f;
     [Tooltip("Ground check distance")]
     // Distance for ground detection raycast.
-    public float groundCheckDistance = 0.1f;
+    public float groundCheckDistance = 0.5f;
     [Tooltip("Layer mask for ground detection")]
     // Layer mask for detecting ground tiles.
     public LayerMask groundLayer;
@@ -300,16 +300,21 @@ public class PlayerController : MonoBehaviour
     {
         if (rigidBody == null) return;
 
-        // Raycast downward to check for ground
         Vector2 position = transform.position;
-        RaycastHit2D hit = Physics2D.Raycast(position, Vector2.down, groundCheckDistance, groundLayer);
+        Vector2 boxSize = new Vector2(0.4f, 0.1f);
+        RaycastHit2D hit = Physics2D.BoxCast(position, boxSize, 0f, Vector2.down, groundCheckDistance, groundLayer);
 
+        bool wasGrounded = isGrounded;
         isGrounded = hit.collider != null;
 
-        // Reset jump permission when grounded
         if (isGrounded)
         {
             canJump = true;
+            
+            if (rigidBody.linearVelocity.y < 0)
+            {
+                rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, 0f);
+            }
         }
     }
 
@@ -330,21 +335,39 @@ public class PlayerController : MonoBehaviour
     {
         if (!isStandoffMode) return;
 
-        // Check for opponent collision in Standoff mode
+        if (((1 << collision.gameObject.layer) & groundLayer) != 0)
+        {
+            if (rigidBody != null && rigidBody.linearVelocity.y < 0)
+            {
+                rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, 0f);
+            }
+        }
+
         PawnController opponent = collision.gameObject.GetComponent<PawnController>();
         if (opponent != null)
         {
-            // Win condition: capture opponent in Standoff mode
             PawnHealth opPawn = opponent.GetComponent<PawnHealth>();
             if (opPawn != null)
             {
                 opPawn.TakeDamage(opPawn.GetCurrentHP(), "Player Capture");
             }
 
-            // Trigger victory
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.TriggerVictory();
+            }
+        }
+    }
+
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (!isStandoffMode) return;
+
+        if (((1 << collision.gameObject.layer) & groundLayer) != 0)
+        {
+            if (rigidBody != null && Mathf.Abs(rigidBody.linearVelocity.y) < 0.1f)
+            {
+                rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, 0f);
             }
         }
     }
@@ -610,6 +633,71 @@ public class PlayerController : MonoBehaviour
             if (directionArrows[i] == null) continue;
             directionArrows[i].SetActive(false);
         }
+    }
+
+    #endregion
+
+    #region Public Hex Helper Methods
+
+    /// <summary>
+    /// Static hex neighbor direction deltas for axial coordinates (Flat-top orientation).
+    /// Index 0: TopRight (1,0), 1: BottomRight (1,-1), 2: Bottom (0,-1)
+    /// Index 3: BottomLeft (-1,0), 4: TopLeft (-1,1), 5: Top (0,1)
+    /// </summary>
+    public static readonly int[] HEX_DIR_Q = { 1, 1, 0, -1, -1, 0 };
+    public static readonly int[] HEX_DIR_R = { 0, -1, -1, 0, 1, 1 };
+
+    /// <summary>
+    /// Get the player's current hex coordinates.
+    /// </summary>
+    public Vector2Int GetHexCoords()
+    {
+        return new Vector2Int(q, r);
+    }
+
+    /// <summary>
+    /// Get the 6 hex tiles adjacent to the player (neighbors only, not including player's tile).
+    /// </summary>
+    public List<Vector2Int> GetAdjacentTiles()
+    {
+        List<Vector2Int> adjacent = new List<Vector2Int>();
+        for (int i = 0; i < 6; i++)
+        {
+            adjacent.Add(new Vector2Int(q + HEX_DIR_Q[i], r + HEX_DIR_R[i]));
+        }
+        return adjacent;
+    }
+
+    /// <summary>
+    /// Get the player's tile plus 6 surrounding tiles (total 7 tiles).
+    /// Useful for line-of-sight and area calculations.
+    /// </summary>
+    public List<Vector2Int> GetPlayerArea()
+    {
+        List<Vector2Int> area = new List<Vector2Int>();
+        area.Add(new Vector2Int(q, r)); // Player's tile
+        for (int i = 0; i < 6; i++)
+        {
+            area.Add(new Vector2Int(q + HEX_DIR_Q[i], r + HEX_DIR_R[i]));
+        }
+        return area;
+    }
+
+    /// <summary>
+    /// Check if a given hex coordinate is adjacent to the player.
+    /// </summary>
+    public bool IsAdjacentToPlayer(int targetQ, int targetR)
+    {
+        int dq = targetQ - q;
+        int dr = targetR - r;
+
+        // Check if delta matches any of the 6 hex neighbor directions
+        for (int i = 0; i < 6; i++)
+        {
+            if (dq == HEX_DIR_Q[i] && dr == HEX_DIR_R[i])
+                return true;
+        }
+        return false;
     }
 
     #endregion

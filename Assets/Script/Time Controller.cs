@@ -160,11 +160,13 @@ public class TimeController : MonoBehaviour
     {
         // Check for input from mobile or keyboard
         Vector2 movement = Vector2.zero;
+        bool hasJumpInput = false;
 
         // Input system (unified mobile/desktop)
         if (InputSystem.Instance != null)
         {
             movement = InputSystem.Instance.Movement;
+            hasJumpInput = InputSystem.Instance.JumpPressed;
         }
         else
         {
@@ -172,9 +174,11 @@ public class TimeController : MonoBehaviour
             float h = Input.GetAxisRaw("Horizontal");
             float v = Input.GetAxisRaw("Vertical");
             movement = new Vector2(h, v);
+            hasJumpInput = Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow);
         }
 
-        isPlayerMoving = movement.magnitude >= movementThreshold;
+        // Consider any movement or jump input as player activity
+        isPlayerMoving = movement.magnitude >= movementThreshold || hasJumpInput;
     }
 
     private void AdjustAudioPitch(float pitch)

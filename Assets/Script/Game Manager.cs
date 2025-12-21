@@ -173,6 +173,27 @@ public class GameManager : MonoBehaviour
         {
             CheckStandoffCondition();
         }
+
+        // During Standoff, if there are no opponent pawns left (tagged "Pawn"), consider it a victory.
+        if (currentState == GameState.Standoff)
+        {
+            // Find all objects tagged as Pawn
+            var pawns = GameObject.FindGameObjectsWithTag("Pawn");
+            int pawnCount = pawns != null ? pawns.Length : 0;
+
+            // Exclude the player object if it is also tagged as Pawn
+            PlayerController player = playerController ?? FindFirstObjectByType<PlayerController>();
+            if (player != null && player.gameObject != null && player.gameObject.CompareTag("Pawn"))
+            {
+                pawnCount = Mathf.Max(0, pawnCount - 1);
+            }
+
+            if (pawnCount == 0)
+            {
+                // No opponent pawns remain - trigger victory
+                TriggerVictory();
+            }
+        }
     }
 
     #endregion
@@ -466,7 +487,7 @@ public class GameManager : MonoBehaviour
     {
         if (HasNextLevel)
         {
-            LoadLevel(currentLevelIndex + 1);
+            StartGame(currentLevelIndex + 1);
         }
         else if (showDebug)
         {
@@ -517,12 +538,18 @@ public class GameManager : MonoBehaviour
                 {
                     TimeController.Instance.ResetTime();
                 }
-                // Cleanup board when leaving gameplay states
-                CleanupGameBoard();
+                // Cleanup board when leaving Standoff (but NOT when going to Victory/Defeat)
+                if (to != GameState.Victory && to != GameState.Defeat)
+                {
+                    CleanupGameBoard();
+                }
                 break;
             case GameState.ChessMode:
-                // Cleanup board when leaving gameplay states
-                CleanupGameBoard();
+                // Cleanup board when leaving Chess mode (but NOT when going to Standoff)
+                if (to != GameState.Standoff)
+                {
+                    CleanupGameBoard();
+                }
                 break;
         }
 
@@ -668,10 +695,10 @@ public class GameManager : MonoBehaviour
         if (platformGenerator == null) return;
 
         // Use Platform's built-in spawn position calculations.
-        // Player spawns at leftmost floor tile, opponent at rightmost.
+        // Swapped: Player spawns at rightmost floor tile, opponent at leftmost.
         // Both spawn one tile height above the highest tile in the arena.
-        Vector3 playerSpawnPos = platformGenerator.GetPlayerSpawnPosition();
-        Vector3 opponentSpawnPos = platformGenerator.GetOpponentSpawnPosition();
+        Vector3 playerSpawnPos = platformGenerator.GetOpponentSpawnPosition();
+        Vector3 opponentSpawnPos = platformGenerator.GetPlayerSpawnPosition();
 
         // Find player controller if not already assigned
         if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
@@ -688,9 +715,13 @@ public class GameManager : MonoBehaviour
             var opponents = checkerboard.GetOpponentControllers();
             if (opponents.Count > 0)
             {
-                opponents[0].transform.position = opponentSpawnPos;
+                PawnController opponent = opponents[0];
+                opponent.transform.position = opponentSpawnPos;
 
-                if (showDebug) Debug.Log($"Opponent positioned at {opponentSpawnPos}");
+                // Switch opponent to Standoff mode (enables Dynamic rigidbody with gravity)
+                opponent.SetStandoffMode(true);
+
+                if (showDebug) Debug.Log($"Opponent positioned at {opponentSpawnPos} and switched to Standoff mode");
             }
         }
     }
@@ -726,10 +757,86 @@ public class GameManager : MonoBehaviour
             );
             spawnerSystem.SetOpponentHP(currentLevelData.OpponentHP);
             spawnerSystem.SpawnAll();
+            
+            // Apply modifiers to spawned pawns after a short delay
+            StartCoroutine(ApplyModifiersAfterSpawn());
         }
 
         // Apply visual settings
         ApplyVisualSettings();
+    }
+    
+    private IEnumerator ApplyModifiersAfterSpawn()
+    {
+        // Wait for pawns to spawn
+        yield return new WaitForSeconds(0.2f);
+        
+        if (currentLevelData == null || checkerboard == null) yield break;
+        
+        // Get allowed modifiers for this level
+        List<PawnController.Modifier> allowedModifiers = currentLevelData.GetAllowedModifiers();
+        if (allowedModifiers.Count == 0 || currentLevelData.ModifierCount == 0) yield break;
+        
+        // Get all opponent pawns
+        List<PawnController> opponents = new List<PawnController>(checkerboard.GetOpponentControllers());
+        if (opponents.Count == 0) yield break;
+        
+        // Shuffle opponents for random modifier assignment
+        List<PawnController> shuffledOpponents = new List<PawnController>(opponents);
+        for (int i = shuffledOpponents.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            PawnController temp = shuffledOpponents[i];
+            shuffledOpponents[i] = shuffledOpponents[j];
+            shuffledOpponents[j] = temp;
+        }
+        
+        // Track used modifiers if duplicates are not allowed
+        List<PawnController.Modifier> usedModifiers = new List<PawnController.Modifier>();
+        int modifiersAssigned = 0;
+        
+        // Assign modifiers to pawns
+        for (int i = 0; i < shuffledOpponents.Count && modifiersAssigned < currentLevelData.ModifierCount; i++)
+        {
+            PawnController pawn = shuffledOpponents[i];
+            if (pawn == null) continue;
+            
+            // Get available modifiers for this pawn
+            List<PawnController.Modifier> availableModifiers = new List<PawnController.Modifier>(allowedModifiers);
+            if (!currentLevelData.AllowDuplicateModifiers)
+            {
+                foreach (PawnController.Modifier used in usedModifiers)
+                {
+                    availableModifiers.Remove(used);
+                }
+            }
+            
+            if (availableModifiers.Count == 0) break;
+            
+            // Select random modifier from available
+            PawnController.Modifier selectedModifier = availableModifiers[Random.Range(0, availableModifiers.Count)];
+            
+            // Apply modifier
+            pawn.SetModifier(selectedModifier);
+            
+            // Apply Tenacious modifier HP boost
+            if (selectedModifier == PawnController.Modifier.Tenacious && currentLevelData.pawnCustomiser != null)
+            {
+                PawnHealth pawnHealth = pawn.GetComponent<PawnHealth>();
+                if (pawnHealth != null)
+                {
+                    int boostedHP = Mathf.FloorToInt(currentLevelData.OpponentHP * currentLevelData.pawnCustomiser.modifierEffects.tenaciousHPMultiplier);
+                    pawnHealth.SetOpponentHP(boostedHP);
+                }
+            }
+            
+            usedModifiers.Add(selectedModifier);
+            modifiersAssigned++;
+            
+            if (showDebug) Debug.Log($"[GameManager] Assigned {selectedModifier} modifier to {pawn.name}");
+        }
+        
+        if (showDebug) Debug.Log($"[GameManager] Assigned {modifiersAssigned} modifiers to opponents");
     }
 
     private void ApplyVisualSettings()

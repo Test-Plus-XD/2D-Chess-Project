@@ -43,10 +43,6 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI levelSelectTitleText;
     [Tooltip("ScrollRect for swipeable level selection (optional)")]
     [SerializeField] private UnityEngine.UI.ScrollRect levelSelectScrollRect;
-    [Tooltip("Spacing between level buttons")]
-    [SerializeField] private float levelButtonSpacing = 50f;
-    [Tooltip("Base size for level buttons")]
-    [SerializeField] private float levelButtonSize = 100f;
     [Tooltip("Scale multiplier for center button")]
     [SerializeField] private float centerButtonScale = 1.2f;
 
@@ -83,8 +79,6 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject announcerPanel;
     [Tooltip("Announcer text for displaying messages")]
     [SerializeField] private TextMeshProUGUI announcerText;
-    [Tooltip("Animation slide distance (percentage of screen width, 0.25 = 25%)")]
-    [SerializeField] private float announcerSlideDistance = 0.25f;
     [Tooltip("Animation slide-in duration")]
     [SerializeField] private float announcerSlideInDuration = 0.3f;
     [Tooltip("Duration to display message before fading")]
@@ -175,9 +169,15 @@ public class UIManager : MonoBehaviour
 
     #region Inspector Fields - Debug
 
-    [Header("Background Prefabs")]
-    [Tooltip("Container for background prefabs")]
-    [SerializeField] private Transform backgroundContainer;
+    [Header("Background Objects")]
+    [Tooltip("Main menu background GameObject in scene (always shown in menu)")]
+    [SerializeField] private GameObject mainMenuBackground;
+    [Tooltip("In-game background GameObject in scene (controlled by Level Data)")]
+    [SerializeField] private GameObject inGameBackground;
+
+    [Header("Panel Fade Settings")]
+    [Tooltip("Duration of panel fade-in animation")]
+    [SerializeField] private float panelFadeInDuration = 1.0f;
 
     [Header("Debug")]
     [Tooltip("Show debug information")]
@@ -189,8 +189,6 @@ public class UIManager : MonoBehaviour
 
     private List<GameObject> levelButtons = new List<GameObject>();
     private bool isInitialised = false;
-    private GameObject currentMainMenuBackground;
-    private GameObject currentInGameBackground;
     private Coroutine announcerCoroutine;
     private RectTransform announcerRectTransform;
     private CanvasGroup announcerCanvasGroup;
@@ -203,6 +201,16 @@ public class UIManager : MonoBehaviour
     private CanvasGroup mobileControlsCanvasGroup;
     private Coroutine mobileControlsDimCoroutine;
     private float lastMobileInputTime;
+    private RectTransform viewportRectTransform;
+
+    // Panel CanvasGroups for fade effects
+    private CanvasGroup mainMenuCanvasGroup;
+    private CanvasGroup levelSelectCanvasGroup;
+    private CanvasGroup gameUICanvasGroup;
+    private CanvasGroup pauseMenuCanvasGroup;
+    private CanvasGroup victoryCanvasGroup;
+    private CanvasGroup defeatCanvasGroup;
+    private CanvasGroup settingsCanvasGroup;
 
     #endregion
 
@@ -251,6 +259,9 @@ public class UIManager : MonoBehaviour
 
         // Initialize mobile controls system
         InitializeMobileControls();
+
+        // Initialize panel CanvasGroups for fade effects
+        InitializePanelCanvasGroups();
 
         // Main menu is displayed as the initial screen
         ShowMainMenu();
@@ -326,6 +337,80 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    /// Initialize CanvasGroups on all panels for fade effects.
+    private void InitializePanelCanvasGroups()
+    {
+        // Main Menu
+        if (mainMenuPanel != null)
+        {
+            mainMenuCanvasGroup = mainMenuPanel.GetComponent<CanvasGroup>();
+            if (mainMenuCanvasGroup == null)
+            {
+                mainMenuCanvasGroup = mainMenuPanel.AddComponent<CanvasGroup>();
+            }
+        }
+
+        // Level Select
+        if (levelSelectPanel != null)
+        {
+            levelSelectCanvasGroup = levelSelectPanel.GetComponent<CanvasGroup>();
+            if (levelSelectCanvasGroup == null)
+            {
+                levelSelectCanvasGroup = levelSelectPanel.AddComponent<CanvasGroup>();
+            }
+        }
+
+        // Game UI
+        if (gameUIPanel != null)
+        {
+            gameUICanvasGroup = gameUIPanel.GetComponent<CanvasGroup>();
+            if (gameUICanvasGroup == null)
+            {
+                gameUICanvasGroup = gameUIPanel.AddComponent<CanvasGroup>();
+            }
+        }
+
+        // Pause Menu
+        if (pauseMenuPanel != null)
+        {
+            pauseMenuCanvasGroup = pauseMenuPanel.GetComponent<CanvasGroup>();
+            if (pauseMenuCanvasGroup == null)
+            {
+                pauseMenuCanvasGroup = pauseMenuPanel.AddComponent<CanvasGroup>();
+            }
+        }
+
+        // Victory Panel
+        if (victoryPanel != null)
+        {
+            victoryCanvasGroup = victoryPanel.GetComponent<CanvasGroup>();
+            if (victoryCanvasGroup == null)
+            {
+                victoryCanvasGroup = victoryPanel.AddComponent<CanvasGroup>();
+            }
+        }
+
+        // Defeat Panel
+        if (defeatPanel != null)
+        {
+            defeatCanvasGroup = defeatPanel.GetComponent<CanvasGroup>();
+            if (defeatCanvasGroup == null)
+            {
+                defeatCanvasGroup = defeatPanel.AddComponent<CanvasGroup>();
+            }
+        }
+
+        // Settings Panel
+        if (settingsPanel != null)
+        {
+            settingsCanvasGroup = settingsPanel.GetComponent<CanvasGroup>();
+            if (settingsCanvasGroup == null)
+            {
+                settingsCanvasGroup = settingsPanel.AddComponent<CanvasGroup>();
+            }
+        }
+    }
+
     private void Update()
     {
         // Game UI is continuously updated during active gameplay
@@ -333,6 +418,9 @@ public class UIManager : MonoBehaviour
 
         // Update mobile controls dimming
         UpdateMobileControlsDimming();
+
+        // Update level button scaling based on proximity to viewport center
+        UpdateLevelButtonScaling();
 
         // ESC key toggles pause menu when in gameplay states
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -432,10 +520,18 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        // Deactivate the original level button prefab if it's in the scene
-        if (levelButtonPrefab.activeInHierarchy)
+        // Get existing HorizontalLayoutGroup (should already be configured in scene)
+        HorizontalLayoutGroup layoutGroup = levelButtonContainer.GetComponent<HorizontalLayoutGroup>();
+        if (layoutGroup == null)
         {
-            levelButtonPrefab.SetActive(false);
+            if (showDebug) Debug.LogWarning("[UIManager] No HorizontalLayoutGroup found on level button container. Please add one in the scene.");
+            return;
+        }
+
+        // Cache the viewport RectTransform for scaling calculations
+        if (levelSelectScrollRect != null && viewportRectTransform == null)
+        {
+            viewportRectTransform = levelSelectScrollRect.viewport;
         }
 
         // Existing level buttons are destroyed before regeneration
@@ -453,50 +549,90 @@ public class UIManager : MonoBehaviour
             return;
         }
 
+        if (showDebug) Debug.Log($"[UIManager] Layout group spacing: {layoutGroup.spacing}, padding: L={layoutGroup.padding.left} R={layoutGroup.padding.right}");
+
+        // Hide the in-scene Level Button template visually but keep it active as a spacer
+        if (levelButtonPrefab != null && levelButtonPrefab.transform.parent == levelButtonContainer)
+        {
+            // Make it invisible but keep it active
+            CanvasGroup canvasGroup = levelButtonPrefab.GetComponent<CanvasGroup>();
+            if (canvasGroup == null)
+            {
+                canvasGroup = levelButtonPrefab.AddComponent<CanvasGroup>();
+            }
+            canvasGroup.alpha = 0f;
+            canvasGroup.interactable = false;
+            canvasGroup.blocksRaycasts = false;
+
+            // Move it to the first position (leftmost)
+            levelButtonPrefab.transform.SetAsFirstSibling();
+            
+            if (showDebug) Debug.Log("[UIManager] Hidden in-scene Level Button template as spacer");
+        }
+
         // Level buttons are instantiated in sequential order (1, 2, 3, ...)
         LevelData[] levels = GameManager.Instance.GetAllLevels();
-
-        // Calculate centre index for scaling (center button is larger)
-        int centreIndex = levelCount / 2;
 
         // Generate buttons in order from left to right
         for (int i = 0; i < levelCount; i++)
         {
             if (levels[i] != null)
             {
-                bool isCentre = (i == centreIndex);
-                GameObject button = CreateLevelButton(levels[i], i, isCentre);
+                GameObject button = CreateLevelButton(levels[i], i);
                 levelButtons.Add(button);
 
-                // Set sibling index to maintain visual order
-                button.transform.SetSiblingIndex(i);
+                // Set sibling index after the template button
+                button.transform.SetAsLastSibling();
             }
         }
 
-        if (showDebug) Debug.Log($"[UIManager] Generated {levelButtons.Count} level buttons (center at index {centreIndex})");
+        if (showDebug) Debug.Log($"[UIManager] Generated {levelButtons.Count} level buttons");
+
+        // Center the scroll view after buttons are generated
+        if (levelSelectScrollRect != null)
+        {
+            Canvas.ForceUpdateCanvases();
+            levelSelectScrollRect.horizontalNormalizedPosition = 0f;
+            if (showDebug) Debug.Log("[UIManager] Reset scroll view position");
+        }
     }
 
-    /// Create a level button with optional centre scaling
-    private GameObject CreateLevelButton(LevelData levelData, int levelIndex, bool isCentre)
+    /// Create a level button
+    private GameObject CreateLevelButton(LevelData levelData, int levelIndex)
     {
         // Button GameObject is instantiated from prefab
         GameObject buttonObject = Instantiate(levelButtonPrefab, levelButtonContainer);
 
+        // Remove or reset CanvasGroup if it was inherited from the template
+        CanvasGroup inheritedCanvasGroup = buttonObject.GetComponent<CanvasGroup>();
+        if (inheritedCanvasGroup != null)
+        {
+            Destroy(inheritedCanvasGroup);
+        }
+
+        // Ensure all visual components are enabled (in case they were disabled on the template)
+        Image buttonImage = buttonObject.GetComponent<Image>();
+        if (buttonImage != null)
+        {
+            buttonImage.enabled = true;
+        }
+
         // Button component and text are retrieved
         Button button = buttonObject.GetComponent<Button>();
-        TextMeshProUGUI buttonText = buttonObject.GetComponentInChildren<TextMeshProUGUI>();
+        if (button != null)
+        {
+            button.interactable = true;
+        }
 
-        // Button text is set to display level number only (e.g., "1", "2", "3")
+        TextMeshProUGUI buttonText = buttonObject.GetComponentInChildren<TextMeshProUGUI>();
         if (buttonText != null)
         {
+            buttonText.enabled = true;
             buttonText.text = $"{levelIndex + 1}";
         }
 
-        // Centre button is scaled larger (1.2x scale)
-        if (isCentre)
-        {
-            buttonObject.transform.localScale = Vector3.one * 1.2f;
-        }
+        // Initialize button scale to 1
+        buttonObject.transform.localScale = Vector3.one;
 
         // Button click listener is registered with captured level index
         if (button != null)
@@ -505,6 +641,66 @@ public class UIManager : MonoBehaviour
         }
 
         return buttonObject;
+    }
+
+    /// Update level button scaling based on proximity to viewport center
+    private void UpdateLevelButtonScaling()
+    {
+        if (levelSelectPanel == null || !levelSelectPanel.activeSelf)
+            return;
+
+        if (viewportRectTransform == null || levelButtons.Count == 0)
+            return;
+
+        // Get viewport bounds in world space
+        Vector3[] viewportCorners = new Vector3[4];
+        viewportRectTransform.GetWorldCorners(viewportCorners);
+        
+        // Calculate viewport center (midpoint between left and right edges, vertically centered)
+        float viewportCenterX = (viewportCorners[0].x + viewportCorners[2].x) / 2f;
+
+        GameObject closestButton = null;
+        float closestDistance = float.MaxValue;
+
+        // Find the button closest to the viewport center
+        foreach (GameObject buttonObj in levelButtons)
+        {
+            if (buttonObj == null) continue;
+
+            RectTransform buttonRect = buttonObj.GetComponent<RectTransform>();
+            if (buttonRect == null) continue;
+
+            // Get button world corners
+            Vector3[] buttonCorners = new Vector3[4];
+            buttonRect.GetWorldCorners(buttonCorners);
+            
+            // Calculate button center X position
+            float buttonCenterX = (buttonCorners[0].x + buttonCorners[2].x) / 2f;
+
+            // Calculate horizontal distance from viewport center
+            float distance = Mathf.Abs(buttonCenterX - viewportCenterX);
+
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestButton = buttonObj;
+            }
+        }
+
+        // Apply scaling to all buttons
+        foreach (GameObject buttonObj in levelButtons)
+        {
+            if (buttonObj == null) continue;
+
+            float targetScale = (buttonObj == closestButton) ? centerButtonScale : 1f;
+
+            // Smoothly interpolate to the target scale
+            buttonObj.transform.localScale = Vector3.Lerp(
+                buttonObj.transform.localScale,
+                Vector3.one * targetScale,
+                Time.deltaTime * 10f
+            );
+        }
     }
 
     #endregion
@@ -519,7 +715,11 @@ public class UIManager : MonoBehaviour
         HideAllPanels();
 
         // Main menu panel is activated
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
+        if (mainMenuPanel != null)
+        {
+            mainMenuPanel.SetActive(true);
+            StartCoroutine(FadeInPanel(mainMenuCanvasGroup));
+        }
 
         // Show main menu background
         ShowMainMenuBackground();
@@ -541,7 +741,11 @@ public class UIManager : MonoBehaviour
         HideAllPanels();
 
         // Level select panel is activated
-        if (levelSelectPanel != null) levelSelectPanel.SetActive(true);
+        if (levelSelectPanel != null)
+        {
+            levelSelectPanel.SetActive(true);
+            StartCoroutine(FadeInPanel(levelSelectCanvasGroup));
+        }
 
         // Game state is transitioned to LevelSelect
         if (GameManager.Instance != null)
@@ -560,7 +764,11 @@ public class UIManager : MonoBehaviour
         HideAllPanels();
 
         // Game UI panel is activated
-        if (gameUIPanel != null) gameUIPanel.SetActive(true);
+        if (gameUIPanel != null)
+        {
+            gameUIPanel.SetActive(true);
+            StartCoroutine(FadeInPanel(gameUICanvasGroup));
+        }
 
         // Show in-game background
         ShowInGameBackground();
@@ -576,7 +784,11 @@ public class UIManager : MonoBehaviour
     public void ShowPauseMenu()
     {
         // Pause menu panel is activated (overlays game UI)
-        if (pauseMenuPanel != null) pauseMenuPanel.SetActive(true);
+        if (pauseMenuPanel != null)
+        {
+            pauseMenuPanel.SetActive(true);
+            StartCoroutine(FadeInPanel(pauseMenuCanvasGroup));
+        }
 
         // Game is paused via Game Manager
         if (GameManager.Instance != null)
@@ -595,7 +807,11 @@ public class UIManager : MonoBehaviour
         HideAllPanels();
 
         // Victory panel is activated
-        if (victoryPanel != null) victoryPanel.SetActive(true);
+        if (victoryPanel != null)
+        {
+            victoryPanel.SetActive(true);
+            StartCoroutine(FadeInPanel(victoryCanvasGroup));
+        }
 
         // Victory audio is played
         if (AudioManager.Instance != null)
@@ -623,7 +839,11 @@ public class UIManager : MonoBehaviour
         HideAllPanels();
 
         // Defeat panel is activated
-        if (defeatPanel != null) defeatPanel.SetActive(true);
+        if (defeatPanel != null)
+        {
+            defeatPanel.SetActive(true);
+            StartCoroutine(FadeInPanel(defeatCanvasGroup));
+        }
 
         // Defeat audio is played
         if (AudioManager.Instance != null)
@@ -645,7 +865,11 @@ public class UIManager : MonoBehaviour
         HideAllPanels();
 
         // Settings panel is activated
-        if (settingsPanel != null) settingsPanel.SetActive(true);
+        if (settingsPanel != null)
+        {
+            settingsPanel.SetActive(true);
+            StartCoroutine(FadeInPanel(settingsCanvasGroup));
+        }
 
         // Current audio settings are loaded
         LoadSettings();
@@ -665,6 +889,7 @@ public class UIManager : MonoBehaviour
         if (victoryPanel != null) victoryPanel.SetActive(false);
         if (defeatPanel != null) defeatPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
+        if (mobileControlsPanel != null) mobileControlsPanel.SetActive(false);
     }
 
     #endregion
@@ -811,6 +1036,15 @@ public class UIManager : MonoBehaviour
             GameManager.Instance.ResumeGame();
         }
 
+        // Enable slow motion in Standoff mode until user provides input
+        if (GameManager.Instance != null && GameManager.Instance.IsStandoffMode)
+        {
+            if (TimeController.Instance != null)
+            {
+                TimeController.Instance.SetSlowMotionEnabled(true);
+            }
+        }
+
         if (showDebug) Debug.Log("[UIManager] Resume button clicked");
     }
 
@@ -865,7 +1099,6 @@ public class UIManager : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.LoadNextLevel();
-            GameManager.Instance.StartGame(GameManager.Instance.CurrentLevelIndex);
         }
 
         // Game UI is shown
@@ -1013,9 +1246,15 @@ public class UIManager : MonoBehaviour
     {
         // Show/hide mobile controls based on game mode
         // Mobile controls (joystick and jump button) are shown in Standoff mode on ALL platforms
+        // HIDE controls during Victory or Defeat screens
         if (mobileControlsPanel != null && GameManager.Instance != null)
         {
-            bool shouldShow = GameManager.Instance.IsStandoffMode;
+            GameManager.GameState currentState = GameManager.Instance.CurrentState;
+
+            // Hide mobile controls if in Victory or Defeat state
+            bool isVictoryOrDefeat = currentState == GameManager.GameState.Victory || currentState == GameManager.GameState.Defeat;
+            bool shouldShow = GameManager.Instance.IsStandoffMode && !isVictoryOrDefeat;
+
             if (mobileControlsPanel.activeSelf != shouldShow)
             {
                 mobileControlsPanel.SetActive(shouldShow);
@@ -1429,58 +1668,61 @@ public class UIManager : MonoBehaviour
 
     #endregion
 
+    #region Panel Fade Effects
+
+    /// Fade in a panel using its CanvasGroup.
+    private System.Collections.IEnumerator FadeInPanel(CanvasGroup canvasGroup)
+    {
+        if (canvasGroup == null) yield break;
+
+        // Start from invisible
+        canvasGroup.alpha = 0f;
+
+        float elapsed = 0f;
+        while (elapsed < panelFadeInDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / panelFadeInDuration);
+            canvasGroup.alpha = t;
+            yield return null;
+        }
+
+        // Ensure final alpha is 1
+        canvasGroup.alpha = 1f;
+    }
+
+    #endregion
+
     #region Background Management
 
-    /// Show main menu background if configured in current level
+    /// Show main menu background (always shown in menu)
     private void ShowMainMenuBackground()
     {
         // Hide in-game background first
         HideInGameBackground();
 
-        // Check if we should show main menu background
-        if (GameManager.Instance != null && GameManager.Instance.CurrentLevel != null)
+        // Enable main menu background if assigned
+        if (mainMenuBackground != null)
         {
-            LevelData level = GameManager.Instance.CurrentLevel;
-            if (level.ShowMainMenuBackground && level.MainMenuBackgroundPrefab != null)
-            {
-                // Destroy old background if it exists
-                if (currentMainMenuBackground != null)
-                {
-                    Destroy(currentMainMenuBackground);
-                }
-
-                // Instantiate new background
-                Transform parent = backgroundContainer != null ? backgroundContainer : transform;
-                currentMainMenuBackground = Instantiate(level.MainMenuBackgroundPrefab, parent);
-
-                if (showDebug) Debug.Log("[UIManager] Main menu background displayed");
-            }
+            mainMenuBackground.SetActive(true);
+            if (showDebug) Debug.Log("[UIManager] Main menu background enabled");
         }
     }
 
-    /// Show in-game background if configured in current level
+    /// Show in-game background (controlled by Level Data toggle)
     private void ShowInGameBackground()
     {
         // Hide main menu background first
         HideMainMenuBackground();
 
-        // Check if we should show in-game background
+        // Check if we should show in-game background based on Level Data
         if (GameManager.Instance != null && GameManager.Instance.CurrentLevel != null)
         {
             LevelData level = GameManager.Instance.CurrentLevel;
-            if (level.ShowInGameBackground && level.InGameBackgroundPrefab != null)
+            if (level.ShowInGameBackground && inGameBackground != null)
             {
-                // Destroy old background if it exists
-                if (currentInGameBackground != null)
-                {
-                    Destroy(currentInGameBackground);
-                }
-
-                // Instantiate new background
-                Transform parent = backgroundContainer != null ? backgroundContainer : transform;
-                currentInGameBackground = Instantiate(level.InGameBackgroundPrefab, parent);
-
-                if (showDebug) Debug.Log("[UIManager] In-game background displayed");
+                inGameBackground.SetActive(true);
+                if (showDebug) Debug.Log("[UIManager] In-game background enabled");
             }
         }
     }
@@ -1488,20 +1730,18 @@ public class UIManager : MonoBehaviour
     /// Hide main menu background
     private void HideMainMenuBackground()
     {
-        if (currentMainMenuBackground != null)
+        if (mainMenuBackground != null)
         {
-            Destroy(currentMainMenuBackground);
-            currentMainMenuBackground = null;
+            mainMenuBackground.SetActive(false);
         }
     }
 
     /// Hide in-game background
     private void HideInGameBackground()
     {
-        if (currentInGameBackground != null)
+        if (inGameBackground != null)
         {
-            Destroy(currentInGameBackground);
-            currentInGameBackground = null;
+            inGameBackground.SetActive(false);
         }
     }
 

@@ -13,7 +13,10 @@ MonoBehaviour:
   m_Name: Level 2
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   LevelName: Level 2
-  Description: Defeat all enemy pieces
+  Description: "Shotgun Pawn - Aggressive attacker that fires spread shots and always
+    approaches enemies.\nConfrontational \u2694\uFE0F - Shoots when enemies enter
+    line of sight and fires faster.\r\nFleet \U0001F4A8 - Moves twice per turn and
+    moves faster in combat.\n"
   LevelNumber: 2
   GridRadius: 2
   ExtraRows: 3
@@ -30,7 +33,7 @@ MonoBehaviour:
   ConfrontationalModifier: 1
   FleetModifier: 1
   ObservantModifier: 0
-  ReflexiveModifier: 1
+  ReflexiveModifier: 0
   AllowDuplicateModifiers: 0
   PlayerStartHP: 2
   PlayerMaxHP: 3
@@ -43,3 +46,4 @@ MonoBehaviour:
   ChessModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
   StandoffModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
   Skybox: {fileID: 2100000, guid: 72deae4d18418f94688abef8e8483df0, type: 2}
+  ShowInGameBackground: 1

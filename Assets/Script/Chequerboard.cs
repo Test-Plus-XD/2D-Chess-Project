@@ -104,7 +104,7 @@ public class Checkerboard : MonoBehaviour
         {
             if (opp == null) continue;
 
-            // Fire weapon at turn start (each opponent type has unique firing pattern)
+            // Step 1: Fire weapon at turn start (shoots in the direction calculated in step 3 of previous turn)
             WeaponSystem weaponSystem = opp.GetComponent<WeaponSystem>();
             if (weaponSystem != null && opp.aiType != PawnController.AIType.Basic)
             {
@@ -113,6 +113,7 @@ public class Checkerboard : MonoBehaviour
                 yield return new WaitForSeconds(0.2f); // Small visual delay after firing
             }
 
+            // Step 2: Move based on weighted AI decision
             // Fleet modifier grants extra move: move twice but only shoot once (already shot above)
             int movesThisTurn = opp.HasExtraMove() ? 2 : 1;
 
@@ -155,10 +156,17 @@ public class Checkerboard : MonoBehaviour
                 // Small delay between moves for visual pacing
                 if (opponentMoveDelay > 0f) yield return new WaitForSeconds(opponentMoveDelay);
             }
+
+            // Step 3: Calculate best firing direction for next turn and aim gun at it
+            if (weaponSystem != null)
+            {
+                weaponSystem.RecalculateAim();
+            }
         }
 
-        // After all opponents move, handle Reflexive modifier (recalculate aim at new player position)
-        // Reflexive gives opponent tactical advantage by allowing mid-turn aim adjustment
+        // After all opponents move, handle Reflexive modifier (recalculate aim AGAIN at new player position)
+        // Normal pawns already calculated aim in step 3 above
+        // Reflexive gives opponent tactical advantage by allowing additional mid-turn aim adjustment after player moves
         foreach (var opp in opponents)
         {
             if (opp == null) continue;
@@ -167,7 +175,7 @@ public class Checkerboard : MonoBehaviour
                 WeaponSystem weapon = opp.GetComponent<WeaponSystem>();
                 if (weapon != null)
                 {
-                    // Recalculate aiming direction now that player has moved
+                    // Recalculate aiming direction AGAIN now that player has moved
                     weapon.RecalculateAim();
                 }
             }
@@ -176,6 +184,17 @@ public class Checkerboard : MonoBehaviour
         playerTurn = true;
         // Update turn indicator to show player's turn
         if (UIManager.Instance != null) UIManager.Instance.SetTurnIndicator(true);
+
+        // Clear all opponent targeting visualizations when player's turn starts
+        for (int i = opponents.Count - 1; i >= 0; i--)
+        {
+            if (opponents[i] == null) continue;
+            WeaponSystem weapon = opponents[i].GetComponent<WeaponSystem>();
+            if (weapon != null)
+            {
+                weapon.ClearTargetingVisualization();
+            }
+        }
     }
 
     // Return a copy of current opponent axial coordinates as Vector2Int list.

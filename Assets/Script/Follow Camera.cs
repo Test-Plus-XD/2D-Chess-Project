@@ -32,6 +32,13 @@ public class FollowCamera : MonoBehaviour
     public float pulseMaxMultiplier = 4f; // Maximum multiplier clamp for safety
     public float killWindow = 0.2f; // Seconds to wait for additional kills before firing the pulse
 
+    [Header("Standoff Player Centering")]
+    [Tooltip("Keep player within this percentage from screen edges (0.25 = 25% margin from left/right)")]
+    [Range(0f, 0.5f)]
+    public float playerMarginPercentage = 0.25f; // 25% margin from edges
+    [Tooltip("Maximum pixel offset from edges for player (whichever is smaller)")]
+    public float playerMarginPixels = 500f; // 500px maximum margin
+
     // Singleton instance for easy calls from other scripts.
     public static FollowCamera Instance { get; private set; }
 
@@ -91,11 +98,16 @@ public class FollowCamera : MonoBehaviour
         }
     }
 
-    // Coroutine to wait one frame before refreshing grids (ensures tiles are fully enabled).
+    // Coroutine to wait for stage changes to complete before refreshing grids.
     private IEnumerator DelayedGridRefresh()
     {
         // Wait for end of frame to ensure all tiles are enabled
         yield return new WaitForEndOfFrame();
+
+        // Wait additional frames to ensure all stage transition logic completes
+        // (platformgen generation, pawn mode switching, etc.)
+        yield return new WaitForSeconds(0.2f);
+
         // Re-discover grid containers now that tiles should be active
         if (autoFindGrids) AutoDiscoverGridContainers();
         // Force recalculate bounds and camera position
@@ -118,7 +130,7 @@ public class FollowCamera : MonoBehaviour
     }
 
     // Discover HexGridGenerator instances and use their parentContainer (or the generator transform) as grid containers.
-    // Also discovers Platform generator for Standoff mode arena bounds.
+    // Also discovers Platform generator for Standoff mode arena bounds and all pawns in Standoff mode.
     private void AutoDiscoverGridContainers()
     {
         gridContainers = new List<Transform>();
@@ -142,6 +154,20 @@ public class FollowCamera : MonoBehaviour
             // Use platform transform as container for bounds calculation
             gridContainers.Add(p.transform);
         }
+
+        // In Standoff mode, also track all pawns (player and opponents)
+        if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameManager.GameState.Standoff)
+        {
+            PlayerController player = Object.FindFirstObjectByType<PlayerController>();
+            if (player != null) gridContainers.Add(player.transform);
+
+            PawnController[] opponents = Object.FindObjectsByType<PawnController>(FindObjectsSortMode.InstanceID);
+            foreach (var opp in opponents)
+            {
+                if (opp != null && opp.gameObject.activeInHierarchy)
+                    gridContainers.Add(opp.transform);
+            }
+        }
     }
 
     // Compute combined bounds of all supplied grid containers in world space and apply camera position & size to fit.
@@ -153,6 +179,27 @@ public class FollowCamera : MonoBehaviour
         if (combined.size == Vector3.zero) combined = new Bounds(Vector3.zero, Vector3.one * 0.1f);
         // Desired camera world position is the centre of the combined bounds.
         Vector3 targetPos = combined.center;
+
+        // In Standoff mode, apply player margin constraint to keep player near center
+        if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameManager.GameState.Standoff)
+        {
+            PlayerController player = Object.FindFirstObjectByType<PlayerController>();
+            if (player != null)
+            {
+                targetPos = ApplyPlayerMarginConstraint(targetPos, player.transform.position, camera.orthographicSize);
+            }
+        }
+
+        // Clamp camera position to stay within 5 units radius from origin
+        float maxDistance = 5f;
+        Vector2 targetPos2D = new Vector2(targetPos.x, targetPos.y);
+        if (targetPos2D.magnitude > maxDistance)
+        {
+            targetPos2D = targetPos2D.normalized * maxDistance;
+            targetPos.x = targetPos2D.x;
+            targetPos.y = targetPos2D.y;
+        }
+
         // Preserve current camera Z so the orthographic camera remains at its original depth.
         targetPos.z = transform.position.z;
         // Size handling (skip automatic size updates while pulse is active so pulse coroutine can control size).
@@ -168,7 +215,15 @@ public class FollowCamera : MonoBehaviour
         float requiredHalfHeightFromWidth = requiredHalfWidth / camera.aspect;
         // Final required orthographic half-height is the maximum of both constraints and the configured min size.
         float targetSize = Mathf.Max(requiredHalfHeight, requiredHalfHeightFromWidth, minOrthographicSize);
+        // Increase camera size by 50% when in Standoff mode
+        if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameManager.GameState.Standoff)
+        {
+            targetSize *= 1.5f;
+        }
+        // Clamp to maximum allowed size
         targetSize = Mathf.Min(targetSize, maxOrthographicSize);
+        // Zoom out by 5% to show more background
+        targetSize *= 1.05f;
 
         // Apply position and size to camera either smoothly or instantly.
         if (smoothFollow && smoothTime > 0f)
@@ -184,7 +239,7 @@ public class FollowCamera : MonoBehaviour
     }
 
     // Compute a combined world-space Bounds that encapsulates Renderers and PolygonCollider2D of each container's children.
-    // Only includes active GameObjects to properly handle tiles that are disabled.
+    // Only includes active GameObjects with "Tile" or "Wall" tags to properly handle tiles during transitions.
     private Bounds ComputeCombinedBounds()
     {
         bool hasAny = false;
@@ -197,6 +252,8 @@ public class FollowCamera : MonoBehaviour
             foreach (var spriteRenderer in srs)
             {
                 if (spriteRenderer == null || !spriteRenderer.gameObject.activeInHierarchy) continue;
+                // Only include objects tagged as "Tile" or "Wall"
+                if (!spriteRenderer.CompareTag("Tile") && !spriteRenderer.CompareTag("Wall")) continue;
                 if (!hasAny)
                 {
                     combined = spriteRenderer.bounds; // Initialise with first found renderer bounds
@@ -209,6 +266,8 @@ public class FollowCamera : MonoBehaviour
             foreach (var polygonCollider in pcs)
             {
                 if (polygonCollider == null || !polygonCollider.gameObject.activeInHierarchy) continue;
+                // Only include objects tagged as "Tile" or "Wall"
+                if (!polygonCollider.CompareTag("Tile") && !polygonCollider.CompareTag("Wall")) continue;
                 if (!hasAny)
                 {
                     combined = polygonCollider.bounds; // Initialise if no renderer was found yet
@@ -221,6 +280,8 @@ public class FollowCamera : MonoBehaviour
             foreach (var t in children)
             {
                 if (t == null || !t.gameObject.activeInHierarchy) continue;
+                // Only include objects tagged as "Tile" or "Wall"
+                if (!t.CompareTag("Tile") && !t.CompareTag("Wall")) continue;
                 if (!hasAny)
                 {
                     combined = new Bounds(t.position, Vector3.zero);
@@ -320,5 +381,33 @@ public class FollowCamera : MonoBehaviour
         }
         camera.orthographicSize = originalSize;
         isPulseActive = false;
+    }
+
+    // Apply player margin constraint to keep player within 25% or 500px from screen edges (whichever is smaller).
+    // This ensures the player stays near the center of view in Standoff mode.
+    private Vector3 ApplyPlayerMarginConstraint(Vector3 cameraTargetPos, Vector3 playerPos, float orthoSize)
+    {
+        // Calculate screen dimensions in world units
+        float screenHalfWidth = orthoSize * camera.aspect;
+
+        // Calculate margin in world units (use smaller of percentage-based or pixel-based)
+        float percentageMarginWorld = screenHalfWidth * playerMarginPercentage;
+        float pixelMarginWorld = (playerMarginPixels / Screen.width) * (screenHalfWidth * 2f);
+        float marginWorld = Mathf.Min(percentageMarginWorld, pixelMarginWorld);
+
+        // Calculate player's screen position relative to camera
+        float playerOffsetX = playerPos.x - cameraTargetPos.x;
+
+        // Calculate max allowed offset from center
+        float maxOffsetX = screenHalfWidth - marginWorld;
+
+        // Clamp camera position to keep player within margin
+        if (Mathf.Abs(playerOffsetX) > maxOffsetX)
+        {
+            // Adjust camera X to keep player within margin
+            float adjustment = Mathf.Abs(playerOffsetX) - maxOffsetX;
+            cameraTargetPos.x += Mathf.Sign(playerOffsetX) * adjustment;
+        }
+        return cameraTargetPos;
     }
 }
