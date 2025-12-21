@@ -127,6 +127,13 @@ public class PawnHealth : MonoBehaviour
                 OnHPChanged?.Invoke(HP);
             }
             Debug.Log($"[PawnHealth] {pawnType} killed by {source} at HP 0.");
+
+            // Immediately disable pawn controller to prevent movement
+            if (pawnController != null)
+            {
+                pawnController.enabled = false;
+            }
+
             Death(); // Trigger death behavior (player defeat or opponent expulsion)
             return true; // Indicate that pawn died
         }
@@ -309,8 +316,6 @@ public class PawnHealth : MonoBehaviour
 
         if (rigidBody != null)
         {
-            // Save previous body type to restore after delay
-            RigidbodyType2D previousBodyType = rigidBody.bodyType;
             // Stop any existing movement during animation
             rigidBody.linearVelocity = Vector2.zero;
             rigidBody.angularVelocity = 0f;
@@ -323,8 +328,10 @@ public class PawnHealth : MonoBehaviour
             // Wait before applying expulsion force (gives time for animation)
             yield return new WaitForSeconds(expelDelay);
 
-            // Restore original body type so physics can apply
-            rigidBody.bodyType = previousBodyType;
+            // Switch to Dynamic with proper physics settings for death expulsion
+            rigidBody.bodyType = RigidbodyType2D.Dynamic;
+            rigidBody.gravityScale = 1f;
+            rigidBody.constraints = RigidbodyConstraints2D.None; // Unfreeze rotation Z
         }
         else
         {

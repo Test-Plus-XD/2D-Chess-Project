@@ -115,6 +115,12 @@ public class AudioManager : MonoBehaviour
         UpdateVolumes();
     }
 
+    /// Get the music audio source (for external systems like TimeController)
+    public AudioSource GetMusicSource()
+    {
+        return musicSource;
+    }
+
     /// Play music clip
     public void PlayMusic(AudioClip clip, bool fade = true)
     {

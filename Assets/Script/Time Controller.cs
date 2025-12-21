@@ -29,7 +29,7 @@ public class TimeController : MonoBehaviour
     [SerializeField] private float currentTimeScale = 1f;
 
     [Header("Audio Pitch")]
-    [Tooltip("Match audio pitch to time scale")]
+    [Tooltip("Match audio pitch to time scale (affects all audio including BGM)")]
     // Whether to adjust audio pitch to match the time scale.
     [SerializeField] private bool adjustAudioPitch = true;
     [Tooltip("Minimum audio pitch")]
@@ -109,7 +109,13 @@ public class TimeController : MonoBehaviour
         if (!enabled)
         {
             Time.timeScale = normalTimeScale;
-            AdjustAudioPitch(1f);
+            currentTimeScale = normalTimeScale;
+            targetTimeScale = normalTimeScale;
+            // Reset audio pitch to normal when disabling slow motion
+            if (adjustAudioPitch)
+            {
+                AdjustAudioPitch(1f);
+            }
         }
 
         if (showDebug)
@@ -142,7 +148,12 @@ public class TimeController : MonoBehaviour
     {
         Time.timeScale = normalTimeScale;
         currentTimeScale = normalTimeScale;
-        AdjustAudioPitch(1f);
+        targetTimeScale = normalTimeScale;
+        slowMotionEnabled = false;
+        if (adjustAudioPitch)
+        {
+            AdjustAudioPitch(1f);
+        }
     }
 
     private void CheckPlayerMovement()
@@ -174,7 +185,7 @@ public class TimeController : MonoBehaviour
             audioSources = FindObjectsByType<AudioSource>(FindObjectsSortMode.None);
         }
 
-        // Adjust pitch for all audio sources
+        // Adjust pitch for all audio sources (including BGM)
         foreach (var audioSource in audioSources)
         {
             if (audioSource != null)

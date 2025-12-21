@@ -97,6 +97,17 @@ public class GameManager : MonoBehaviour
     // Event invoked when a level is completed.
     public UnityEvent<int> OnLevelCompleted;
 
+    [Header("Showcase Settings")]
+    [Tooltip("Enable showcase system on main menu")]
+    // Enable showcase system with random pawns on main menu.
+    [SerializeField] private bool enableShowcase = true;
+    [Tooltip("Number of random pawns to spawn in showcase")]
+    // Number of random pawns to spawn for showcase.
+    [SerializeField] private int showcasePawnCount = 3;
+    [Tooltip("Interval between random pawn movements (seconds)")]
+    // Interval between random pawn movements in showcase.
+    [SerializeField] private float showcaseMovementInterval = 2f;
+
     [Header("Debug")]
     [Tooltip("Show debug information")]
     // Enable debug logging for game state changes.
@@ -105,6 +116,8 @@ public class GameManager : MonoBehaviour
     #region Private Fields
 
     private bool hasTransitionedToStandoff = false;
+    private Coroutine showcaseCoroutine;
+    private List<PawnController> showcasePawns = new List<PawnController>();
 
     #endregion
 
@@ -164,6 +177,172 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
+    #region Private Methods - Showcase System
+
+    /// Start the showcase system with random pawns on main menu
+    private void StartShowcase()
+    {
+        if (!enableShowcase) return;
+
+        if (showDebug) Debug.Log("[GameManager] Starting showcase system...");
+
+        // Stop any existing showcase
+        StopShowcase();
+
+        // Ensure grid generator and spawner are available
+        if (gridGenerator == null || spawnerSystem == null)
+        {
+            if (showDebug) Debug.LogWarning("[GameManager] Cannot start showcase: missing grid or spawner");
+            return;
+        }
+
+        // Configure showcase grid (smaller than normal levels)
+        gridGenerator.SetRadius(2);
+        gridGenerator.SetExtraRow(0);
+        gridGenerator.SetTileSize(1f);
+        gridGenerator.GenerateGrid();
+
+        // Activate grid for showcase
+        if (gridGenerator != null) gridGenerator.gameObject.SetActive(true);
+
+        // Spawn random pawns for showcase
+        StartCoroutine(SpawnShowcasePawns());
+    }
+
+    /// Stop the showcase system and clean up
+    private void StopShowcase()
+    {
+        if (showcaseCoroutine != null)
+        {
+            StopCoroutine(showcaseCoroutine);
+            showcaseCoroutine = null;
+        }
+
+        // Clear showcase pawns
+        foreach (var pawn in showcasePawns)
+        {
+            if (pawn != null) Destroy(pawn.gameObject);
+        }
+        showcasePawns.Clear();
+
+        if (showDebug) Debug.Log("[GameManager] Showcase system stopped");
+    }
+
+    /// Spawn random pawns for showcase
+    private IEnumerator SpawnShowcasePawns()
+    {
+        // Wait for grid to be generated
+        yield return new WaitForSeconds(0.5f);
+
+        showcasePawns.Clear();
+
+        // Get available tiles
+        Transform tileParent = gridGenerator.parentContainer ?? gridGenerator.transform;
+        List<Transform> tiles = new List<Transform>();
+        for (int i = 0; i < tileParent.childCount; i++)
+        {
+            tiles.Add(tileParent.GetChild(i));
+        }
+
+        if (tiles.Count == 0)
+        {
+            if (showDebug) Debug.LogWarning("[GameManager] No tiles found for showcase");
+            yield break;
+        }
+
+        // Spawn random pawns
+        GameObject[] pawnPrefabs = new GameObject[]
+        {
+            spawnerSystem.pawnPrefab,
+            spawnerSystem.handcannonPrefab,
+            spawnerSystem.shotgunPrefab,
+            spawnerSystem.sniperPrefab
+        };
+
+        for (int i = 0; i < showcasePawnCount && i < tiles.Count; i++)
+        {
+            // Pick a random tile
+            int tileIndex = Random.Range(0, tiles.Count);
+            Transform tile = tiles[tileIndex];
+            tiles.RemoveAt(tileIndex);
+
+            // Pick a random pawn prefab
+            GameObject prefab = pawnPrefabs[Random.Range(0, pawnPrefabs.Length)];
+            if (prefab == null) continue;
+
+            // Spawn pawn at tile position
+            GameObject pawnObj = Instantiate(prefab, tile.position, Quaternion.identity, spawnerSystem.opponentSpawnParent);
+            PawnController pawn = pawnObj.GetComponent<PawnController>();
+
+            if (pawn != null)
+            {
+                // Parse tile coordinates
+                string[] parts = tile.name.Split('_');
+                int q = 0, r = 0;
+                if (parts.Length >= 3)
+                {
+                    int.TryParse(parts[1], out q);
+                    int.TryParse(parts[2], out r);
+                }
+
+                pawn.q = q;
+                pawn.r = r;
+                pawn.gridGenerator = gridGenerator;
+                showcasePawns.Add(pawn);
+            }
+        }
+
+        // Start random movement coroutine
+        if (showcasePawns.Count > 0)
+        {
+            showcaseCoroutine = StartCoroutine(ShowcaseMovementLoop());
+        }
+    }
+
+    /// Continuously move random pawns in showcase
+    private IEnumerator ShowcaseMovementLoop()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(showcaseMovementInterval);
+
+            if (showcasePawns.Count == 0) break;
+
+            // Pick a random pawn
+            PawnController pawn = showcasePawns[Random.Range(0, showcasePawns.Count)];
+            if (pawn == null) continue;
+
+            // Move pawn to a random adjacent tile
+            Vector2Int[] hexDirections = new Vector2Int[]
+            {
+                new Vector2Int(1, 0),
+                new Vector2Int(1, -1),
+                new Vector2Int(0, -1),
+                new Vector2Int(-1, 0),
+                new Vector2Int(-1, 1),
+                new Vector2Int(0, 1)
+            };
+
+            Vector2Int randomDir = hexDirections[Random.Range(0, hexDirections.Length)];
+            int newQ = pawn.q + randomDir.x;
+            int newR = pawn.r + randomDir.y;
+
+            // Check if target tile exists
+            Transform tileParent = gridGenerator.parentContainer ?? gridGenerator.transform;
+            Transform targetTile = tileParent.Find($"Hex_{newQ}_{newR}");
+
+            if (targetTile != null)
+            {
+                // Move pawn (simple teleport for showcase)
+                pawn.q = newQ;
+                pawn.r = newR;
+                pawn.transform.position = targetTile.position;
+            }
+        }
+    }
+
+    #endregion
+
     #region Public Methods - State Management
 
     /// Transition to a new game state (MainMenu → LevelSelect → ChessMode → Standoff → Victory/Defeat)
@@ -197,6 +376,8 @@ public class GameManager : MonoBehaviour
             Debug.Log($"Starting game - Level {levelIndex}");
         }
 
+        // Load level data before setting state to ensure BGM and settings are available
+        LoadLevel(levelIndex);
         SetState(GameState.ChessMode);
     }
 
@@ -326,11 +507,39 @@ public class GameManager : MonoBehaviour
             case GameState.Paused:
                 Time.timeScale = 1f;
                 break;
+            case GameState.MainMenu:
+                // Stop showcase when leaving main menu
+                StopShowcase();
+                break;
+            case GameState.Standoff:
+                // Reset time when leaving Standoff mode
+                if (TimeController.Instance != null)
+                {
+                    TimeController.Instance.ResetTime();
+                }
+                // Cleanup board when leaving gameplay states
+                CleanupGameBoard();
+                break;
+            case GameState.ChessMode:
+                // Cleanup board when leaving gameplay states
+                CleanupGameBoard();
+                break;
         }
 
         switch (to)
         {
             case GameState.MainMenu:
+                // Play universal menu music
+                if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlayMenuMusic();
+                }
+                // Start showcase system
+                if (enableShowcase)
+                {
+                    StartShowcase();
+                }
+                break;
             case GameState.LevelSelect:
                 // Play universal menu music
                 if (AudioManager.Instance != null)
@@ -494,6 +703,9 @@ public class GameManager : MonoBehaviour
     {
         if (currentLevelData == null) return;
 
+        // Cleanup existing board before applying new level settings
+        CleanupGameBoard();
+
         // Configure hex grid
         if (gridGenerator != null)
         {
@@ -533,6 +745,40 @@ public class GameManager : MonoBehaviour
         }
 
         // Music is now handled by HandleStateTransition to support Chess/Standoff mode switching
+    }
+
+    #endregion
+
+    #region Private Methods - Cleanup
+
+    /// Clean up all game board elements (tiles, pawns) before loading a new level
+    private void CleanupGameBoard()
+    {
+        if (showDebug) Debug.Log("[GameManager] Cleaning up game board...");
+
+        // Clear all pawns (player and opponents)
+        if (spawnerSystem != null)
+        {
+            spawnerSystem.ClearAllPawns();
+        }
+
+        // Clear all hex tiles
+        if (gridGenerator != null && gridGenerator.parentContainer != null)
+        {
+            Transform tileParent = gridGenerator.parentContainer;
+            for (int i = tileParent.childCount - 1; i >= 0; i--)
+            {
+                Destroy(tileParent.GetChild(i).gameObject);
+            }
+        }
+
+        // Clear checkerboard references
+        if (checkerboard != null)
+        {
+            // Checkerboard will automatically clear its lists when pawns are destroyed
+        }
+
+        if (showDebug) Debug.Log("[GameManager] Game board cleanup complete");
     }
 
     #endregion

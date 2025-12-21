@@ -100,6 +100,7 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
    - **Separate HP sprite arrays**: Player uses 4-sprite array (0-3 HP), Opponents use variable array
    - Physics expulsion effects with camera zoom pulse on opponent death
    - Expulsion direction calculated based on board bounds (toward closer edge)
+   - **Death triggers immediately at 0 HP**: PawnController disabled, rigidbody set to Dynamic with gravity scale 1, rotation unfrozen for physics-based expulsion
 
 7. **Spawner.cs** - Unified spawning (merged PlayerSpawner + PawnSpawner)
    - Spawns player at bottom-right, opponents in upper tiles with weighted probability
@@ -111,7 +112,8 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
    - Projectile types: Single, Spread, Beam
    - Includes ProjectileBehavior as nested class
    - **AI type-based firing**: Each AI type has unique firing patterns
-   - **Muzzle flash rotation control**: Adjustable rotation offset for muzzle flash orientation
+   - **fireOffset**: Shared rotation offset for both projectiles and muzzle flash spawned at firePoint (pivot to pivot)
+   - **Friendly fire prevention**: Bullets won't damage their source GameObject
 
 9. **Input System.cs** - Unified input (merged MobileInputManager + VirtualJoystick)
    - Mobile touch joystick and desktop keyboard fallback
@@ -122,10 +124,13 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
     - Level buttons rendered in sequential order (1, 2, 3...) with centre button 1.2x larger
     - Mobile controls automatically shown/hidden in Standoff mode
     - **Turn Indicator**: Displays "Your Turn" / "Opponent Turn" during Chess mode
+      - **Fade-out animation**: Fades out after 1 second with upward slide effect (20px default)
+      - Uses CanvasGroup for opacity control and RectTransform for position animation
     - **Announcer System**: Animated notifications with slide-in and fade-out
+      - **Updated slide animation**: Slides from original X position (off-screen pivot) to X=0
       - Methods: `ShowAnnouncement(string)`, `ShowOpponentDeathMessage()`, `ShowDamageTakenMessage()`, `ShowStageChangeMessage()`
       - Text in `[brackets]` automatically highlighted in vibrant orange
-    - **Level Selection**: Swipeable with ScrollRect support
+    - **Level Selection**: Swipeable with ScrollRect support, original prefab deactivated on start, cloned buttons activated
 
 11. **Player Controller.cs** - Player movement in both modes
     - Chess: Swipe-based hex movement with 6 direction arrows
@@ -133,6 +138,7 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
     - References: HexGridGenerator, Checkerboard (assigned at initialization)
     - Captures opponents in Standoff mode via OnCollisionEnter2D
     - Uses EnhancedTouch for reliable mobile input
+    - **Physics mode switching**: Kinematic in Chess Stage, Dynamic in Standoff Stage with adjustable gravity scale (default 2)
 
 12. **Pawn Controller.cs** - Opponent AI in both modes
     - Chess: Weighted directional decision-making
@@ -141,6 +147,7 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
     - **Logs warning if Pawn Customiser is null** (defaults to Basic AI behavior)
     - **Modifier icon management** via Pawn Customiser (not individual sprite fields)
     - Automatic conversion: Basic → Handcannon when last opponent enters Standoff
+    - **Physics mode switching**: Kinematic in Chess Stage, Dynamic in Standoff Stage with adjustable gravity scale (default 2)
 
 13. **Chequerboard.cs** - Turn-based coordination
     - Updates turn indicator via `UIManager.SetTurnIndicator(bool)`
@@ -183,6 +190,7 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
   - Uses variable-length HP sprite array (index matches HP value)
   - Expulsion animation: scale up → physics impulse → destroy
   - Impulse direction calculated from board bounds (left/right edge detection)
+  - **Death physics**: Rigidbody2D set to Dynamic with gravity scale 1, rotation unfrozen (RigidbodyConstraints2D.None) for realistic physics-based expulsion
 - 4 AI types:
   - **Basic**: Moves toward player (limited to 3 bottom directions, cannot move backward/upward in world space)
   - **Handcannon**: Mid-range specialist, prefers closest tiles (requires Pawn Customiser)
@@ -198,7 +206,8 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
 - **Sniper**: Fires 1 bullet dealing 2 damage, pierces once for 1 damage when turn starts
 - All pawns with firearms fire **once when their turn starts**
 - All bullets destroy on hitting chess pieces unless from Sniper or affected by modifier
-- Bullets damage both player and opponents
+- Bullets damage both player and opponents (except the shooter - friendly fire prevention)
+- **Projectile and muzzle flash**: Both spawned at firePoint transform with shared fireOffset rotation
 
 **Shooting Mechanics (Standoff Mode):**
 - Interval-based firing system:
@@ -257,13 +266,14 @@ The codebase has been consolidated from 27 scripts to 16 for better maintainabil
 
 **Player:**
 - Modified `Player Controller.cs` with platformer physics
-- Rigidbody2D-based movement
+- Rigidbody2D-based movement (Dynamic bodyType with adjustable gravity scale, default 2)
 - Jump mechanics with ground detection
 - Mobile: Virtual joystick + jump button
 - Desktop: WASD/Arrows + Space
 
 **Opponent AI:**
 - Modified `Pawn Controller.cs` with platformer AI
+- Rigidbody2D physics (Dynamic bodyType with adjustable gravity scale, default 2)
 - Intelligent jumping (obstacles, gaps, platforms)
 - Distance-based behavior:
   - Basic/Shotgun: Aggressive (always approach player)
@@ -678,22 +688,47 @@ UIManager.Instance.ShowStageChangeMessage(PawnController.AIType.Handcannon);
 ```
 
 ### Announcer Configuration (Inspector)
-- `announcerSlideDistance`: 0.25 (25% of screen width, or 500px fallback)
+- **Announcer Panel**: Slides from original X position (off-screen pivot) to X=0
 - `announcerSlideInDuration`: 0.3s
 - `announcerDisplayDuration`: 2.0s
 - `announcerFadeOutDuration`: 0.5s
 - `announcerHighlightColor`: Vibrant orange (#FF8000)
 
+### Turn Indicator Configuration (Inspector)
+- `turnIndicatorDisplayDuration`: 1.0s (time before fade-out begins)
+- `turnIndicatorFadeDuration`: 0.5s (fade-out animation duration)
+- `turnIndicatorSlideDistance`: 20px (upward slide distance during fade)
+- Uses CanvasGroup for opacity control and RectTransform for position animation
+
 ---
 
-## Setup Guide
+## Recent Logic Changes
 
-For detailed setup instructions including:
-- Initial scene setup
-- UI Manager configuration
-- Spawner setup
-- Weapon System setup
-- Tags, layers, and physics configuration
-- Troubleshooting
+**Important implementation updates as of this documentation revision:**
 
-**See: [Assets/Script/SETUP_GUIDE.md](Assets/Script/SETUP_GUIDE.md)**
+### 1. UI Animations
+- **Announcer Panel**: Changed slide-in animation from calculated screen width offset to sliding from original X position (off-screen pivot) to X=0
+- **Turn Indicator**: Added fade-out after 1 second with upward slide effect (20px default), uses CanvasGroup and RectTransform for smooth animations
+
+### 2. Physics System
+- **Pawn Physics Switching**: All pawns (player and opponents) are now Kinematic in Chess Stage and Dynamic in Standoff Stage
+  - Adjustable gravity scale field added (default: 2)
+  - Player Controller: `standoffGravityScale` field
+  - Pawn Controller: `standoffGravityScale` field
+- **Death Physics**: When opponent HP drops to 0, death triggers immediately:
+  - PawnController disabled to prevent further movement
+  - Rigidbody2D set to Dynamic with gravity scale 1
+  - Rotation unfrozen (RigidbodyConstraints2D.None) for realistic physics-based expulsion
+
+### 3. Weapon System
+- **fireOffset**: Renamed from `muzzleFlashRotationOffset` to `fireOffset`, now applies to both projectiles and muzzle flash
+- **Spawn Point**: Both projectile and muzzle flash spawn at `firePoint` transform (pivot to pivot) with shared `fireOffset` rotation
+- **Friendly Fire Prevention**: Projectiles now track their source GameObject and won't damage the shooter
+  - ProjectileBehavior.Initialize() now takes GameObject instead of string for source tracking
+
+### 4. Level Selection
+- **Button Management**: Original level button prefab is now deactivated on start
+- **Cloned Buttons**: Only cloned/instantiated buttons are activated and displayed
+- **ScrollView**: Proper layout support for swipeable level selection
+
+---

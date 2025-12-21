@@ -76,14 +76,14 @@ public class WeaponSystem : MonoBehaviour
     [Tooltip("Muzzle flash effect (optional)")]
     // Visual effect spawned at barrel when firing.
     [SerializeField] private GameObject muzzleFlashPrefab;
-    [Tooltip("Rotation offset for muzzle flash in degrees (adjusts visual orientation)")]
-    // Rotation offset applied to muzzle flash prefab when spawning.
-    [SerializeField] private float muzzleFlashRotationOffset = 0f;
+    [Tooltip("Rotation and position offset for projectile and muzzle flash in degrees (adjusts orientation)")]
+    // Rotation offset applied to both projectile and muzzle flash when spawning.
+    [SerializeField] private float fireOffset = 0f;
     [Tooltip("Duration muzzle flash stays visible before auto-destroy")]
     // How long the muzzle flash effect remains visible.
     [SerializeField] private float muzzleFlashDuration = 0.1f;
-    [Tooltip("Point where projectiles spawn")]
-    // Transform marking where projectiles are created.
+    [Tooltip("Point where projectiles and muzzle flash spawn")]
+    // Transform marking where projectiles and muzzle flash are created.
     [SerializeField] private Transform firePoint;
 
     [Header("Gun Aiming")]
@@ -520,12 +520,12 @@ public class WeaponSystem : MonoBehaviour
             gunAnimator.SetTrigger(fireAnimationTrigger);
         }
 
-        // Spawn muzzle flash visual effect with rotation offset
-        if (muzzleFlashPrefab != null)
+        // Spawn muzzle flash visual effect at firePoint with fireOffset rotation
+        if (muzzleFlashPrefab != null && firePoint != null)
         {
-            // Calculate rotation: aim direction angle + offset
+            // Calculate rotation: aim direction angle + fireOffset
             float aimAngle = Mathf.Atan2(currentAimDirection.y, currentAimDirection.x) * Mathf.Rad2Deg;
-            Quaternion flashRotation = Quaternion.Euler(0f, 0f, aimAngle + muzzleFlashRotationOffset);
+            Quaternion flashRotation = Quaternion.Euler(0f, 0f, aimAngle + fireOffset);
             GameObject flash = Instantiate(muzzleFlashPrefab, firePoint.position, flashRotation);
             Destroy(flash, muzzleFlashDuration);
         }
@@ -658,10 +658,17 @@ public class WeaponSystem : MonoBehaviour
             return;
         }
 
+        if (firePoint == null)
+        {
+            Debug.LogWarning("FirePoint not assigned!");
+            return;
+        }
+
         GameObject projectile = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
 
+        // Apply fireOffset to projectile rotation
         float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        projectile.transform.rotation = Quaternion.Euler(0, 0, angle);
+        projectile.transform.rotation = Quaternion.Euler(0, 0, angle + fireOffset);
 
         ProjectileBehavior proj = projectile.GetComponent<ProjectileBehavior>();
         if (proj == null)
@@ -672,7 +679,8 @@ public class WeaponSystem : MonoBehaviour
         int finalDamage = damage < 0 ? this.damage : damage;
         bool onlyDamagePlayer = pawnController != null && pawnController.BulletsOnlyDamagePlayer();
 
-        proj.Initialize(direction, projectileSpeed, maxRange, finalDamage, gameObject.name, piercing, onlyDamagePlayer);
+        // Pass source GameObject to prevent friendly fire
+        proj.Initialize(direction, projectileSpeed, maxRange, finalDamage, gameObject, piercing, onlyDamagePlayer);
     }
 
     private Vector2 RotateVector(Vector2 v, float degrees)
@@ -698,7 +706,7 @@ public class ProjectileBehavior : MonoBehaviour
     private float speed;
     private float maxRange;
     private int damage;
-    private string sourceTag;
+    private GameObject sourceObject; // Source GameObject that fired this projectile
     private Vector2 startPosition;
     private Rigidbody2D rigidBody;
     private bool isInitialized = false;
@@ -713,6 +721,27 @@ public class ProjectileBehavior : MonoBehaviour
         if (rigidBody != null)
         {
             rigidBody.gravityScale = 0f;
+        }
+    }
+
+    private void Start()
+    {
+        // Ignore collision with source object's colliders
+        if (sourceObject != null)
+        {
+            Collider2D projectileCollider = GetComponent<Collider2D>();
+            Collider2D[] sourceColliders = sourceObject.GetComponents<Collider2D>();
+
+            if (projectileCollider != null)
+            {
+                foreach (Collider2D sourceCollider in sourceColliders)
+                {
+                    if (sourceCollider != null)
+                    {
+                        Physics2D.IgnoreCollision(projectileCollider, sourceCollider, true);
+                    }
+                }
+            }
         }
     }
 
@@ -731,6 +760,12 @@ public class ProjectileBehavior : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
+        // Don't damage the source that fired this projectile
+        if (sourceObject != null && collision.gameObject == sourceObject)
+        {
+            return;
+        }
+
         PawnHealth pawnHealth = collision.GetComponent<PawnHealth>();
 
         // Damage pawns
@@ -741,7 +776,8 @@ public class ProjectileBehavior : MonoBehaviour
             {
                 if (pawnHealth.pawnType == PawnHealth.PawnType.Player)
                 {
-                    pawnHealth.TakeDamage(damage, sourceTag);
+                    string sourceName = sourceObject != null ? sourceObject.name : "Unknown";
+                    pawnHealth.TakeDamage(damage, sourceName);
                 }
                 else
                 {
@@ -751,8 +787,9 @@ public class ProjectileBehavior : MonoBehaviour
             }
             else
             {
-                // Normal: Damage both sides
-                pawnHealth.TakeDamage(damage, sourceTag);
+                // Normal: Damage both sides (but not self)
+                string sourceName = sourceObject != null ? sourceObject.name : "Unknown";
+                pawnHealth.TakeDamage(damage, sourceName);
             }
 
             // Handle piercing
@@ -776,13 +813,13 @@ public class ProjectileBehavior : MonoBehaviour
         }
     }
 
-    public void Initialize(Vector2 moveDirection, float moveSpeed, float range, int damageAmount, string source, bool piercing = false, bool playerOnly = false)
+    public void Initialize(Vector2 moveDirection, float moveSpeed, float range, int damageAmount, GameObject source, bool piercing = false, bool playerOnly = false)
     {
         direction = moveDirection.normalized;
         speed = moveSpeed;
         maxRange = range;
         damage = damageAmount;
-        sourceTag = source;
+        sourceObject = source;
         startPosition = transform.position;
         isPiercing = piercing;
         onlyDamagePlayer = playerOnly;

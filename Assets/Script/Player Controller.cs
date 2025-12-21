@@ -40,6 +40,9 @@ public class PlayerController : MonoBehaviour
     [Tooltip("Jump force")]
     // Upward velocity applied when jumping.
     public float jumpForce = 10f;
+    [Tooltip("Gravity scale for standoff mode")]
+    // Gravity scale applied to rigidbody in Standoff mode.
+    public float standoffGravityScale = 2f;
     [Tooltip("Maximum fall speed")]
     // Maximum downward velocity when falling.
     public float maxFallSpeed = 15f;
@@ -164,7 +167,7 @@ public class PlayerController : MonoBehaviour
             if (rigidBody != null)
             {
                 rigidBody.bodyType = RigidbodyType2D.Dynamic;
-                rigidBody.gravityScale = 2f;
+                rigidBody.gravityScale = standoffGravityScale;
                 rigidBody.constraints = RigidbodyConstraints2D.FreezeRotation;
             }
 

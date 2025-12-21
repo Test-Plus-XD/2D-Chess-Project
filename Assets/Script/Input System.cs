@@ -135,14 +135,15 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 
     private void Update()
     {
-        // Keyboard jump input
+        // Keyboard jump input (always available regardless of mobile controls)
         if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
         {
             jumpInputThisFrame = true;
         }
 
-        // Desktop fallback using keyboard
-        if (!isJoystickActive && !enableMobileControls)
+        // Keyboard input (always available as fallback)
+        // If joystick is not active, use keyboard input
+        if (!isJoystickActive)
         {
             float h = Input.GetAxisRaw("Horizontal");
             float v = Input.GetAxisRaw("Vertical");
@@ -151,8 +152,9 @@ public class InputSystem : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
             {
                 inputVector = new Vector2(h, v).normalized;
             }
-            else
+            else if (!isJoystickActive)
             {
+                // Only reset if joystick is also not active
                 inputVector = Vector2.zero;
             }
         }

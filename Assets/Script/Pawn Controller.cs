@@ -51,6 +51,8 @@ public class PawnController : MonoBehaviour
     [Header("Standoff Mode Settings")]
     [Tooltip("Layer mask for ground detection")]
     public LayerMask groundLayer;
+    [Tooltip("Gravity scale for standoff mode")]
+    public float standoffGravityScale = 2f;
 
     // Standoff mode state.
     // Whether pawn is currently in standoff platformer mode.
@@ -135,7 +137,7 @@ public class PawnController : MonoBehaviour
             if(rigidBody != null)
             {
                 rigidBody.bodyType = RigidbodyType2D.Dynamic;
-                rigidBody.gravityScale = 2f;
+                rigidBody.gravityScale = standoffGravityScale;
                 rigidBody.constraints = RigidbodyConstraints2D.FreezeRotation;
             }
 

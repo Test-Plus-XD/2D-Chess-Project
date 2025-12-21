@@ -155,6 +155,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
+  standoffGravityScale: 2
 --- !u!114 &-8886289758193507628
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -212,14 +213,16 @@ MonoBehaviour:
   detectionRange: 10
   targetLayer:
     serializedVersion: 2
-    m_Bits: 257
+    m_Bits: 384
   obstacleLayer:
     serializedVersion: 2
-    m_Bits: 8
+    m_Bits: 72
   projectilePrefab: {fileID: 3184077595523901008, guid: bafa0e08a93db464abf67c8841bf19cf, type: 3}
   muzzleFlashPrefab: {fileID: 6445666186361868711, guid: 9deea548c44c9ac4e94d6932a0d85eaf, type: 3}
+  fireOffset: 0
+  muzzleFlashDuration: 0.1
   firePoint: {fileID: 1249509717184746990}
-  gunTransform: {fileID: 7486125857765359915}
+  gunTransform: {fileID: 5968267634861199750}
   gunOffset: {x: 0.2, y: 0}
   fireSound: {fileID: 8300000, guid: 26e19616f6ba9f6469e9d3d6c38b23fe, type: 3}
   fireVolume: 0.3
@@ -260,7 +263,7 @@ BoxCollider2D:
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: 62c77a89793fc5d45852680dcebe5600, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -281,7 +284,7 @@ BoxCollider2D:
     serializedVersion: 2
     m_Bits: 4294967295
   m_IsTrigger: 0
-  m_UsedByEffector: 1
+  m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0.15}
@@ -312,7 +315,7 @@ Rigidbody2D:
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_GravityScale: 1
-  m_Material: {fileID: 6200000, guid: 1e2865038934b2d4fa5a473b7365f5c3, type: 2}
+  m_Material: {fileID: 6200000, guid: 62c77a89793fc5d45852680dcebe5600, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0

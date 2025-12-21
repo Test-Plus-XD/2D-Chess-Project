@@ -57,20 +57,10 @@ public class UIManager : MonoBehaviour
     [Header("Game UI (HUD)")]
     [Tooltip("Main game UI panel")]
     [SerializeField] private GameObject gameUIPanel;
-    [Tooltip("Player HP text")]
-    [SerializeField] private TextMeshProUGUI hpText;
-    [Tooltip("Player HP bar")]
-    [SerializeField] private Slider hpBar;
-    [Tooltip("Heart icons container")]
-    [SerializeField] private Transform heartIconsContainer;
-    [Tooltip("Heart icon prefab")]
-    [SerializeField] private GameObject heartIconPrefab;
     [Tooltip("Current level text")]
     [SerializeField] private TextMeshProUGUI levelText;
-    [Tooltip("Opponents remaining text")]
-    [SerializeField] private TextMeshProUGUI opponentsText;
-    [Tooltip("Game mode text")]
-    [SerializeField] private TextMeshProUGUI gameModeText;
+    [Tooltip("Level description text")]
+    [SerializeField] private TextMeshProUGUI levelDescriptionText;
     [Tooltip("Pause button")]
     [SerializeField] private Button pauseButton;
 
@@ -81,6 +71,12 @@ public class UIManager : MonoBehaviour
     [SerializeField] private Color playerTurnColor = new Color(0.2f, 0.8f, 0.2f); // Green
     [Tooltip("Color for opponent's turn")]
     [SerializeField] private Color opponentTurnColor = new Color(0.8f, 0.2f, 0.2f); // Red
+    [Tooltip("Duration before turn indicator fades out")]
+    [SerializeField] private float turnIndicatorDisplayDuration = 1.0f;
+    [Tooltip("Duration of turn indicator fade-out animation")]
+    [SerializeField] private float turnIndicatorFadeDuration = 0.5f;
+    [Tooltip("Distance to slide turn indicator upward during fade (in pixels)")]
+    [SerializeField] private float turnIndicatorSlideDistance = 20f;
 
     [Header("Announcer System")]
     [Tooltip("Announcer panel positioned at top-right, animates left when triggered")]
@@ -102,6 +98,12 @@ public class UIManager : MonoBehaviour
     [Tooltip("Mobile controls container (joystick and jump button for Standoff mode)")]
     // Container for mobile controls (joystick and jump button) shown in Standoff mode.
     [SerializeField] private GameObject mobileControlsPanel;
+    [Tooltip("Duration before mobile controls start dimming (seconds)")]
+    [SerializeField] private float mobileControlsIdleTime = 2f;
+    [Tooltip("Dim opacity for mobile controls when idle (0-1)")]
+    [SerializeField][Range(0f, 1f)] private float mobileControlsDimOpacity = 0.5f;
+    [Tooltip("Fade duration for mobile controls dimming")]
+    [SerializeField] private float mobileControlsFadeDuration = 0.5f;
 
     #endregion
 
@@ -173,6 +175,10 @@ public class UIManager : MonoBehaviour
 
     #region Inspector Fields - Debug
 
+    [Header("Background Prefabs")]
+    [Tooltip("Container for background prefabs")]
+    [SerializeField] private Transform backgroundContainer;
+
     [Header("Debug")]
     [Tooltip("Show debug information")]
     [SerializeField] private bool showDebug = false;
@@ -182,14 +188,21 @@ public class UIManager : MonoBehaviour
     #region Private Fields
 
     private List<GameObject> levelButtons = new List<GameObject>();
-    private PawnHealth playerHealth;
-    private Checkerboard checkerboard;
     private bool isInitialised = false;
+    private GameObject currentMainMenuBackground;
+    private GameObject currentInGameBackground;
     private Coroutine announcerCoroutine;
     private RectTransform announcerRectTransform;
     private CanvasGroup announcerCanvasGroup;
     private Vector2 announcerStartPosition;
     private bool isPlayerTurn = true;
+    private Coroutine turnIndicatorCoroutine;
+    private RectTransform turnIndicatorRectTransform;
+    private CanvasGroup turnIndicatorCanvasGroup;
+    private Vector2 turnIndicatorStartPosition;
+    private CanvasGroup mobileControlsCanvasGroup;
+    private Coroutine mobileControlsDimCoroutine;
+    private float lastMobileInputTime;
 
     #endregion
 
@@ -219,17 +232,6 @@ public class UIManager : MonoBehaviour
         // Volume sliders are configured with their change callbacks
         SetupSliders();
 
-        // Player health reference is located for HP tracking
-        playerHealth = FindFirstObjectByType<PawnHealth>();
-        // Checkerboard reference is located for opponent counting
-        checkerboard = FindFirstObjectByType<Checkerboard>();
-
-        // Player health change event is subscribed to for real-time HP updates
-        if (playerHealth != null)
-        {
-            playerHealth.OnHPChanged.AddListener(OnPlayerHPChanged);
-        }
-
         // Game Manager events are subscribed to for victory/defeat handling
         if (GameManager.Instance != null)
         {
@@ -243,6 +245,12 @@ public class UIManager : MonoBehaviour
 
         // Initialize announcer system
         InitializeAnnouncer();
+
+        // Initialize turn indicator system
+        InitializeTurnIndicator();
+
+        // Initialize mobile controls system
+        InitializeMobileControls();
 
         // Main menu is displayed as the initial screen
         ShowMainMenu();
@@ -277,10 +285,54 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    /// Initialize the turn indicator for animations.
+    private void InitializeTurnIndicator()
+    {
+        if (turnIndicatorText != null)
+        {
+            // Get or add RectTransform for position animation
+            turnIndicatorRectTransform = turnIndicatorText.GetComponent<RectTransform>();
+
+            // Get or add CanvasGroup for fade animation
+            turnIndicatorCanvasGroup = turnIndicatorText.GetComponent<CanvasGroup>();
+            if (turnIndicatorCanvasGroup == null)
+            {
+                turnIndicatorCanvasGroup = turnIndicatorText.gameObject.AddComponent<CanvasGroup>();
+            }
+
+            // Store initial position for animation calculations
+            if (turnIndicatorRectTransform != null)
+            {
+                turnIndicatorStartPosition = turnIndicatorRectTransform.anchoredPosition;
+            }
+        }
+    }
+
+    /// Initialize the mobile controls for dimming system.
+    private void InitializeMobileControls()
+    {
+        if (mobileControlsPanel != null)
+        {
+            // Get or add CanvasGroup for opacity control
+            mobileControlsCanvasGroup = mobileControlsPanel.GetComponent<CanvasGroup>();
+            if (mobileControlsCanvasGroup == null)
+            {
+                mobileControlsCanvasGroup = mobileControlsPanel.AddComponent<CanvasGroup>();
+            }
+
+            // Set initial opacity to full
+            mobileControlsCanvasGroup.alpha = 1f;
+            lastMobileInputTime = Time.unscaledTime;
+        }
+    }
+
     private void Update()
     {
         // Game UI is continuously updated during active gameplay
         UpdateGameUI();
+
+        // Update mobile controls dimming
+        UpdateMobileControlsDimming();
 
         // ESC key toggles pause menu when in gameplay states
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -380,6 +432,12 @@ public class UIManager : MonoBehaviour
             return;
         }
 
+        // Deactivate the original level button prefab if it's in the scene
+        if (levelButtonPrefab.activeInHierarchy)
+        {
+            levelButtonPrefab.SetActive(false);
+        }
+
         // Existing level buttons are destroyed before regeneration
         foreach (var button in levelButtons)
         {
@@ -463,6 +521,9 @@ public class UIManager : MonoBehaviour
         // Main menu panel is activated
         if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
 
+        // Show main menu background
+        ShowMainMenuBackground();
+
         // Game state is transitioned to MainMenu
         if (GameManager.Instance != null)
         {
@@ -500,6 +561,9 @@ public class UIManager : MonoBehaviour
 
         // Game UI panel is activated
         if (gameUIPanel != null) gameUIPanel.SetActive(true);
+
+        // Show in-game background
+        ShowInGameBackground();
 
         // All game UI elements are updated with current values
         RefreshGameUI();
@@ -900,15 +964,14 @@ public class UIManager : MonoBehaviour
     #region Private Methods - UI Updates
 
     /// Game UI elements are continuously updated during active gameplay.
-    /// Opponent count and game mode displays are refreshed each frame.
+    /// Mobile controls visibility is checked each frame.
     private void UpdateGameUI()
     {
         // UI updates are skipped if game UI panel is not visible
         if (gameUIPanel == null || !gameUIPanel.activeSelf) return;
 
-        // Dynamic UI elements are updated
-        UpdateOpponentsCount();
-        UpdateGameMode();
+        // Check mobile controls visibility based on game mode
+        CheckMobileControlsVisibility();
     }
 
     /// All game UI elements are refreshed with current game state.
@@ -916,139 +979,128 @@ public class UIManager : MonoBehaviour
     private void RefreshGameUI()
     {
         // All game UI components are updated with current values
-        UpdatePlayerHP();
         UpdateLevelInfo();
-        UpdateOpponentsCount();
-        UpdateGameMode();
+        CheckMobileControlsVisibility();
 
         if (showDebug) Debug.Log("[UIManager] Game UI refreshed");
     }
 
-    /// Player HP display is updated when health changes.
-    private void OnPlayerHPChanged(int newHP)
-    {
-        // Player HP display is refreshed
-        UpdatePlayerHP();
-
-        if (showDebug) Debug.Log($"[UIManager] Player HP changed to {newHP}");
-    }
-
-    /// Player HP text, bar, and heart icons are updated with current health values.
-    private void UpdatePlayerHP()
-    {
-        // Player health reference is reacquired if lost
-        if (playerHealth == null)
-        {
-            playerHealth = FindFirstObjectByType<PawnHealth>();
-            if (playerHealth != null)
-            {
-                playerHealth.OnHPChanged.AddListener(OnPlayerHPChanged);
-            }
-        }
-
-        // Update is skipped if player health is unavailable
-        if (playerHealth == null) return;
-
-        // Current and maximum HP values are retrieved
-        int currentHP = playerHealth.GetCurrentHP();
-        int maxHP = playerHealth.GetMaxHP();
-
-        // HP text display is updated
-        if (hpText != null)
-        {
-            hpText.text = $"HP: {currentHP}/{maxHP}";
-        }
-
-        // HP bar slider is updated
-        if (hpBar != null)
-        {
-            hpBar.maxValue = maxHP;
-            hpBar.value = currentHP;
-        }
-
-        // Heart icons are updated to reflect current HP
-        UpdateHeartIcons(currentHP, maxHP);
-    }
-
-    /// Heart icons are generated to visually represent player health.
-    /// Filled hearts represent current HP, empty hearts represent lost HP.
-    private void UpdateHeartIcons(int currentHP, int maxHP)
-    {
-        // Update is skipped if heart container or prefab is missing
-        if (heartIconsContainer == null || heartIconPrefab == null) return;
-
-        // Existing heart icons are destroyed before regeneration
-        foreach (Transform child in heartIconsContainer)
-        {
-            Destroy(child.gameObject);
-        }
-
-        // Heart icon is instantiated for each maximum HP point
-        for (int i = 0; i < maxHP; i++)
-        {
-            GameObject heart = Instantiate(heartIconPrefab, heartIconsContainer);
-            Image heartImage = heart.GetComponent<Image>();
-
-            // Heart colour indicates whether HP point is filled or empty
-            if (heartImage != null)
-            {
-                heartImage.color = i < currentHP ? Color.red : new Color(0.3f, 0.3f, 0.3f);
-            }
-        }
-    }
-
-    /// Current level name and number are displayed in the game UI.
+    /// Current level name and description are displayed in the game UI.
     private void UpdateLevelInfo()
     {
-        // Level display is updated if Game Manager and level text exist
-        if (levelText != null && GameManager.Instance != null)
+        if (GameManager.Instance == null) return;
+
+        // Level display is updated if level text exists
+        if (levelText != null)
         {
-            // Display only level number (e.g., "Level 1")
+            // Display level number (e.g., "Level 1")
             levelText.text = $"Level {GameManager.Instance.CurrentLevelIndex + 1}";
         }
-    }
 
-    /// Remaining opponent count is displayed in the game UI.
-    private void UpdateOpponentsCount()
-    {
-        // Opponent count display is updated if opponents text exists
-        if (opponentsText != null)
+        // Level description is updated if description text exists
+        if (levelDescriptionText != null)
         {
-            // Checkerboard reference is reacquired if lost
-            if (checkerboard == null)
+            LevelData currentLevel = GameManager.Instance.CurrentLevel;
+            if (currentLevel != null)
             {
-                checkerboard = FindFirstObjectByType<Checkerboard>();
-            }
-
-            // Opponent count is retrieved and displayed
-            if (checkerboard != null)
-            {
-                int count = checkerboard.GetOpponentControllers().Count;
-                opponentsText.text = $"Enemies: {count}";
+                levelDescriptionText.text = currentLevel.Description;
             }
         }
     }
 
-    /// Current game mode (Chess or Standoff) is displayed with appropriate styling.
-    private void UpdateGameMode()
+    /// Check and update mobile controls visibility based on game mode
+    private void CheckMobileControlsVisibility()
     {
-        // Game mode display is updated if mode text and Game Manager exist
-        if (gameModeText != null && GameManager.Instance != null)
+        // Show/hide mobile controls based on game mode
+        // Mobile controls (joystick and jump button) are shown in Standoff mode on ALL platforms
+        if (mobileControlsPanel != null && GameManager.Instance != null)
         {
-            // Mode text and colour are set based on current game state
-            string mode = GameManager.Instance.IsStandoffMode ? "STANDOFF" : "CHESS";
-            gameModeText.text = mode;
-
-            // Red colour indicates standoff mode, white indicates chess mode
-            gameModeText.color = GameManager.Instance.IsStandoffMode ? Color.red : Color.white;
-
-            // Show/hide mobile controls based on game mode
-            // Mobile controls (joystick and jump button) are only needed in Standoff mode
-            if (mobileControlsPanel != null)
+            bool shouldShow = GameManager.Instance.IsStandoffMode;
+            if (mobileControlsPanel.activeSelf != shouldShow)
             {
-                mobileControlsPanel.SetActive(GameManager.Instance.IsStandoffMode);
+                mobileControlsPanel.SetActive(shouldShow);
+
+                // Reset dimming when showing controls
+                if (shouldShow)
+                {
+                    lastMobileInputTime = Time.unscaledTime;
+                    if (mobileControlsCanvasGroup != null)
+                    {
+                        mobileControlsCanvasGroup.alpha = 1f;
+                    }
+                }
             }
         }
+    }
+
+    /// Update mobile controls dimming based on user input activity.
+    private void UpdateMobileControlsDimming()
+    {
+        if (mobileControlsPanel == null || !mobileControlsPanel.activeSelf || mobileControlsCanvasGroup == null)
+        {
+            return;
+        }
+
+        // Check for any input (keyboard, mouse, or touch)
+        bool hasInput = false;
+
+        // Check keyboard input
+        if (Input.anyKey)
+        {
+            hasInput = true;
+        }
+
+        // Check mouse input
+        if (Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.GetMouseButton(2))
+        {
+            hasInput = true;
+        }
+
+        // Check joystick input via InputSystem
+        if (InputSystem.Instance != null && InputSystem.Instance.IsJoystickActive)
+        {
+            hasInput = true;
+        }
+
+        // Reset timer on input
+        if (hasInput)
+        {
+            lastMobileInputTime = Time.unscaledTime;
+
+            // Restore full opacity immediately
+            if (mobileControlsDimCoroutine != null)
+            {
+                StopCoroutine(mobileControlsDimCoroutine);
+                mobileControlsDimCoroutine = null;
+            }
+            mobileControlsCanvasGroup.alpha = 1f;
+        }
+        // Start dimming after idle time
+        else if (Time.unscaledTime - lastMobileInputTime >= mobileControlsIdleTime)
+        {
+            if (mobileControlsDimCoroutine == null && mobileControlsCanvasGroup.alpha > mobileControlsDimOpacity)
+            {
+                mobileControlsDimCoroutine = StartCoroutine(DimMobileControlsCoroutine());
+            }
+        }
+    }
+
+    /// Coroutine to gradually dim mobile controls.
+    private System.Collections.IEnumerator DimMobileControlsCoroutine()
+    {
+        float startAlpha = mobileControlsCanvasGroup.alpha;
+        float elapsed = 0f;
+
+        while (elapsed < mobileControlsFadeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / mobileControlsFadeDuration);
+            mobileControlsCanvasGroup.alpha = Mathf.Lerp(startAlpha, mobileControlsDimOpacity, t);
+            yield return null;
+        }
+
+        mobileControlsCanvasGroup.alpha = mobileControlsDimOpacity;
+        mobileControlsDimCoroutine = null;
     }
 
     /// Victory screen text is updated with current level completion information.
@@ -1176,6 +1228,22 @@ public class UIManager : MonoBehaviour
 
         turnIndicatorText.gameObject.SetActive(true);
 
+        // Stop any existing fade animation
+        if (turnIndicatorCoroutine != null)
+        {
+            StopCoroutine(turnIndicatorCoroutine);
+        }
+
+        // Reset position and opacity
+        if (turnIndicatorRectTransform != null)
+        {
+            turnIndicatorRectTransform.anchoredPosition = turnIndicatorStartPosition;
+        }
+        if (turnIndicatorCanvasGroup != null)
+        {
+            turnIndicatorCanvasGroup.alpha = 1f;
+        }
+
         if (isPlayerTurn)
         {
             turnIndicatorText.text = "Your Turn";
@@ -1186,6 +1254,49 @@ public class UIManager : MonoBehaviour
             turnIndicatorText.text = "Opponent Turn";
             turnIndicatorText.color = opponentTurnColor;
         }
+
+        // Start fade-out animation after delay
+        turnIndicatorCoroutine = StartCoroutine(TurnIndicatorFadeCoroutine());
+    }
+
+    /// Coroutine to fade out turn indicator with slide effect
+    private System.Collections.IEnumerator TurnIndicatorFadeCoroutine()
+    {
+        // Wait for display duration
+        yield return new WaitForSecondsRealtime(turnIndicatorDisplayDuration);
+
+        // Slide and fade out
+        float elapsed = 0f;
+        Vector2 startPos = turnIndicatorStartPosition;
+        Vector2 endPos = startPos + new Vector2(0f, turnIndicatorSlideDistance);
+
+        while (elapsed < turnIndicatorFadeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / turnIndicatorFadeDuration);
+
+            // Slide upward
+            if (turnIndicatorRectTransform != null)
+            {
+                turnIndicatorRectTransform.anchoredPosition = Vector2.Lerp(startPos, endPos, t);
+            }
+
+            // Fade out
+            if (turnIndicatorCanvasGroup != null)
+            {
+                turnIndicatorCanvasGroup.alpha = 1f - t;
+            }
+
+            yield return null;
+        }
+
+        // Ensure final state
+        if (turnIndicatorCanvasGroup != null)
+        {
+            turnIndicatorCanvasGroup.alpha = 0f;
+        }
+
+        turnIndicatorCoroutine = null;
     }
 
     #endregion
@@ -1244,13 +1355,9 @@ public class UIManager : MonoBehaviour
             announcerCanvasGroup.alpha = 1f;
         }
 
-        // Calculate slide distance in pixels (based on screen width percentage)
-        float slidePixels = Screen.width * announcerSlideDistance;
-        if (slidePixels < 100f) slidePixels = 500f; // Fallback to 500px minimum
-
-        // Set initial position (off-screen to the right)
-        Vector2 startPos = announcerStartPosition + new Vector2(slidePixels, 0f);
-        Vector2 endPos = announcerStartPosition;
+        // Slide from original X position to X=0 (assumes announcer is positioned off-screen via pivot)
+        Vector2 startPos = announcerStartPosition;
+        Vector2 endPos = new Vector2(0f, announcerStartPosition.y);
 
         if (announcerRectTransform != null)
         {
@@ -1318,6 +1425,84 @@ public class UIManager : MonoBehaviour
         );
 
         return result;
+    }
+
+    #endregion
+
+    #region Background Management
+
+    /// Show main menu background if configured in current level
+    private void ShowMainMenuBackground()
+    {
+        // Hide in-game background first
+        HideInGameBackground();
+
+        // Check if we should show main menu background
+        if (GameManager.Instance != null && GameManager.Instance.CurrentLevel != null)
+        {
+            LevelData level = GameManager.Instance.CurrentLevel;
+            if (level.ShowMainMenuBackground && level.MainMenuBackgroundPrefab != null)
+            {
+                // Destroy old background if it exists
+                if (currentMainMenuBackground != null)
+                {
+                    Destroy(currentMainMenuBackground);
+                }
+
+                // Instantiate new background
+                Transform parent = backgroundContainer != null ? backgroundContainer : transform;
+                currentMainMenuBackground = Instantiate(level.MainMenuBackgroundPrefab, parent);
+
+                if (showDebug) Debug.Log("[UIManager] Main menu background displayed");
+            }
+        }
+    }
+
+    /// Show in-game background if configured in current level
+    private void ShowInGameBackground()
+    {
+        // Hide main menu background first
+        HideMainMenuBackground();
+
+        // Check if we should show in-game background
+        if (GameManager.Instance != null && GameManager.Instance.CurrentLevel != null)
+        {
+            LevelData level = GameManager.Instance.CurrentLevel;
+            if (level.ShowInGameBackground && level.InGameBackgroundPrefab != null)
+            {
+                // Destroy old background if it exists
+                if (currentInGameBackground != null)
+                {
+                    Destroy(currentInGameBackground);
+                }
+
+                // Instantiate new background
+                Transform parent = backgroundContainer != null ? backgroundContainer : transform;
+                currentInGameBackground = Instantiate(level.InGameBackgroundPrefab, parent);
+
+                if (showDebug) Debug.Log("[UIManager] In-game background displayed");
+            }
+        }
+    }
+
+    /// Hide main menu background
+    private void HideMainMenuBackground()
+    {
+        if (currentMainMenuBackground != null)
+        {
+            Destroy(currentMainMenuBackground);
+            currentMainMenuBackground = null;
+        }
+    }
+
+    /// Hide in-game background
+    private void HideInGameBackground()
+    {
+        if (currentInGameBackground != null)
+        {
+            Destroy(currentInGameBackground);
+            currentInGameBackground = null;
+        }
     }
 
     #endregion

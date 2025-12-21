@@ -156,6 +156,7 @@ MonoBehaviour:
   - {fileID: 2339073233714654567}
   standoffMoveSpeed: 5
   jumpForce: 10
+  standoffGravityScale: 2
   maxFallSpeed: 15
   groundCheckDistance: 0.1
   groundLayer:
@@ -205,7 +206,7 @@ BoxCollider2D:
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: 1e2865038934b2d4fa5a473b7365f5c3, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -229,7 +230,7 @@ BoxCollider2D:
   m_UsedByEffector: 1
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0.2}
+  m_Offset: {x: 0, y: 0.04}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -257,7 +258,7 @@ Rigidbody2D:
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_GravityScale: 1
-  m_Material: {fileID: 6200000, guid: 1e2865038934b2d4fa5a473b7365f5c3, type: 2}
+  m_Material: {fileID: 6200000, guid: 62c77a89793fc5d45852680dcebe5600, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
