@@ -229,6 +229,22 @@ public class WeaponSystem : MonoBehaviour
         }
     }
 
+    private void OnDestroy()
+    {
+        // Ensure we restore any tiles we were affecting when this weapon system is destroyed
+        if (originalTileColors.Count > 0)
+        {
+            foreach (var kvp in originalTileColors)
+            {
+                if (kvp.Key != null)
+                {
+                    kvp.Key.color = kvp.Value;
+                }
+            }
+            originalTileColors.Clear();
+        }
+    }
+
     private void OnDrawGizmos()
     {
         if (!showDebug || firePoint == null) return;
@@ -327,6 +343,45 @@ public class WeaponSystem : MonoBehaviour
         if (enableTargetingVisualization)
         {
             ClearChessVisualization();
+        }
+    }
+
+    public void RestoreAllTilesToOriginalColor()
+    {
+        if (gridGenerator == null || gridGenerator.parentContainer == null) return;
+
+        // Restore all tiles to original white color (Color.white with alpha 255)
+        Color originalColor = new Color(1f, 1f, 1f, 1f); // White with full alpha
+
+        foreach (Transform child in gridGenerator.parentContainer)
+        {
+            SpriteRenderer spriteRenderer = child.GetComponentInChildren<SpriteRenderer>();
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.color = originalColor;
+            }
+        }
+
+        // Clear any stored original colors since we're resetting everything
+        originalTileColors.Clear();
+    }
+
+    // Static method to restore all tiles to original color - can be called from anywhere
+    public static void RestoreAllTilesGlobally()
+    {
+        HexGridGenerator grid = FindFirstObjectByType<HexGridGenerator>();
+        if (grid == null || grid.parentContainer == null) return;
+
+        // Restore all tiles to original white color (Color.white with alpha 255)
+        Color originalColor = new Color(1f, 1f, 1f, 1f); // White with full alpha
+
+        foreach (Transform child in grid.parentContainer)
+        {
+            SpriteRenderer spriteRenderer = child.GetComponentInChildren<SpriteRenderer>();
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.color = originalColor;
+            }
         }
     }
 
@@ -482,18 +537,20 @@ public class WeaponSystem : MonoBehaviour
         // Determine flip based on mode
         if (isInStandoffMode)
         {
-            // Standoff: flip X-axis when aiming left (angle > 90 or < -90)
+            // Standoff: flip on Y-axis when aiming left and inverse Z rotation
             if (zAngle > 90f || zAngle < -90f)
             {
                 xRotation = 180f;
+                zAngle = -zAngle;
             }
         }
         else
         {
-            // Chess: flip for bottom-left (-150°) and top-left (-210°)
+            // Chess: flip on X-axis for bottom-left (-150°) and top-left (-210°) and inverse Z rotation
             if (zAngle == -150f || zAngle == -210f)
             {
                 xRotation = 180f;
+                zAngle = -zAngle;
             }
         }
 

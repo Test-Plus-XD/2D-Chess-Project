@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f26327ecb6c03044b82461e235ef1a1, type: 3}
   m_Name: Level 2
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
-  LevelName: Level 2
+  LevelName: Melee
   Description: "Shotgun Pawn - Aggressive attacker that fires spread shots and always
     approaches enemies.\nConfrontational \u2694\uFE0F - Shoots when enemies enter
     line of sight and fires faster.\r\nFleet \U0001F4A8 - Moves twice per turn and

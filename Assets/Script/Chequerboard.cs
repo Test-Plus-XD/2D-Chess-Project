@@ -195,6 +195,22 @@ public class Checkerboard : MonoBehaviour
                 weapon.ClearTargetingVisualization();
             }
         }
+
+        // Restore all tiles to their original white color when player's turn starts
+        // This ensures any blinking or blinked red tiles are reset to white
+        if (opponents.Count > 0)
+        {
+            WeaponSystem anyWeapon = opponents[0].GetComponent<WeaponSystem>();
+            if (anyWeapon != null)
+            {
+                anyWeapon.RestoreAllTilesToOriginalColor();
+            }
+        }
+        else
+        {
+            // Fallback: use static method if no opponents available
+            WeaponSystem.RestoreAllTilesGlobally();
+        }
     }
 
     // Return a copy of current opponent axial coordinates as Vector2Int list.

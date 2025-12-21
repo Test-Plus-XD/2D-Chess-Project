@@ -297,6 +297,90 @@ public class Spawner : MonoBehaviour
         }
     }
 
+    /// Spawn a fresh Handcannon pawn to replace a Basic pawn, inheriting HP and modifier
+    public GameObject SpawnFreshHandcannonReplacement(PawnController basicPawn)
+    {
+        if (basicPawn == null || handcannonPrefab == null)
+        {
+            Debug.LogError("[Spawner] Cannot spawn Handcannon replacement: missing basic pawn or handcannon prefab");
+            return null;
+        }
+
+        // Store the properties we need to transfer
+        int currentHP = 1;
+        int maxHP = 1;
+        PawnController.Modifier currentModifier = basicPawn.modifier;
+        Vector3 currentPosition = basicPawn.transform.position;
+        int q = basicPawn.q;
+        int r = basicPawn.r;
+
+        // Get HP from PawnHealth component
+        PawnHealth basicPawnHealth = basicPawn.GetComponent<PawnHealth>();
+        if (basicPawnHealth != null)
+        {
+            currentHP = basicPawnHealth.GetCurrentHP();
+            // For opponents, GetMaxHP() returns -1, so we use the MaxHP field directly
+            maxHP = basicPawnHealth.pawnType == PawnHealth.PawnType.Player 
+                ? basicPawnHealth.GetMaxHP() 
+                : basicPawnHealth.MaxHP;
+        }
+
+        // Deregister from checkerboard before destroying
+        if (checkerboard != null)
+        {
+            checkerboard.DeregisterOpponent(basicPawn);
+        }
+
+        // Destroy the old Basic pawn
+        Destroy(basicPawn.gameObject);
+
+        // Spawn fresh Handcannon at the same position
+        GameObject newHandcannon = Instantiate(handcannonPrefab, currentPosition, Quaternion.identity, opponentSpawnParent);
+
+        // Configure the new Handcannon
+        PawnController newPawnController = newHandcannon.GetComponent<PawnController>();
+        if (newPawnController == null) newPawnController = newHandcannon.AddComponent<PawnController>();
+
+        newPawnController.gridGenerator = gridGenerator;
+        newPawnController.aiType = PawnController.AIType.Handcannon;
+        newPawnController.q = q;
+        newPawnController.r = r;
+        newPawnController.SetModifier(currentModifier);
+
+        // Transfer HP to the new pawn
+        PawnHealth newPawnHealth = newHandcannon.GetComponent<PawnHealth>();
+        if (newPawnHealth == null) newPawnHealth = newHandcannon.AddComponent<PawnHealth>();
+        newPawnHealth.SetOpponentHP(maxHP);
+        
+        // Set current HP to match the original pawn
+        if (currentHP < maxHP)
+        {
+            int damageToApply = maxHP - currentHP;
+            newPawnHealth.TakeDamage(damageToApply, "HP_Transfer");
+        }
+
+        // Register with checkerboard
+        if (checkerboard != null)
+        {
+            checkerboard.RegisterOpponent(newPawnController);
+        }
+
+        // Ensure the new Handcannon has a weapon system
+        WeaponSystem weaponSystem = newHandcannon.GetComponent<WeaponSystem>();
+        if (weaponSystem == null)
+        {
+            weaponSystem = newHandcannon.gameObject.AddComponent<WeaponSystem>();
+        }
+
+        // Update name to reflect the new type and modifier
+        string modifierLabel = currentModifier != PawnController.Modifier.None ? $" [{currentModifier}]" : "";
+        newHandcannon.name = $"Opponent Handcannon{modifierLabel}: {q}_{r}";
+
+        Debug.Log($"[Spawner] Spawned fresh Handcannon replacement with {currentHP}/{maxHP} HP and {currentModifier} modifier at position {q}_{r}");
+
+        return newHandcannon;
+    }
+
     #endregion
 
     #region Private Methods - Player Spawning

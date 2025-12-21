@@ -628,13 +628,15 @@ public class UIManager : MonoBehaviour
         if (buttonText != null)
         {
             buttonText.enabled = true;
-            buttonText.text = $"{levelIndex + 1}";
+            // Use level name from LevelData, fallback to number if name is empty
+            string displayText = !string.IsNullOrEmpty(levelData.LevelName) ? levelData.LevelName : $"Level {levelIndex + 1}";
+            buttonText.text = displayText;
         }
 
         // Initialize button scale to 1
         buttonObject.transform.localScale = Vector3.one;
 
-        // Button click listener is registered with captured level index
+        // Button click listener is registered with captured level index (0-based for GameManager)
         if (button != null)
         {
             button.onClick.AddListener(() => OnLevelButtonClicked(levelIndex));
@@ -988,7 +990,12 @@ public class UIManager : MonoBehaviour
         // Selected level is started
         StartGame(levelIndex);
 
-        if (showDebug) Debug.Log($"[UIManager] Level {levelIndex} button clicked");
+        if (showDebug) 
+        {
+            LevelData levelData = GameManager.Instance.GetLevel(levelIndex);
+            string levelName = levelData != null ? levelData.LevelName : $"Level {levelIndex + 1}";
+            Debug.Log($"[UIManager] {levelName} button clicked");
+        }
     }
 
     private void OnLevelSelectBackClicked()
@@ -1189,7 +1196,12 @@ public class UIManager : MonoBehaviour
         // Game UI is shown for gameplay
         ShowGameUI();
 
-        if (showDebug) Debug.Log($"[UIManager] Started game with level {levelIndex}");
+        if (showDebug) 
+        {
+            LevelData levelData = GameManager.Instance.GetLevel(levelIndex);
+            string levelName = levelData != null ? levelData.LevelName : $"Level {levelIndex + 1}";
+            Debug.Log($"[UIManager] Started game with {levelName}");
+        }
     }
 
     #endregion
@@ -1226,8 +1238,17 @@ public class UIManager : MonoBehaviour
         // Level display is updated if level text exists
         if (levelText != null)
         {
-            // Display level number (e.g., "Level 1")
-            levelText.text = $"Level {GameManager.Instance.CurrentLevelIndex + 1}";
+            LevelData currentLevel = GameManager.Instance.CurrentLevel;
+            if (currentLevel != null && !string.IsNullOrEmpty(currentLevel.LevelName))
+            {
+                // Use level name from LevelData
+                levelText.text = currentLevel.LevelName;
+            }
+            else
+            {
+                // Fallback to level number if no name is set
+                levelText.text = $"Level {GameManager.Instance.CurrentLevelIndex + 1}";
+            }
         }
 
         // Level description is updated if description text exists

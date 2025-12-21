@@ -638,6 +638,13 @@ public class PawnController : MonoBehaviour
             return;
         }
 
+        // If modifier is assigned, ensure Canvas is enabled
+        Canvas canvas = GetComponentInChildren<Canvas>(true); // Include inactive children
+        if (canvas != null)
+        {
+            canvas.gameObject.SetActive(true);
+        }
+
         if(modifierIconImage == null) return;
 
         // Get modifier icon from Pawn Customiser (centralised icon storage).

@@ -112,6 +112,9 @@ public class GameManager : MonoBehaviour
     [Tooltip("Show debug information")]
     // Enable debug logging for game state changes.
     [SerializeField] private bool showDebug = true;
+    [Tooltip("Temporary fix: Load correct next level instead of skipping levels")]
+    // Workaround for level skipping issue - ensures next level loads correctly instead of skipping.
+    [SerializeField] private bool ductTape = false;
 
     #region Private Fields
 
@@ -389,12 +392,20 @@ public class GameManager : MonoBehaviour
 
     public void StartGame(int levelIndex)
     {
+        if (showDebug)
+        {
+            Debug.Log($"[StartGame] ENTRY - Received levelIndex: {levelIndex}");
+            Debug.Log($"[StartGame] ENTRY - Current currentLevelIndex before assignment: {currentLevelIndex}");
+        }
+
         currentLevelIndex = levelIndex;
         hasTransitionedToStandoff = false;
 
         if (showDebug)
         {
-            Debug.Log($"Starting game - Level {levelIndex}");
+            string levelName = currentLevelData != null ? currentLevelData.LevelName : "Unknown";
+            Debug.Log($"[StartGame] AFTER ASSIGNMENT - currentLevelIndex: {currentLevelIndex}, currentLevelData: {levelName}");
+            Debug.Log($"[StartGame] ABOUT TO CALL LoadLevel({levelIndex})");
         }
 
         // Load level data before setting state to ensure BGM and settings are available
@@ -453,30 +464,43 @@ public class GameManager : MonoBehaviour
 
     public void LoadLevel(int levelIndex)
     {
+        if (showDebug)
+        {
+            Debug.Log($"[LoadLevel] ENTRY - Received levelIndex: {levelIndex}");
+            Debug.Log($"[LoadLevel] ENTRY - Current currentLevelIndex before assignment: {currentLevelIndex}");
+            Debug.Log($"[LoadLevel] ENTRY - levels.Length: {levels.Length}");
+        }
+
         if (levelIndex < 0 || levelIndex >= levels.Length)
         {
-            Debug.LogError($"Invalid level index: {levelIndex}");
+            Debug.LogError($"[LoadLevel] Invalid level index: {levelIndex}");
             return;
         }
 
         currentLevelIndex = levelIndex;
         currentLevelData = levels[levelIndex];
 
+        if (showDebug)
+        {
+            Debug.Log($"[LoadLevel] AFTER ASSIGNMENT - currentLevelIndex: {currentLevelIndex}");
+            Debug.Log($"[LoadLevel] AFTER ASSIGNMENT - Accessing levels[{levelIndex}]");
+        }
+
         if (currentLevelData == null)
         {
-            Debug.LogError($"Level data is null at index {levelIndex}");
+            Debug.LogError($"[LoadLevel] Level data is null at index {levelIndex}");
             return;
         }
 
         if (!currentLevelData.IsValid())
         {
-            Debug.LogError($"Level data is invalid at index {levelIndex}");
+            Debug.LogError($"[LoadLevel] Level data is invalid at index {levelIndex}");
             return;
         }
 
         if (showDebug)
         {
-            Debug.Log($"Loading Level {levelIndex}: {currentLevelData.LevelName}");
+            Debug.Log($"[LoadLevel] SUCCESS - Loading Level {levelIndex + 1} (array index {levelIndex}): {currentLevelData.LevelName}");
         }
 
         ApplyLevelSettings();
@@ -485,13 +509,48 @@ public class GameManager : MonoBehaviour
 
     public void LoadNextLevel()
     {
+        if (showDebug)
+        {
+            string currentLevelName = currentLevelData != null ? currentLevelData.LevelName : $"Level {currentLevelIndex + 1}";
+            Debug.Log($"[LoadNextLevel] ENTRY - Current level: {currentLevelName} (array index {currentLevelIndex}), HasNextLevel: {HasNextLevel}");
+            Debug.Log($"[LoadNextLevel] ENTRY - levels.Length: {levels.Length}, currentLevelIndex: {currentLevelIndex}");
+        }
+
         if (HasNextLevel)
         {
-            StartGame(currentLevelIndex + 1);
+            int nextLevelIndex = currentLevelIndex + 1;
+            
+            // Apply DuctTape fix if enabled - compensate for the +2 skip bug
+            if (ductTape)
+            {
+                // The bug causes +2 skip, so we subtract 1 to get the correct +1
+                nextLevelIndex = currentLevelIndex + 1 - 1; // This equals currentLevelIndex (same level)
+                if (showDebug)
+                {
+                    Debug.Log($"[LoadNextLevel] DUCT TAPE APPLIED - Compensating for +2 skip bug: loading index {nextLevelIndex} instead of {currentLevelIndex + 1}");
+                    Debug.Log($"[LoadNextLevel] DUCT TAPE RESULT - This should load the CORRECT next level despite the bug");
+                }
+            }
+            else
+            {
+                if (showDebug)
+                {
+                    Debug.Log($"[LoadNextLevel] NO DUCT TAPE - Normal calculation: {nextLevelIndex} (bug will likely cause +2 skip)");
+                }
+            }
+            
+            if (showDebug)
+            {
+                LevelData nextLevel = GetLevel(nextLevelIndex);
+                string nextLevelName = nextLevel != null ? nextLevel.LevelName : $"Level {nextLevelIndex + 1}";
+                Debug.Log($"[LoadNextLevel] FINAL - Passing to StartGame: {nextLevelName} (array index {nextLevelIndex})");
+                Debug.Log($"[LoadNextLevel] ABOUT TO CALL StartGame({nextLevelIndex})");
+            }
+            StartGame(nextLevelIndex);
         }
         else if (showDebug)
         {
-            Debug.Log("No more levels available");
+            Debug.Log("[LoadNextLevel] No more levels available");
         }
     }
 
@@ -502,7 +561,11 @@ public class GameManager : MonoBehaviour
 
     public void CompleteLevel()
     {
-        if (showDebug) Debug.Log($"Level {currentLevelIndex} completed!");
+        if (showDebug) 
+        {
+            string levelName = currentLevelData != null ? currentLevelData.LevelName : $"Level {currentLevelIndex + 1}";
+            Debug.Log($"{levelName} (array index {currentLevelIndex}) completed!");
+        }
         OnLevelCompleted?.Invoke(currentLevelIndex);
     }
 
@@ -611,6 +674,9 @@ public class GameManager : MonoBehaviour
         // Find player controller if not already assigned
         if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
         if (playerController != null) playerController.SetStandoffMode(false);
+
+        // Restore all tiles to original white color when starting chess mode
+        WeaponSystem.RestoreAllTilesGlobally();
     }
 
     private void SetupStandoffMode()
@@ -646,7 +712,7 @@ public class GameManager : MonoBehaviour
 
         if (showDebug) Debug.Log("Transitioning to Standoff mode...");
 
-        // Convert Basic type to Handcannon if last opponent
+        // Spawn fresh Handcannon to replace Basic pawn if last opponent is Basic
         PawnController.AIType lastOpponentType = PawnController.AIType.Basic;
         if (checkerboard != null)
         {
@@ -658,16 +724,49 @@ public class GameManager : MonoBehaviour
                 {
                     if (lastOpponent.aiType == PawnController.AIType.Basic)
                     {
-                        lastOpponent.ConvertBasicToHandcannon();
-
-                        // Ensure the converted opponent has a weapon system
-                        WeaponSystem weaponSystem = lastOpponent.GetComponent<WeaponSystem>();
-                        if (weaponSystem == null)
+                        // Spawn fresh Handcannon pawn to replace the Basic pawn
+                        if (spawnerSystem != null)
                         {
-                            weaponSystem = lastOpponent.gameObject.AddComponent<WeaponSystem>();
+                            GameObject newHandcannon = spawnerSystem.SpawnFreshHandcannonReplacement(lastOpponent);
+                            if (newHandcannon != null)
+                            {
+                                lastOpponentType = PawnController.AIType.Handcannon;
+                                if (showDebug) Debug.Log("[GameManager] Spawned fresh Handcannon to replace Basic pawn");
+                            }
+                            else
+                            {
+                                // Fallback to old conversion method if spawning fails
+                                lastOpponent.ConvertBasicToHandcannon();
+                                
+                                // Ensure the converted opponent has a weapon system
+                                WeaponSystem weaponSystem = lastOpponent.GetComponent<WeaponSystem>();
+                                if (weaponSystem == null)
+                                {
+                                    weaponSystem = lastOpponent.gameObject.AddComponent<WeaponSystem>();
+                                }
+                                lastOpponentType = lastOpponent.aiType;
+                                if (showDebug) Debug.Log("[GameManager] Fallback: Converted Basic to Handcannon in place");
+                            }
+                        }
+                        else
+                        {
+                            // Fallback to old conversion method if no spawner available
+                            lastOpponent.ConvertBasicToHandcannon();
+                            
+                            // Ensure the converted opponent has a weapon system
+                            WeaponSystem weaponSystem = lastOpponent.GetComponent<WeaponSystem>();
+                            if (weaponSystem == null)
+                            {
+                                weaponSystem = lastOpponent.gameObject.AddComponent<WeaponSystem>();
+                            }
+                            lastOpponentType = lastOpponent.aiType;
+                            if (showDebug) Debug.Log("[GameManager] Fallback: No spawner found, converted Basic to Handcannon in place");
                         }
                     }
-                    lastOpponentType = lastOpponent.aiType;
+                    else
+                    {
+                        lastOpponentType = lastOpponent.aiType;
+                    }
                 }
             }
         }

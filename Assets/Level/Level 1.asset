@@ -12,14 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f26327ecb6c03044b82461e235ef1a1, type: 3}
   m_Name: Level 1
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
-  LevelName: Level 1
-  Description: 'Defeat all enemy pieces:
+  LevelName: Tutorial
+  Description: 'Chess Stage - Swipe to move, Stamp over opponent pawns to capture
 
-    Basic Pawn - Moves only forward and
-    captures by walking onto your pawn.
+    Standoff
+    Stage - 1 on 1 last stand, Use Joystick to move.
 
-    Handcannon Pawn - Mid-range fighter
-    that fires single bullets and maintains optimal distance. '
+    Basic Pawn - Moves only
+    forward and captures by walking onto your pawn.
+
+    Handcannon Pawn - Mid-range
+    fighter that fires single bullets and maintains optimal distance. '
   LevelNumber: 1
   GridRadius: 2
   ExtraRows: 1

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f26327ecb6c03044b82461e235ef1a1, type: 3}
   m_Name: Level 4
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
-  LevelName: Level 4
+  LevelName: Free-For-All
   Description: "Tenacious \U0001F6E1\uFE0F - Requires two captures to defeat instead
     of one."
   LevelNumber: 4

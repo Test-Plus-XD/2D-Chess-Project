@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f26327ecb6c03044b82461e235ef1a1, type: 3}
   m_Name: Level 3
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
-  LevelName: Level 3
+  LevelName: Ranger
   Description: "Sniper Pawn - Long-range defender that fires piercing bullets and
     keeps distance.\nObservant \U0001F441\uFE0F - Bullets only damage the player
     and fires with reduced delay.\r\nReflexive \U0001F3AF - Recalculates aim after
