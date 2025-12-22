@@ -93,16 +93,27 @@ public class PawnCustomiser : ScriptableObject
         public float groundCheckDistance = 0.1f;
         [Tooltip("Edge check offset multiplier (distance * currentMoveDirection)")]
         [Range(0.1f, 2f)]
-        public float edgeCheckOffset = 0.5f;
+        public float edgeCheckOffset = 1.0f;
         [Tooltip("Edge check vertical offset")]
         [Range(0.1f, 2f)]
-        public float edgeCheckVerticalOffset = 0.5f;
+        public float edgeCheckVerticalOffset = 0.2f;
         [Tooltip("Maximum edge raycast distance")]
         [Range(0.5f, 3f)]
-        public float edgeRaycastDistance = 1f;
+        public float edgeRaycastDistance = 2.0f;
         [Tooltip("Far ground check raycast distance (for gap jumps)")]
         [Range(1f, 5f)]
         public float farGroundCheckDistance = 2f;
+
+        [Header("Enhanced Ledge Detection")]
+        [Tooltip("Number of rays to cast for ledge detection (more rays = better accuracy)")]
+        [Range(3, 7)]
+        public int ledgeDetectionRayCount = 3;
+        [Tooltip("Maximum safe drop distance before considering it a dangerous ledge")]
+        [Range(0.5f, 3f)]
+        public float maxSafeDropDistance = 1.0f;
+        [Tooltip("Minimum percentage of rays that must hit ground to consider it safe")]
+        [Range(0.3f, 1f)]
+        public float safeGroundThreshold = 0.5f;
     }
 
     // Configuration for AI decision-making timing.

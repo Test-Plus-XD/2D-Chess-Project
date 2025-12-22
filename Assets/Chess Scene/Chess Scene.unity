@@ -3264,7 +3264,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &619394801
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7112,7 +7112,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a334c778d76b40d4abe5affb23b84527, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TimeController
-  normalTimeScale: 1
+  normalTimeScale: 1.01
   slowMotionTimeScale: 0.3
   movementThreshold: 0.24
   transitionSpeed: 5

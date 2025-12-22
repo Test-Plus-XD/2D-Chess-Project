@@ -309,7 +309,7 @@ MonoBehaviour:
   fireInterval: 3
   firingDelay: 0.5
   maxRange: 15
-  projectileSpeed: 9
+  projectileSpeed: 12
   trackingAngularVelocity: 90
   spreadCount: 1
   spreadAngle: 30
@@ -328,12 +328,13 @@ MonoBehaviour:
   gunTransform: {fileID: 7486125857765359915}
   gunOffset: {x: 0.2, y: 0}
   fireSound: {fileID: 8300000, guid: a8dcd6bae63cff546862fc76bcf39dc9, type: 3}
-  fireVolume: 0.3
+  fireVolume: 0.75
   gunAnimator: {fileID: 6794715462162017673}
   fireAnimationTrigger: Fire
   enableRecoil: 1
   recoilForce: 6
   showDebug: 1
+  useDebugLineFallback: 0
   enableTargetingVisualization: 1
   chessTileBlinkColor: {r: 1, g: 0.19498698, b: 0, a: 0.9607843}
   blinkInterval: 0.5

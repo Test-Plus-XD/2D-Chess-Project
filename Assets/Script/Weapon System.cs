@@ -638,7 +638,7 @@ public class WeaponSystem : MonoBehaviour
             case 3: return -150f;    // (-1,0) BottomLeft → -150° with X-flip
             case 4: return -210f;    // (-1,1) TopLeft → -210° with X-flip
             case 5: return 90f;      // (0,1) Top → 90°
-            default: return 90f;
+            default: return -90f;    // Default to bottom direction instead of top
         }
     }
 
@@ -702,22 +702,22 @@ public class WeaponSystem : MonoBehaviour
     {
         if (pawnController == null || pawnController.gridGenerator == null)
         {
-            if (showDebug) Debug.LogWarning("[WeaponSystem] No PawnController or grid generator");
-            return 0;
+            if (showDebug) Debug.LogWarning("[WeaponSystem] No PawnController or grid generator - defaulting to bottom direction");
+            return 2; // Default to bottom direction (index 2 = -90°)
         }
 
         PlayerController playerController = FindFirstObjectByType<PlayerController>();
         if (playerController == null)
         {
-            if (showDebug) Debug.LogWarning("[WeaponSystem] No PlayerController found");
-            return 0;
+            if (showDebug) Debug.LogWarning("[WeaponSystem] No PlayerController found - defaulting to bottom direction");
+            return 2; // Default to bottom direction (index 2 = -90°)
         }
 
         int pawnQ = pawnController.q;
         int pawnR = pawnController.r;
         List<Vector2Int> playerArea = playerController.GetPlayerArea();
 
-        int bestIndex = 0;
+        int bestIndex = 2; // Default to bottom direction instead of 0 (TopRight)
         int bestScore = -1;
 
         // Calculate scores for all directions
@@ -751,13 +751,20 @@ public class WeaponSystem : MonoBehaviour
             }
         }
 
+        // If no direction has a positive score (no line of sight to player), default to bottom
+        if (bestScore <= 0)
+        {
+            if (showDebug) Debug.Log("[WeaponSystem] No clear line of sight to player - defaulting to bottom direction");
+            bestIndex = 2; // Bottom direction
+        }
+
         // Debug mode: Calculate direction twice to help identify issues
         if (showDebug)
         {
             Debug.Log($"[WeaponSystem] First calculation - Best hex direction: {bestIndex} with score {bestScore}");
             
             // Second calculation for debug verification
-            int secondBestIndex = 0;
+            int secondBestIndex = 2; // Default to bottom for second calculation too
             int secondBestScore = -1;
             
             for (int dirIndex = 0; dirIndex < 6; dirIndex++)
@@ -783,6 +790,12 @@ public class WeaponSystem : MonoBehaviour
                     secondBestScore = score;
                     secondBestIndex = dirIndex;
                 }
+            }
+            
+            // Apply same fallback logic for second calculation
+            if (secondBestScore <= 0)
+            {
+                secondBestIndex = 2; // Bottom direction
             }
             
             Debug.Log($"[WeaponSystem] Second calculation - Best hex direction: {secondBestIndex} with score {secondBestScore}");
@@ -912,8 +925,8 @@ public class WeaponSystem : MonoBehaviour
                 case PawnController.AIType.Shotgun:
                     // Shotgun: 3 bullets at 0°, +60°, -60° in BOTH stages
                     SpawnProjectile(0f, damage: 1);
-                    SpawnProjectile(60f, damage: 1);
-                    SpawnProjectile(-60f, damage: 1);
+                    SpawnProjectile(65f, damage: 1);
+                    SpawnProjectile(-65f, damage: 1);
                     break;
 
                 case PawnController.AIType.Sniper:
@@ -1071,6 +1084,8 @@ public class WeaponSystem : MonoBehaviour
 
     private void InitializeTargetingVisualization()
     {
+        Debug.Log($"[WeaponSystem] Initializing targeting visualization for {gameObject.name} at position {transform.position}");
+        
         lineRenderer = gameObject.AddComponent<LineRenderer>();
         lineRenderer.positionCount = 2;
         lineRenderer.startWidth = lineWidth;
@@ -1097,9 +1112,11 @@ public class WeaponSystem : MonoBehaviour
             float cameraZ = mainCamera.transform.position.z;
             float lineZ = cameraZ + 1f; // Move 1 unit closer to camera
             
-            // Store the Z position for use in UpdateStandoffVisualization
-            lineRenderer.transform.position = new Vector3(0, 0, lineZ);
+            // Note: We don't set lineRenderer.transform.position here because that would move the entire pawn!
+            // Instead, we'll use the lineZ value when setting line positions in UpdateStandoffVisualization
         }
+        
+        Debug.Log($"[WeaponSystem] Targeting visualization initialized for {gameObject.name}, pawn position remains at {transform.position}");
     }
 
     private Material CreateDefaultLineMaterial()
@@ -1185,6 +1202,13 @@ public class WeaponSystem : MonoBehaviour
             // Shotgun: 3 directions
             int[] directions = { hexIndex, (hexIndex + 1) % 6, (hexIndex + 5) % 6 };
 
+            // First, add the pawn's own tile (starting point)
+            GameObject pawnTile = FindTileAtCoordinates(pawnQ, pawnR);
+            if (pawnTile != null && !tiles.Contains(pawnTile))
+            {
+                tiles.Add(pawnTile);
+            }
+
             foreach (int dirIndex in directions)
             {
                 int currentQ = pawnQ;
@@ -1205,15 +1229,23 @@ public class WeaponSystem : MonoBehaviour
 
             if (showDebug)
             {
-                Debug.Log($"[WeaponSystem] Shotgun targeting {tiles.Count} tiles in 3 directions");
+                Debug.Log($"[WeaponSystem] Shotgun targeting {tiles.Count} tiles in 3 directions (including pawn tile)");
             }
         }
         else
         {
-            // Single direction
+            // Single direction - include pawn's tile as starting point
             int currentQ = pawnQ;
             int currentR = pawnR;
 
+            // Add the pawn's own tile first (step 0)
+            GameObject pawnTile = FindTileAtCoordinates(currentQ, currentR);
+            if (pawnTile != null)
+            {
+                tiles.Add(pawnTile);
+            }
+
+            // Then add tiles in the firing direction
             for (int step = 1; step <= maxTileRange; step++)
             {
                 currentQ += PlayerController.HEX_DIR_Q[hexIndex];
@@ -1228,7 +1260,7 @@ public class WeaponSystem : MonoBehaviour
 
             if (showDebug)
             {
-                Debug.Log($"[WeaponSystem] Targeting {tiles.Count} tiles in direction {hexIndex}");
+                Debug.Log($"[WeaponSystem] Targeting {tiles.Count} tiles in direction {hexIndex} (including pawn tile)");
             }
         }
 

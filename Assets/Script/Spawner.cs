@@ -98,8 +98,30 @@ public class Spawner : MonoBehaviour
 
         while (tileParent != null && tileParent.childCount == 0 && waitFrames < maxWaitFrames)
         {
+            Debug.Log($"[Spawner] Waiting for tiles to be generated... Frame {waitFrames}, Parent: {tileParent.name}, Children: {tileParent.childCount}");
             yield return null;
             waitFrames++;
+        }
+
+        if (tileParent != null)
+        {
+            Debug.Log($"[Spawner] Tiles ready! Parent: {tileParent.name}, Children: {tileParent.childCount}");
+            
+            // Additional validation - check that tiles have proper names and components
+            int validTileCount = 0;
+            for (int i = 0; i < tileParent.childCount; i++)
+            {
+                Transform child = tileParent.GetChild(i);
+                if (child.name.StartsWith("Hex_") && child.GetComponent<PolygonCollider2D>() != null)
+                {
+                    validTileCount++;
+                }
+            }
+            Debug.Log($"[Spawner] Found {validTileCount} valid tiles with colliders");
+        }
+        else
+        {
+            Debug.LogError("[Spawner] No tile parent found!");
         }
 
         // Only spawn if not being managed by GameManager (GameManager will call SpawnAll directly)
@@ -449,6 +471,8 @@ public class Spawner : MonoBehaviour
     private IEnumerator SpawnTypeCoroutine(GameObject prefab, PawnController.AIType aiType, int count,
         List<TileCandidate> candidates, HashSet<Vector2Int> occupied)
     {
+        Debug.Log($"[Spawner] Starting spawn of {count} {aiType} pawns. Available candidates: {candidates.Count}");
+        
         for (int i = 0; i < count; i++)
         {
             Vector2Int chosen = ChooseWeightedTile(candidates, occupied, allowStacking);
@@ -459,12 +483,21 @@ public class Spawner : MonoBehaviour
                 break;
             }
 
+            if (chosen == Vector2Int.zero)
+            {
+                Debug.LogError($"[Spawner] ChooseWeightedTile returned zero coordinates for {aiType} pawn {i+1}/{count}. Skipping spawn.");
+                continue;
+            }
+
             // Get tile world position FIRST before instantiating
             Vector3 spawnPosition = Vector3.zero;
             if (!TryGetTileWorldCentre(chosen.x, chosen.y, out spawnPosition))
             {
-                Debug.LogWarning($"[Spawner] Could not find tile position for {chosen.x}_{chosen.y}, using origin.");
+                Debug.LogError($"[Spawner] Could not find tile position for {chosen.x}_{chosen.y}, skipping this pawn spawn.");
+                continue; // Skip this spawn instead of spawning at origin
             }
+
+            Debug.Log($"[Spawner] Spawning {aiType} pawn {i+1}/{count} at tile {chosen.x}_{chosen.y} world position {spawnPosition}");
 
             // Instantiate at the correct position immediately
             GameObject gameObject = Instantiate(prefab, spawnPosition, Quaternion.identity, opponentSpawnParent);
@@ -478,6 +511,8 @@ public class Spawner : MonoBehaviour
             pawnController.q = chosen.x;
             pawnController.r = chosen.y;
 
+            Debug.Log($"[Spawner] Set pawn coordinates to {chosen.x}_{chosen.y}, position is {gameObject.transform.position}");
+
             // Initialize opponent HP from the configured opponentHP value
             PawnHealth pawnHealth = gameObject.GetComponent<PawnHealth>();
             if (pawnHealth == null) pawnHealth = gameObject.AddComponent<PawnHealth>();
@@ -486,6 +521,9 @@ public class Spawner : MonoBehaviour
             gameObject.name = $"Opponent {prefab.name}: {chosen.x}_{chosen.y}";
 
             if (!allowStacking) occupied.Add(chosen);
+
+            // Verify final position after all initialization
+            Debug.Log($"[Spawner] Final pawn position after initialization: {gameObject.transform.position}");
 
             // Wait one frame before spawning next pawn to prevent duplicates
             yield return null;
@@ -499,6 +537,8 @@ public class Spawner : MonoBehaviour
         Transform parent = gridGenerator.parentContainer == null
             ? gridGenerator.transform
             : gridGenerator.parentContainer;
+
+        Debug.Log($"[Spawner] Building upper tile candidates from parent: {parent.name} with {parent.childCount} children");
 
         int minR = int.MaxValue;
         int maxR = int.MinValue;
@@ -516,9 +556,14 @@ public class Spawner : MonoBehaviour
             }
         }
 
-        if (tileTransforms.Count == 0) return list;
+        if (tileTransforms.Count == 0) 
+        {
+            Debug.LogWarning("[Spawner] No tile transforms found!");
+            return list;
+        }
 
         int middleR = Mathf.FloorToInt((minR + maxR) / 2f);
+        Debug.Log($"[Spawner] Tile R range: {minR} to {maxR}, middle: {middleR}");
 
         foreach (var t in tileTransforms)
         {
@@ -535,6 +580,7 @@ public class Spawner : MonoBehaviour
             list.Add(c);
         }
 
+        Debug.Log($"[Spawner] Built {list.Count} upper tile candidates");
         return list;
     }
 
@@ -542,19 +588,36 @@ public class Spawner : MonoBehaviour
     {
         if (candidates == null || candidates.Count == 0) return Vector2Int.zero;
 
-        float sum = 0f;
-        for (int i = 0; i < candidates.Count; i++)
+        // Filter out candidates that don't have valid tiles
+        List<TileCandidate> validCandidates = new List<TileCandidate>();
+        foreach (var candidate in candidates)
         {
-            if (!allowReuse && occupied.Contains(candidates[i].coordinate)) continue;
-            sum += candidates[i].weight;
+            Vector3 testPosition;
+            if (TryGetTileWorldCentre(candidate.coordinate.x, candidate.coordinate.y, out testPosition))
+            {
+                validCandidates.Add(candidate);
+            }
+            else
+            {
+                Debug.LogWarning($"[Spawner] Tile {candidate.coordinate.x}_{candidate.coordinate.y} no longer exists, removing from candidates.");
+            }
+        }
+
+        if (validCandidates.Count == 0) return Vector2Int.zero;
+
+        float sum = 0f;
+        for (int i = 0; i < validCandidates.Count; i++)
+        {
+            if (!allowReuse && occupied.Contains(validCandidates[i].coordinate)) continue;
+            sum += validCandidates[i].weight;
         }
 
         if (sum <= 0f)
         {
             if (allowReuse)
             {
-                int idx = Random.Range(0, candidates.Count);
-                return candidates[idx].coordinate;
+                int idx = Random.Range(0, validCandidates.Count);
+                return validCandidates[idx].coordinate;
             }
             return Vector2Int.zero;
         }
@@ -562,14 +625,14 @@ public class Spawner : MonoBehaviour
         float pick = Random.Range(0f, sum);
         float acc = 0f;
 
-        for (int i = 0; i < candidates.Count; i++)
+        for (int i = 0; i < validCandidates.Count; i++)
         {
-            if (!allowReuse && occupied.Contains(candidates[i].coordinate)) continue;
-            acc += candidates[i].weight;
-            if (pick <= acc) return candidates[i].coordinate;
+            if (!allowReuse && occupied.Contains(validCandidates[i].coordinate)) continue;
+            acc += validCandidates[i].weight;
+            if (pick <= acc) return validCandidates[i].coordinate;
         }
 
-        return candidates[candidates.Count - 1].coordinate;
+        return validCandidates[validCandidates.Count - 1].coordinate;
     }
 
     private bool TryGetTileWorldCentre(int qa, int ra, out Vector3 centre)

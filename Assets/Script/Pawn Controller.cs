@@ -234,7 +234,15 @@ public class PawnController : MonoBehaviour
                 float desiredDirection = Mathf.Sign(toPlayer.x);
                 if(IsLedgeAhead(desiredDirection))
                 {
-                    currentMoveDirection = 0f; // Stop if ledge detected
+                    // Try alternative: jump if possible, otherwise try opposite direction briefly
+                    if(CanSafelyJumpGap(desiredDirection))
+                    {
+                        TryJumpGap(desiredDirection);
+                        currentMoveDirection = desiredDirection * 0.5f; // Reduced speed for jumping
+                    } else
+                    {
+                        currentMoveDirection = 0f; // Stop if no safe options
+                    }
                 } else
                 {
                     currentMoveDirection = desiredDirection;
@@ -260,7 +268,7 @@ public class PawnController : MonoBehaviour
                     float desiredDirection = Mathf.Sign(toPlayer.x);
                     if(IsLedgeAhead(desiredDirection))
                     {
-                        currentMoveDirection = 0f; // Stop if ledge detected
+                        HandleLedgeEncounter(desiredDirection);
                     } else
                     {
                         currentMoveDirection = desiredDirection;
@@ -277,7 +285,7 @@ public class PawnController : MonoBehaviour
                     float desiredDirection = Mathf.Sign(toPlayer.x);
                     if(IsLedgeAhead(desiredDirection))
                     {
-                        currentMoveDirection = 0f; // Stop if ledge detected
+                        HandleLedgeEncounter(desiredDirection);
                     } else
                     {
                         currentMoveDirection = desiredDirection;
@@ -289,7 +297,7 @@ public class PawnController : MonoBehaviour
                     float desiredDirection = -Mathf.Sign(toPlayer.x);
                     if(IsLedgeAhead(desiredDirection))
                     {
-                        currentMoveDirection = 0f; // Stop if ledge detected
+                        HandleLedgeEncounter(desiredDirection);
                     } else
                     {
                         currentMoveDirection = desiredDirection;
@@ -306,7 +314,7 @@ public class PawnController : MonoBehaviour
                     float desiredDirection = -Mathf.Sign(toPlayer.x);
                     if(IsLedgeAhead(desiredDirection))
                     {
-                        currentMoveDirection = 0f; // Stop if ledge detected
+                        HandleLedgeEncounter(desiredDirection);
                     } else
                     {
                         currentMoveDirection = desiredDirection;
@@ -315,6 +323,88 @@ public class PawnController : MonoBehaviour
                 } else currentMoveDirection = 0f;
                 break;
         }
+    }
+
+    /// Handle encountering a ledge with smart behavior options.
+    private void HandleLedgeEncounter(float desiredDirection)
+    {
+        // Option 1: Try to jump the gap if it's safe
+        if(CanSafelyJumpGap(desiredDirection))
+        {
+            TryJumpGap(desiredDirection);
+            currentMoveDirection = desiredDirection * 0.6f; // Reduced speed for precision
+            return;
+        }
+
+        // Option 2: For aggressive AI types, try moving in opposite direction briefly
+        if(aiType == AIType.Basic || aiType == AIType.Shotgun)
+        {
+            float alternateDirection = -desiredDirection;
+            if(!IsLedgeAhead(alternateDirection))
+            {
+                currentMoveDirection = alternateDirection * 0.3f; // Very slow alternate movement
+                return;
+            }
+        }
+
+        // Option 3: Stop moving (safest fallback)
+        currentMoveDirection = 0f;
+    }
+
+    /// Check if the pawn can safely jump a gap in the given direction.
+    private bool CanSafelyJumpGap(float direction)
+    {
+        if(!isGrounded || rigidBody == null) return false;
+
+        float maxGapDist = 2f;
+        float farCheckDist = 2f;
+        float edgeOffset = 0.5f;
+        float edgeVertical = 0.5f;
+
+        if(pawnCustomiser != null)
+        {
+            maxGapDist = pawnCustomiser.platformerMovement.maxJumpableGap;
+            farCheckDist = pawnCustomiser.platformerMovement.farGroundCheckDistance;
+            edgeOffset = pawnCustomiser.platformerMovement.edgeCheckOffset;
+            edgeVertical = pawnCustomiser.platformerMovement.edgeCheckVerticalOffset;
+        }
+
+        Vector2 position = transform.position;
+        
+        // Check if there's ground after the gap at a reasonable distance
+        for(float checkDist = maxGapDist * 0.5f; checkDist <= maxGapDist; checkDist += 0.5f)
+        {
+            Vector2 farCheck = position + new Vector2(direction * checkDist, -edgeVertical);
+            RaycastHit2D farHit = Physics2D.Raycast(farCheck, Vector2.down, farCheckDist, groundLayer);
+
+            if(farHit.collider != null)
+            {
+                // Check if the landing spot is at a reasonable height
+                float heightDifference = farHit.point.y - position.y;
+                if(heightDifference > -3f && heightDifference < 1f) // Not too far down or up
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// Attempt to jump a gap with appropriate force.
+    private void TryJumpGap(float direction)
+    {
+        if(!isGrounded || rigidBody == null) return;
+
+        float jumpForceValue = 8f;
+        if(pawnCustomiser != null)
+        {
+            jumpForceValue = pawnCustomiser.platformerMovement.jumpForce;
+        }
+
+        // Apply slightly more horizontal force for gap jumping
+        Vector2 jumpVector = new Vector2(direction * jumpForceValue * 0.3f, jumpForceValue);
+        rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x + jumpVector.x, jumpVector.y);
     }
 
     private void CheckGroundStatus()
@@ -384,46 +474,125 @@ public class PawnController : MonoBehaviour
         }
     }
 
-    /// Check if there's a ledge ahead in the specified direction to prevent falling off edges.
+    /// Enhanced ledge detection with multiple rays and smart behavior.
+    /// Uses fixed detection width for robust results regardless of pawn size.
     private bool IsLedgeAhead(float direction)
     {
         if(!isGrounded || Mathf.Abs(direction) < 0.1f) return false;
 
-        // Get ledge detection parameters from customiser or use defaults.
-        float ledgeCheckDistance = 0.8f; // How far ahead to check
-        float ledgeCheckDepth = 1.5f; // How far down to raycast
-        float ledgeCheckOffset = 0.3f; // Vertical offset from pawn center
+        // Get ledge detection parameters from customiser or use improved defaults.
+        float ledgeCheckDistance = 1.0f;
+        float ledgeCheckDepth = 2.0f;
+        float ledgeCheckOffset = 0.2f;
+        int rayCount = 3;
+        float maxSafeDropDistance = 1.0f;
+        float safeGroundThreshold = 0.5f;
 
         if(pawnCustomiser != null)
         {
             ledgeCheckDistance = pawnCustomiser.platformerMovement.edgeCheckOffset;
             ledgeCheckDepth = pawnCustomiser.platformerMovement.edgeRaycastDistance;
             ledgeCheckOffset = pawnCustomiser.platformerMovement.edgeCheckVerticalOffset;
+            rayCount = pawnCustomiser.platformerMovement.ledgeDetectionRayCount;
+            maxSafeDropDistance = pawnCustomiser.platformerMovement.maxSafeDropDistance;
+            safeGroundThreshold = pawnCustomiser.platformerMovement.safeGroundThreshold;
         }
 
         Vector2 pawnPosition = transform.position;
         
-        // Cast two rays: one at the bottom-left and one at the bottom-right of where the pawn would step
-        Vector2 leftRayStart = pawnPosition + new Vector2(direction * ledgeCheckDistance - 0.2f, -ledgeCheckOffset);
-        Vector2 rightRayStart = pawnPosition + new Vector2(direction * ledgeCheckDistance + 0.2f, -ledgeCheckOffset);
-
-        RaycastHit2D leftHit = Physics2D.Raycast(leftRayStart, Vector2.down, ledgeCheckDepth, groundLayer);
-        RaycastHit2D rightHit = Physics2D.Raycast(rightRayStart, Vector2.down, ledgeCheckDepth, groundLayer);
-
-        // If either ray doesn't hit ground, there's a ledge
-        bool isLedge = (leftHit.collider == null || rightHit.collider == null);
-
-        // Debug visualization (optional - can be removed in production)
-        if(isLedge)
+        // Use a robust fixed detection width instead of relying on pawn's collider size
+        // This ensures consistent detection regardless of pawn size
+        float detectionWidth = 0.8f; // Fixed robust detection width
+        
+        // Cast multiple rays across the detection width for comprehensive coverage
+        int safeGroundHits = 0;
+        float stepSize = rayCount > 1 ? detectionWidth / (rayCount - 1) : 0f;
+        
+        for(int i = 0; i < rayCount; i++)
         {
-            Debug.DrawRay(leftRayStart, Vector2.down * ledgeCheckDepth, Color.red, 0.1f);
-            Debug.DrawRay(rightRayStart, Vector2.down * ledgeCheckDepth, Color.red, 0.1f);
-        } else
-        {
-            Debug.DrawRay(leftRayStart, Vector2.down * ledgeCheckDepth, Color.green, 0.1f);
-            Debug.DrawRay(rightRayStart, Vector2.down * ledgeCheckDepth, Color.green, 0.1f);
+            float rayOffset = rayCount > 1 ? -detectionWidth * 0.5f + (i * stepSize) : 0f;
+            Vector2 rayStart = pawnPosition + new Vector2(direction * ledgeCheckDistance + rayOffset, -ledgeCheckOffset);
+            
+            RaycastHit2D hit = Physics2D.Raycast(rayStart, Vector2.down, ledgeCheckDepth, groundLayer);
+            
+            if(hit.collider != null)
+            {
+                // Check if the ground is at a safe distance
+                float dropDistance = Mathf.Abs(hit.point.y - (pawnPosition.y - ledgeCheckOffset));
+                if(dropDistance <= maxSafeDropDistance)
+                {
+                    safeGroundHits++;
+                    Debug.DrawRay(rayStart, Vector2.down * hit.distance, Color.green, 0.1f);
+                } else
+                {
+                    // Ground exists but it's too far down (dangerous drop)
+                    Debug.DrawRay(rayStart, Vector2.down * hit.distance, Color.yellow, 0.1f);
+                }
+            } else
+            {
+                // No ground detected
+                Debug.DrawRay(rayStart, Vector2.down * ledgeCheckDepth, Color.red, 0.1f);
+            }
         }
-
+        
+        // Additional comprehensive safety checks with multiple forward positions
+        bool hasAdequateForwardSupport = false;
+        int forwardSupportChecks = 3;
+        int forwardSupportHits = 0;
+        
+        for(int i = 0; i < forwardSupportChecks; i++)
+        {
+            float forwardDistance = ledgeCheckDistance * (0.5f + (i * 0.2f)); // Check at 0.5x, 0.7x, 0.9x distance
+            Vector2 forwardCheck = pawnPosition + new Vector2(direction * forwardDistance, 0f);
+            RaycastHit2D forwardHit = Physics2D.Raycast(forwardCheck, Vector2.down, ledgeCheckOffset + 0.5f, groundLayer);
+            
+            if(forwardHit.collider != null)
+            {
+                forwardSupportHits++;
+                Debug.DrawRay(forwardCheck, Vector2.down * forwardHit.distance, Color.blue, 0.1f);
+            } else
+            {
+                Debug.DrawRay(forwardCheck, Vector2.down * (ledgeCheckOffset + 0.5f), Color.magenta, 0.1f);
+            }
+        }
+        
+        hasAdequateForwardSupport = forwardSupportHits >= (forwardSupportChecks / 2);
+        
+        // Enhanced ledge detection with multiple criteria:
+        // 1. Safe ground percentage check
+        float safeGroundPercentage = (float)safeGroundHits / rayCount;
+        bool insufficientSafeGround = safeGroundPercentage < safeGroundThreshold;
+        
+        // 2. Forward support check
+        bool inadequateForwardSupport = !hasAdequateForwardSupport;
+        
+        // 3. Additional edge case: Check for narrow platform detection
+        // Cast a wider ray pattern to detect very narrow platforms
+        bool narrowPlatformDetected = false;
+        if(insufficientSafeGround)
+        {
+            // Check for narrow platforms with wider spacing
+            for(float wideOffset = -0.6f; wideOffset <= 0.6f; wideOffset += 0.3f)
+            {
+                Vector2 wideRayStart = pawnPosition + new Vector2(direction * ledgeCheckDistance + wideOffset, -ledgeCheckOffset);
+                RaycastHit2D wideHit = Physics2D.Raycast(wideRayStart, Vector2.down, ledgeCheckDepth, groundLayer);
+                
+                if(wideHit.collider != null)
+                {
+                    float dropDistance = Mathf.Abs(wideHit.point.y - (pawnPosition.y - ledgeCheckOffset));
+                    if(dropDistance <= maxSafeDropDistance)
+                    {
+                        narrowPlatformDetected = true;
+                        Debug.DrawRay(wideRayStart, Vector2.down * wideHit.distance, Color.cyan, 0.1f);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Final ledge determination with robust logic
+        bool isLedge = (insufficientSafeGround && !narrowPlatformDetected) || inadequateForwardSupport;
+        
         return isLedge;
     }
 
