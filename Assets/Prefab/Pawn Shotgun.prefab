@@ -218,7 +218,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 72
   projectilePrefab: {fileID: 3184077595523901008, guid: bafa0e08a93db464abf67c8841bf19cf, type: 3}
-  muzzleFlashPrefab: {fileID: 6445666186361868711, guid: 9deea548c44c9ac4e94d6932a0d85eaf, type: 3}
+  muzzleFlashPrefab: {fileID: 8038344524183138613, guid: 0277167a12290af47801444830a2be97, type: 3}
   fireOffset: 0
   muzzleFlashDuration: 0.1
   firePoint: {fileID: 1249509717184746990}
@@ -237,7 +237,7 @@ MonoBehaviour:
   maxBlinkCount: 2
   maxTileRange: 10
   standoffLineColor: {r: 1, g: 0, b: 0, a: 1}
-  lineWidth: 0.05
+  lineWidth: 0.25
   lineMaterial: {fileID: 10308, guid: 0000000000000000f000000000000000, type: 0}
 --- !u!95 &-2120697045449838226
 Animator:

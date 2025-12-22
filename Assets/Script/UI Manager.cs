@@ -1189,7 +1189,7 @@ public class UIManager : MonoBehaviour
         // Level is loaded and game is started via Game Manager
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.LoadLevel(levelIndex);
+            // StartGame already calls LoadLevel internally, so we don't need to call it here
             GameManager.Instance.StartGame(levelIndex);
         }
 

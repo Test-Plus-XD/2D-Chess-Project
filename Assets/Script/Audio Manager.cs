@@ -39,6 +39,12 @@ public class AudioManager : MonoBehaviour
     [Tooltip("Universal menu background music (Main Menu and Level Select)")]
     // Music track played in main menu and level select screens.
     [SerializeField] private AudioClip menuMusic;
+    [Tooltip("Default Chess mode background music (fallback)")]
+    // Default music track for Chess mode when level data doesn't specify one.
+    [SerializeField] private AudioClip defaultChessMusic;
+    [Tooltip("Default Standoff mode background music (fallback)")]
+    // Default music track for Standoff mode when level data doesn't specify one.
+    [SerializeField] private AudioClip defaultStandoffMusic;
 
     [Header("Sound Effects Library")]
     [Tooltip("Button click sound")]
@@ -69,7 +75,7 @@ public class AudioManager : MonoBehaviour
     [Header("Debug")]
     [Tooltip("Show debug information")]
     // Enable debug logging for audio events.
-    [SerializeField] private bool showDebug = false;
+    [SerializeField] private bool showDebug = true;
 
     // Coroutine handle for music fade transitions.
     private Coroutine musicFadeCoroutine;
@@ -124,10 +130,34 @@ public class AudioManager : MonoBehaviour
     /// Play music clip
     public void PlayMusic(AudioClip clip, bool fade = true)
     {
-        if (clip == null) return;
+        if (showDebug)
+        {
+            Debug.Log($"[AudioManager] PlayMusic called with clip: {(clip != null ? clip.name : "NULL")}, fade: {fade}");
+            Debug.Log($"[AudioManager] MusicSource: {(musicSource != null ? "EXISTS" : "NULL")}");
+            if (musicSource != null)
+            {
+                Debug.Log($"[AudioManager] Current clip: {(musicSource.clip != null ? musicSource.clip.name : "NULL")}, isPlaying: {musicSource.isPlaying}");
+            }
+        }
+
+        if (clip == null) 
+        {
+            if (showDebug) Debug.LogWarning("[AudioManager] PlayMusic called with null clip");
+            return;
+        }
+
+        if (musicSource == null)
+        {
+            if (showDebug) Debug.LogError("[AudioManager] MusicSource is null! Cannot play music.");
+            return;
+        }
 
         // Don't restart if already playing the same clip
-        if (musicSource.clip == clip && musicSource.isPlaying) return;
+        if (musicSource.clip == clip && musicSource.isPlaying) 
+        {
+            if (showDebug) Debug.Log("[AudioManager] Same clip already playing, skipping");
+            return;
+        }
 
         if (fade)
         {
@@ -145,7 +175,7 @@ public class AudioManager : MonoBehaviour
 
         if (showDebug)
         {
-            Debug.Log($"Playing music: {clip.name}");
+            Debug.Log($"[AudioManager] Successfully started playing music: {clip.name}");
         }
     }
 
@@ -165,13 +195,32 @@ public class AudioManager : MonoBehaviour
     /// Play Chess mode music from level data
     public void PlayChessModeMusic(LevelData levelData)
     {
+        if (showDebug)
+        {
+            Debug.Log($"[AudioManager] PlayChessModeMusic called with levelData: {(levelData != null ? levelData.LevelName : "NULL")}");
+            if (levelData != null)
+            {
+                Debug.Log($"[AudioManager] ChessModeMusic clip: {(levelData.ChessModeMusic != null ? levelData.ChessModeMusic.name : "NULL")}");
+            }
+            Debug.Log($"[AudioManager] Default chess music: {(defaultChessMusic != null ? defaultChessMusic.name : "NULL")}");
+        }
+
         if (levelData != null && levelData.ChessModeMusic != null)
         {
+            if (showDebug) Debug.Log($"[AudioManager] Playing level-specific chess mode music: {levelData.ChessModeMusic.name}");
             PlayMusic(levelData.ChessModeMusic, fade: true);
         }
-        else if (showDebug)
+        else if (defaultChessMusic != null)
         {
-            Debug.LogWarning("[AudioManager] Chess mode music not found in level data, falling back to menu music.");
+            if (showDebug) Debug.Log($"[AudioManager] Level data missing chess music, using default: {defaultChessMusic.name}");
+            PlayMusic(defaultChessMusic, fade: true);
+        }
+        else
+        {
+            if (showDebug)
+            {
+                Debug.LogWarning("[AudioManager] No chess mode music available, falling back to menu music.");
+            }
             PlayMenuMusic();
         }
     }
@@ -179,13 +228,38 @@ public class AudioManager : MonoBehaviour
     /// Play Standoff mode music from level data
     public void PlayStandoffModeMusic(LevelData levelData)
     {
+        if (showDebug)
+        {
+            Debug.Log($"[AudioManager] PlayStandoffModeMusic called with levelData: {(levelData != null ? levelData.LevelName : "NULL")}");
+            if (levelData != null)
+            {
+                Debug.Log($"[AudioManager] StandoffModeMusic clip: {(levelData.StandoffModeMusic != null ? levelData.StandoffModeMusic.name : "NULL")}");
+            }
+            Debug.Log($"[AudioManager] Default standoff music: {(defaultStandoffMusic != null ? defaultStandoffMusic.name : "NULL")}");
+        }
+
         if (levelData != null && levelData.StandoffModeMusic != null)
         {
+            if (showDebug) Debug.Log($"[AudioManager] Playing level-specific standoff mode music: {levelData.StandoffModeMusic.name}");
             PlayMusic(levelData.StandoffModeMusic, fade: true);
         }
-        else if (showDebug)
+        else if (defaultStandoffMusic != null)
         {
-            Debug.LogWarning("[AudioManager] Standoff mode music not found in level data.");
+            if (showDebug) Debug.Log($"[AudioManager] Level data missing standoff music, using default: {defaultStandoffMusic.name}");
+            PlayMusic(defaultStandoffMusic, fade: true);
+        }
+        else if (defaultChessMusic != null)
+        {
+            if (showDebug) Debug.Log($"[AudioManager] No standoff music available, falling back to default chess music: {defaultChessMusic.name}");
+            PlayMusic(defaultChessMusic, fade: true);
+        }
+        else
+        {
+            if (showDebug)
+            {
+                Debug.LogWarning("[AudioManager] No standoff or chess mode music available, falling back to menu music.");
+            }
+            PlayMenuMusic();
         }
     }
 
@@ -322,6 +396,12 @@ public class AudioManager : MonoBehaviour
     /// Get SFX volume
     public float GetSFXVolume() => sfxVolume;
 
+    /// Get default chess mode music
+    public AudioClip GetDefaultChessMusic() => defaultChessMusic;
+
+    /// Get default standoff mode music
+    public AudioClip GetDefaultStandoffMusic() => defaultStandoffMusic;
+
     private void InitializeSoundLibrary()
     {
         soundLibrary.Clear();
@@ -351,6 +431,8 @@ public class AudioManager : MonoBehaviour
 
     private IEnumerator FadeMusic(AudioClip newClip)
     {
+        if (showDebug) Debug.Log($"[AudioManager] Starting fade to: {newClip.name}");
+        
         // Fade out current music
         float startVolume = musicSource.volume;
         float elapsed = 0f;
@@ -366,6 +448,8 @@ public class AudioManager : MonoBehaviour
         musicSource.Stop();
         musicSource.clip = newClip;
         musicSource.Play();
+        
+        if (showDebug) Debug.Log($"[AudioManager] Switched to clip: {newClip.name}, starting fade in");
 
         // Fade in new music
         elapsed = 0f;
@@ -380,6 +464,8 @@ public class AudioManager : MonoBehaviour
 
         musicSource.volume = targetVolume;
         musicFadeCoroutine = null;
+        
+        if (showDebug) Debug.Log($"[AudioManager] Fade complete for: {newClip.name}");
     }
 
     private IEnumerator FadeOutMusic()

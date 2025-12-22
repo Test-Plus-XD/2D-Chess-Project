@@ -55,9 +55,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int standoffTriggerCount = 1;
 
     [Header("Level Presets")]
-    [Tooltip("Array of level data (3 levels)")]
+    [Tooltip("Array of level data (5 levels)")]
     // Array of all available level configurations.
-    [SerializeField] private LevelData[] levels = new LevelData[3];
+    [SerializeField] private LevelData[] levels = new LevelData[5];
 
     [Header("Current Level")]
     [Tooltip("Currently loaded level (viewable in inspector)")]
@@ -410,6 +410,10 @@ public class GameManager : MonoBehaviour
 
         // Load level data before setting state to ensure BGM and settings are available
         LoadLevel(levelIndex);
+        
+        // Ensure proper initialization after level load
+        StartCoroutine(EnsurePlayerControlAfterLevelLoad());
+        
         SetState(GameState.ChessMode);
     }
 
@@ -433,23 +437,96 @@ public class GameManager : MonoBehaviour
     {
         SetState(GameState.Paused);
         Time.timeScale = 0f;
+        
+        // Disable mobile controls when paused
+        if (InputSystem.Instance != null)
+        {
+            InputSystem.Instance.SetMobileControlsVisibility(false);
+        }
+        
+        if (showDebug) Debug.Log("[GameManager] Game paused - controls disabled");
     }
 
     public void ResumeGame()
     {
         Time.timeScale = 1f;
+        
+        // Re-enable mobile controls when resumed
+        if (InputSystem.Instance != null)
+        {
+            InputSystem.Instance.SetMobileControlsVisibility(InputSystem.Instance.enableMobileControls);
+        }
+        
+        // Ensure player controller is properly configured for the current mode
+        EnsurePlayerControllerState();
+        
         SetState(hasTransitionedToStandoff ? GameState.Standoff : GameState.ChessMode);
+        
+        if (showDebug) Debug.Log("[GameManager] Game resumed - controls restored");
     }
 
     public void ReturnToMainMenu()
     {
         Time.timeScale = 1f;
+        
+        // Re-enable mobile controls when returning to main menu
+        if (InputSystem.Instance != null)
+        {
+            InputSystem.Instance.SetMobileControlsVisibility(InputSystem.Instance.enableMobileControls);
+        }
+        
         SetState(GameState.MainMenu);
     }
 
     public void OpenLevelSelect()
     {
         SetState(GameState.LevelSelect);
+    }
+
+    public void SetSlowMotion(float timeScale, bool affectAudio = false)
+    {
+        if (TimeController.Instance != null)
+        {
+            TimeController.Instance.SetCustomTimeScale(timeScale, affectAudio);
+        }
+        
+        if (showDebug)
+        {
+            Debug.Log($"Slow motion set to {timeScale:F2}x speed, audio affected: {affectAudio}");
+        }
+    }
+
+    public void ResetTimeScale()
+    {
+        if (TimeController.Instance != null)
+        {
+            TimeController.Instance.ResetTime();
+        }
+        
+        if (showDebug)
+        {
+            Debug.Log("Time scale reset to normal");
+        }
+    }
+
+    // Convenient preset methods for slow motion
+    public void SetSlowMotion25Percent() { SetSlowMotion(0.25f, false); }
+    public void SetSlowMotion50Percent() { SetSlowMotion(0.5f, false); }
+    public void SetSlowMotion75Percent() { SetSlowMotion(0.75f, false); }
+    public void SetSlowMotion10Percent() { SetSlowMotion(0.1f, false); }
+    
+    // Slow motion with audio affected
+    public void SetSlowMotionWithAudio25Percent() { SetSlowMotion(0.25f, true); }
+    public void SetSlowMotionWithAudio50Percent() { SetSlowMotion(0.5f, true); }
+    
+    // Check if slow motion should be disabled due to user input
+    public bool ShouldDisableSlowMotionForInput()
+    {
+        if (TimeController.Instance != null)
+        {
+            return TimeController.Instance.IsInputDetected;
+        }
+        return false;
     }
 
     public void TriggerStandoff()
@@ -501,6 +578,7 @@ public class GameManager : MonoBehaviour
         if (showDebug)
         {
             Debug.Log($"[LoadLevel] SUCCESS - Loading Level {levelIndex + 1} (array index {levelIndex}): {currentLevelData.LevelName}");
+            Debug.Log($"[LoadLevel] Level BGM - Chess: {(currentLevelData.ChessModeMusic != null ? currentLevelData.ChessModeMusic.name : "NULL")}, Standoff: {(currentLevelData.StandoffModeMusic != null ? currentLevelData.StandoffModeMusic.name : "NULL")}");
         }
 
         ApplyLevelSettings();
@@ -601,15 +679,15 @@ public class GameManager : MonoBehaviour
                 {
                     TimeController.Instance.ResetTime();
                 }
-                // Cleanup board when leaving Standoff (but NOT when going to Victory/Defeat)
-                if (to != GameState.Victory && to != GameState.Defeat)
+                // Cleanup board when leaving Standoff (but NOT when going to Victory/Defeat or Paused)
+                if (to != GameState.Victory && to != GameState.Defeat && to != GameState.Paused)
                 {
                     CleanupGameBoard();
                 }
                 break;
             case GameState.ChessMode:
-                // Cleanup board when leaving Chess mode (but NOT when going to Standoff)
-                if (to != GameState.Standoff)
+                // Cleanup board when leaving Chess mode (but NOT when going to Standoff or Paused)
+                if (to != GameState.Standoff && to != GameState.Paused)
                 {
                     CleanupGameBoard();
                 }
@@ -640,9 +718,21 @@ public class GameManager : MonoBehaviour
             case GameState.ChessMode:
                 SetupChessMode();
                 // Play Chess mode music from level data
+                if (showDebug)
+                {
+                    Debug.Log($"[GameManager] Transitioning to ChessMode, currentLevelData: {(currentLevelData != null ? currentLevelData.LevelName : "NULL")}");
+                    if (currentLevelData != null)
+                    {
+                        Debug.Log($"[GameManager] ChessModeMusic: {(currentLevelData.ChessModeMusic != null ? currentLevelData.ChessModeMusic.name : "NULL")}");
+                    }
+                }
                 if (AudioManager.Instance != null)
                 {
                     AudioManager.Instance.PlayChessModeMusic(currentLevelData);
+                }
+                else if (showDebug)
+                {
+                    Debug.LogWarning("[GameManager] AudioManager.Instance is null when trying to play Chess mode music");
                 }
                 // Initialize turn indicator to player's turn
                 if (UIManager.Instance != null)
@@ -673,10 +763,18 @@ public class GameManager : MonoBehaviour
 
         // Find player controller if not already assigned
         if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
-        if (playerController != null) playerController.SetStandoffMode(false);
+        if (playerController != null) 
+        {
+            playerController.SetStandoffMode(false);
+            // Ensure player controller is properly initialized
+            EnsurePlayerControllerState();
+        }
 
         // Restore all tiles to original white color when starting chess mode
         WeaponSystem.RestoreAllTilesGlobally();
+        
+        // Ensure input system is properly configured
+        EnsureInputSystemState();
     }
 
     private void SetupStandoffMode()
@@ -687,8 +785,17 @@ public class GameManager : MonoBehaviour
 
         // Find player controller if not already assigned
         if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
-        if (playerController != null) playerController.SetStandoffMode(true);
+        if (playerController != null) 
+        {
+            playerController.SetStandoffMode(true);
+            // Ensure player controller is properly initialized
+            EnsurePlayerControllerState();
+        }
+        
         OnStandoffBegin?.Invoke();
+        
+        // Ensure input system is properly configured
+        EnsureInputSystemState();
     }
 
     private void CheckStandoffCondition()
@@ -827,11 +934,107 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
+    #region Private Methods - State Management Helpers
+
+    /// Ensure the player controller is in the correct state for the current game mode
+    private void EnsurePlayerControllerState()
+    {
+        if (playerController == null) 
+        {
+            playerController = FindFirstObjectByType<PlayerController>();
+        }
+        
+        if (playerController != null)
+        {
+            // Ensure the player controller is enabled and active
+            if (!playerController.enabled)
+            {
+                playerController.enabled = true;
+                if (showDebug) Debug.Log("[GameManager] Re-enabled PlayerController");
+            }
+            
+            if (!playerController.gameObject.activeInHierarchy)
+            {
+                playerController.gameObject.SetActive(true);
+                if (showDebug) Debug.Log("[GameManager] Re-activated PlayerController GameObject");
+            }
+            
+            // Ensure correct mode is set
+            bool shouldBeStandoff = (currentState == GameState.Standoff);
+            playerController.SetStandoffMode(shouldBeStandoff);
+            
+            // Ensure proper initialization
+            playerController.EnsureProperInitialization();
+            
+            if (showDebug) Debug.Log($"[GameManager] PlayerController state ensured - Standoff mode: {shouldBeStandoff}");
+        }
+        else if (showDebug)
+        {
+            Debug.LogWarning("[GameManager] PlayerController not found when trying to ensure state");
+        }
+    }
+
+    /// Ensure the input system is properly configured and visible
+    private void EnsureInputSystemState()
+    {
+        if (InputSystem.Instance != null)
+        {
+            // Ensure input system is enabled
+            if (!InputSystem.Instance.enabled)
+            {
+                InputSystem.Instance.enabled = true;
+                if (showDebug) Debug.Log("[GameManager] Re-enabled InputSystem");
+            }
+            
+            // Refresh the input system to ensure proper state
+            InputSystem.Instance.RefreshInputSystem();
+            
+            if (showDebug) Debug.Log("[GameManager] InputSystem state ensured and refreshed");
+        }
+        else if (showDebug)
+        {
+            Debug.LogWarning("[GameManager] InputSystem.Instance not found when trying to ensure state");
+        }
+    }
+
+    /// Coroutine to ensure player control is properly set up after level loading
+    private IEnumerator EnsurePlayerControlAfterLevelLoad()
+    {
+        // Wait a few frames for spawning and initialization to complete
+        yield return new WaitForEndOfFrame();
+        yield return new WaitForEndOfFrame();
+        
+        // Reset input system state to ensure clean initialization
+        if (InputSystem.Instance != null)
+        {
+            InputSystem.Instance.ResetInputState();
+        }
+        
+        // Ensure player controller and input system are properly configured
+        EnsurePlayerControllerState();
+        EnsureInputSystemState();
+        
+        if (showDebug) Debug.Log("[GameManager] Player control ensured after level load");
+    }
+
+    #endregion
+
     #region Private Methods - Level Settings
 
     private void ApplyLevelSettings()
     {
-        if (currentLevelData == null) return;
+        if (currentLevelData == null) 
+        {
+            if (showDebug) Debug.LogError("[GameManager] ApplyLevelSettings called with null currentLevelData");
+            return;
+        }
+
+        if (showDebug)
+        {
+            Debug.Log($"[GameManager] ApplyLevelSettings for {currentLevelData.LevelName}");
+            Debug.Log($"[GameManager] ChessModeMusic: {(currentLevelData.ChessModeMusic != null ? currentLevelData.ChessModeMusic.name : "NULL")}");
+            Debug.Log($"[GameManager] StandoffModeMusic: {(currentLevelData.StandoffModeMusic != null ? currentLevelData.StandoffModeMusic.name : "NULL")}");
+        }
 
         // Cleanup existing board before applying new level settings
         CleanupGameBoard();
@@ -1002,6 +1205,67 @@ public class GameManager : MonoBehaviour
                 Debug.LogWarning($"Level {i} ({levels[i].LevelName}) has invalid data!");
             else
                 Debug.Log($"Level {i} ({levels[i].LevelName}) is valid");
+        }
+    }
+
+    [ContextMenu("Debug BGM System")]
+    private void DebugBGMSystem()
+    {
+        Debug.Log("=== BGM System Debug ===");
+        Debug.Log($"AudioManager.Instance: {(AudioManager.Instance != null ? "EXISTS" : "NULL")}");
+        Debug.Log($"Current Level Index: {currentLevelIndex}");
+        Debug.Log($"Current Level Data: {(currentLevelData != null ? currentLevelData.LevelName : "NULL")}");
+        
+        if (currentLevelData != null)
+        {
+            currentLevelData.DebugBGMStatus();
+        }
+        
+        Debug.Log($"Levels Array Length: {levels.Length}");
+        for (int i = 0; i < levels.Length; i++)
+        {
+            if (levels[i] != null)
+            {
+                Debug.Log($"Level {i}: {levels[i].LevelName}");
+                levels[i].DebugBGMStatus();
+            }
+            else
+            {
+                Debug.LogWarning($"Level {i}: NULL");
+            }
+        }
+        
+        if (AudioManager.Instance != null)
+        {
+            AudioSource musicSource = AudioManager.Instance.GetMusicSource();
+            Debug.Log($"Music Source: {(musicSource != null ? "EXISTS" : "NULL")}");
+            if (musicSource != null)
+            {
+                Debug.Log($"Current Clip: {(musicSource.clip != null ? musicSource.clip.name : "NULL")}");
+                Debug.Log($"Is Playing: {musicSource.isPlaying}");
+                Debug.Log($"Volume: {musicSource.volume}");
+            }
+            
+            // Show fallback BGM status
+            AudioClip defaultChess = AudioManager.Instance.GetDefaultChessMusic();
+            AudioClip defaultStandoff = AudioManager.Instance.GetDefaultStandoffMusic();
+            Debug.Log($"Default Chess Music: {(defaultChess != null ? defaultChess.name : "NULL")}");
+            Debug.Log($"Default Standoff Music: {(defaultStandoff != null ? defaultStandoff.name : "NULL")}");
+        }
+    }
+
+    [ContextMenu("Test Chess BGM")]
+    private void TestChessBGM()
+    {
+        Debug.Log("=== Testing Chess BGM ===");
+        if (AudioManager.Instance != null && currentLevelData != null)
+        {
+            Debug.Log($"Testing BGM for {currentLevelData.LevelName}");
+            AudioManager.Instance.PlayChessModeMusic(currentLevelData);
+        }
+        else
+        {
+            Debug.LogError("AudioManager or currentLevelData is null");
         }
     }
 

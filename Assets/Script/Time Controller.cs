@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem.EnhancedTouch;
 
 /// Controls time scale for SUPERHOT-style slow motion during Standoff mode
 public class TimeController : MonoBehaviour
@@ -31,7 +32,7 @@ public class TimeController : MonoBehaviour
     [Header("Audio Pitch")]
     [Tooltip("Match audio pitch to time scale (affects all audio including BGM)")]
     // Whether to adjust audio pitch to match the time scale.
-    [SerializeField] private bool adjustAudioPitch = true;
+    [SerializeField] private bool adjustAudioPitch = false; // Changed default to false
     [Tooltip("Minimum audio pitch")]
     // Minimum pitch to prevent audio from becoming inaudible.
     [SerializeField][Range(0.1f, 1f)] private float minAudioPitch = 0.3f;
@@ -52,6 +53,9 @@ public class TimeController : MonoBehaviour
     public bool IsSlowMotionEnabled => slowMotionEnabled;
     /// Get the current time scale
     public float CurrentTimeScale => currentTimeScale;
+    
+    /// Check if any input is currently being detected
+    public bool IsInputDetected => isPlayerMoving;
 
     private void Awake()
     {
@@ -136,6 +140,40 @@ public class TimeController : MonoBehaviour
         slowMotionTimeScale = Mathf.Clamp(scale, 0.01f, 1f);
     }
 
+    /// Enable or disable audio pitch adjustment
+    public void SetAudioPitchAdjustment(bool enabled)
+    {
+        adjustAudioPitch = enabled;
+        if (!enabled)
+        {
+            // Reset all audio to normal pitch
+            AdjustAudioPitch(1f);
+        }
+    }
+
+    /// Set a custom time scale without affecting the slow motion system
+    public void SetCustomTimeScale(float scale, bool affectAudio = false)
+    {
+        Time.timeScale = Mathf.Clamp(scale, 0.01f, 2f);
+        currentTimeScale = Time.timeScale;
+        
+        if (affectAudio && adjustAudioPitch)
+        {
+            float pitch = Mathf.Max(minAudioPitch, Time.timeScale);
+            AdjustAudioPitch(pitch);
+        }
+        else if (!affectAudio)
+        {
+            // Keep audio at normal pitch
+            AdjustAudioPitch(1f);
+        }
+        
+        if (showDebug)
+        {
+            Debug.Log($"Custom time scale set to {Time.timeScale:F2}, audio affected: {affectAudio}");
+        }
+    }
+
     /// Temporarily override time scale (for cutscenes, etc.)
     public void SetTimeScale(float scale)
     {
@@ -161,6 +199,7 @@ public class TimeController : MonoBehaviour
         // Check for input from mobile or keyboard
         Vector2 movement = Vector2.zero;
         bool hasJumpInput = false;
+        bool hasAnyInput = false;
 
         // Input system (unified mobile/desktop)
         if (InputSystem.Instance != null)
@@ -177,8 +216,37 @@ public class TimeController : MonoBehaviour
             hasJumpInput = Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow);
         }
 
-        // Consider any movement or jump input as player activity
-        isPlayerMoving = movement.magnitude >= movementThreshold || hasJumpInput;
+        // Check for any keyboard input
+        bool hasKeyboardInput = Input.anyKeyDown || Input.anyKey;
+
+        // Check for any touch/mouse input
+        bool hasTouchInput = false;
+        
+        // Enhanced Touch Support (mobile)
+        if (UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches.Count > 0)
+        {
+            hasTouchInput = true;
+        }
+        
+        // Legacy Input System fallback for touch
+        if (Input.touchCount > 0)
+        {
+            hasTouchInput = true;
+        }
+        
+        // Mouse input (desktop)
+        bool hasMouseInput = Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.GetMouseButton(2) ||
+                            Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1) || Input.GetMouseButtonDown(2);
+
+        // Consider any input as player activity
+        hasAnyInput = movement.magnitude >= movementThreshold || hasJumpInput || hasKeyboardInput || hasTouchInput || hasMouseInput;
+        
+        isPlayerMoving = hasAnyInput;
+        
+        if (showDebug && hasAnyInput)
+        {
+            Debug.Log($"[TimeController] Input detected - Movement: {movement.magnitude:F2}, Jump: {hasJumpInput}, Keyboard: {hasKeyboardInput}, Touch: {hasTouchInput}, Mouse: {hasMouseInput}");
+        }
     }
 
     private void AdjustAudioPitch(float pitch)

@@ -1023,3 +1023,129 @@ UIManager.Instance.ShowStageChangeMessage(PawnController.AIType.Handcannon);
   - Console logs: "Spawned projectile: angle=X°, offset=Y°, X-flip=Z°"
 
 ---
+
+---
+
+## Recent Updates (Player Control Fixes)
+
+### Issue Fixed: Player Control After Level Load and Pause/Resume
+
+**Problem**: Player could lose control of their pawn after level loading and after pausing/resuming the game in both Chess and Standoff modes.
+
+**Root Causes Identified**:
+1. Input System state not properly restored after pause/resume
+2. Player Controller references could become stale after level loading
+3. Mobile controls visibility not properly managed during state transitions
+4. Component initialization timing issues during spawning
+
+**Solutions Implemented**:
+
+#### 1. Enhanced Game Manager State Management
+- **New Methods**:
+  - `EnsurePlayerControllerState()` - Verifies and corrects player controller state
+  - `EnsureInputSystemState()` - Ensures input system is properly configured
+  - `EnsurePlayerControlAfterLevelLoad()` - Coroutine for post-level-load initialization
+
+- **Enhanced Pause/Resume**:
+  ```csharp
+  public void ResumeGame()
+  {
+      Time.timeScale = 1f;
+      
+      // Re-enable mobile controls when resumed
+      if (InputSystem.Instance != null)
+      {
+          InputSystem.Instance.SetMobileControlsVisibility(InputSystem.Instance.enableMobileControls);
+      }
+      
+      // Ensure player controller is properly configured for the current mode
+      EnsurePlayerControllerState();
+      
+      SetState(hasTransitionedToStandoff ? GameState.Standoff : GameState.ChessMode);
+  }
+  ```
+
+#### 2. Input System Robustness
+- **New Methods**:
+  - `ResetInputState()` - Cleans up input state after level load
+  - `RefreshInputSystem()` - Forces refresh of input system state
+
+- **Enhanced Mobile Control Management**:
+  ```csharp
+  public void ResetInputState()
+  {
+      jumpInputThisFrame = false;
+      
+      // Ensure mobile controls are properly configured
+      if (autoDetectPlatform)
+      {
+          // Re-detect platform and configure controls
+      }
+      
+      SetMobileControlsVisibility(enableMobileControls);
+  }
+  ```
+
+#### 3. Player Controller Initialization
+- **New Method**: `EnsureProperInitialization()` - Comprehensive state verification
+  - Ensures all component references are valid (camera, rigidbody, sprite renderer)
+  - Resets stuck input states
+  - Configures rigidbody for current mode (Kinematic/Dynamic)
+  - Validates physics settings
+
+- **Enhanced Safety Checks**:
+  ```csharp
+  private void Update()
+  {
+      // Don't update player when game is paused
+      if (Time.timeScale == 0f) return;
+      
+      // Safety check: ensure we have required references
+      if (camera == null) camera = Camera.main;
+      
+      // Continue with normal update logic...
+  }
+  ```
+
+#### 4. Mode Setup Improvements
+- **Enhanced `SetupChessMode()` and `SetupStandoffMode()`**:
+  - Now call state management helpers after mode configuration
+  - Ensure proper initialization when switching between modes
+  - Verify input system state after mode changes
+
+#### 5. Level Loading Process
+- **Post-Load Initialization**:
+  ```csharp
+  public void StartGame(int levelIndex)
+  {
+      // Load level data
+      LoadLevel(levelIndex);
+      
+      // Ensure proper initialization after level load
+      StartCoroutine(EnsurePlayerControlAfterLevelLoad());
+      
+      SetState(GameState.ChessMode);
+  }
+  ```
+
+- **Coroutine ensures**:
+  - Waits for spawning to complete
+  - Resets input system state
+  - Verifies player controller configuration
+  - Refreshes input system
+
+**Benefits**:
+- ✅ Player control reliably works after level loading
+- ✅ Pause/resume properly restores control in both modes
+- ✅ Mobile controls correctly show/hide based on game state
+- ✅ Robust error recovery if components become disabled
+- ✅ Enhanced debug logging for troubleshooting
+- ✅ Works consistently across Chess and Standoff modes
+
+**Debug Features Added**:
+- Comprehensive logging in all state management methods
+- Component state verification with warnings
+- Input system state tracking
+- Player controller initialization confirmation
+
+This ensures players have reliable control of their pawn regardless of game state transitions, level loading, or pause/resume operations.

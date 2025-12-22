@@ -40,7 +40,7 @@ MonoBehaviour:
   RandomTileCount: 5
   OpponentFireRate: 1
   DetectionRange: 10
-  ChessModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
-  StandoffModeMusic: {fileID: 8300000, guid: b17c98edf5aa9384c8c31ea01e00ac3b, type: 3}
+  ChessModeMusic: {fileID: 8300000, guid: 97818ab369372e94eb8e482891d4a755, type: 3}
+  StandoffModeMusic: {fileID: 8300000, guid: 97818ab369372e94eb8e482891d4a755, type: 3}
   Skybox: {fileID: 2100000, guid: 72deae4d18418f94688abef8e8483df0, type: 2}
   ShowInGameBackground: 0

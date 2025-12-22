@@ -155,14 +155,15 @@ MonoBehaviour:
   - {fileID: 4099644083396423743}
   - {fileID: 2339073233714654567}
   standoffMoveSpeed: 5
-  jumpForce: 13.5
+  jumpForce: 12.5
   standoffGravityScale: 2
   maxFallSpeed: 15
   groundCheckDistance: 0.5
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
-  airControl: 0.8
+  airControl: 0.75
+  showDebug: 0
 --- !u!114 &5653632106158436592
 MonoBehaviour:
   m_ObjectHideFlags: 0

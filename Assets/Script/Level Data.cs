@@ -163,4 +163,12 @@ public class LevelData : ScriptableObject
         if (PlayerMaxHP <= 0) return false;
         return true;
     }
+
+    /// Debug method to check BGM assignment
+    public void DebugBGMStatus()
+    {
+        Debug.Log($"[LevelData] {LevelName} BGM Status:");
+        Debug.Log($"  ChessModeMusic: {(ChessModeMusic != null ? ChessModeMusic.name : "NULL")}");
+        Debug.Log($"  StandoffModeMusic: {(StandoffModeMusic != null ? StandoffModeMusic.name : "NULL")}");
+    }
 }

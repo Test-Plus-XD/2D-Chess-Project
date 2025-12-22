@@ -57,6 +57,11 @@ public class PlayerController : MonoBehaviour
     // Multiplier for movement control while airborne.
     public float airControl = 0.8f;
 
+    [Header("Debug")]
+    [Tooltip("Show debug information")]
+    // Enable debug logging for player input and movement.
+    [SerializeField] private bool showDebug = false;
+
     // Standoff mode state
     // Whether currently in standoff platformer mode.
     private bool isStandoffMode = false;
@@ -78,12 +83,17 @@ public class PlayerController : MonoBehaviour
     private void OnEnable()
     {
         EnhancedTouchSupport.Enable();
+        
+        // Ensure proper state when re-enabled
+        if (showDebug) Debug.Log("[PlayerController] OnEnable - EnhancedTouch enabled");
     }
 
     // Disable EnhancedTouch when this component is disabled.
     private void OnDisable()
     {
         EnhancedTouchSupport.Disable();
+        
+        if (showDebug) Debug.Log("[PlayerController] OnDisable - EnhancedTouch disabled");
     }
 
     // Initialise the pawn with starting coords and a reference to the grid generator.
@@ -134,6 +144,12 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        // Don't update player when game is paused
+        if (Time.timeScale == 0f) return;
+        
+        // Safety check: ensure we have required references
+        if (camera == null) camera = Camera.main;
+        
         if (isStandoffMode)
         {
             UpdateStandoffMode();
@@ -146,6 +162,9 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // Don't update player when game is paused
+        if (Time.timeScale == 0f) return;
+        
         if (isStandoffMode)
         {
             FixedUpdateStandoffMode();
@@ -380,7 +399,11 @@ public class PlayerController : MonoBehaviour
     private void BeginPointer(Vector2 screenPos)
     {
         // Prevent player input during opponent turn
-        if (Checkerboard.Instance != null && !Checkerboard.Instance.IsPlayerTurn()) return;
+        if (Checkerboard.Instance != null && !Checkerboard.Instance.IsPlayerTurn()) 
+        {
+            if (showDebug) Debug.Log("[PlayerController] Input blocked - not player's turn");
+            return;
+        }
 
         isPointerDown = true;
         swipeStartScreen = screenPos;
@@ -633,6 +656,45 @@ public class PlayerController : MonoBehaviour
             if (directionArrows[i] == null) continue;
             directionArrows[i].SetActive(false);
         }
+    }
+
+    #endregion
+
+    #region Public Methods - State Management
+
+    /// Ensure the player controller is properly initialized and ready for input
+    public void EnsureProperInitialization()
+    {
+        // Ensure camera reference
+        if (camera == null) camera = Camera.main;
+        
+        // Ensure rigidbody reference
+        if (rigidBody == null) rigidBody = GetComponent<Rigidbody2D>();
+        
+        // Ensure sprite renderer reference
+        if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
+        
+        // Reset any stuck input states
+        isPointerDown = false;
+        
+        // Ensure proper rigidbody configuration for current mode
+        if (rigidBody != null)
+        {
+            if (isStandoffMode)
+            {
+                rigidBody.bodyType = RigidbodyType2D.Dynamic;
+                rigidBody.gravityScale = standoffGravityScale;
+                rigidBody.constraints = RigidbodyConstraints2D.FreezeRotation;
+            }
+            else
+            {
+                rigidBody.bodyType = RigidbodyType2D.Kinematic;
+                rigidBody.gravityScale = 0f;
+                rigidBody.linearVelocity = Vector2.zero;
+            }
+        }
+        
+        if (showDebug) Debug.Log($"[PlayerController] Proper initialization ensured - Standoff mode: {isStandoffMode}");
     }
 
     #endregion

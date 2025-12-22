@@ -94,6 +94,8 @@ public class WeaponSystem : MonoBehaviour
     [Header("Debug")]
     [Tooltip("Show debug lines")]
     [SerializeField] private bool showDebug = false;
+    [Tooltip("Use Debug.DrawLine as fallback for targeting visualization")]
+    [SerializeField] private bool useDebugLineFallback = false;
 
     [Header("Targeting Visualization")]
     [Tooltip("Enable targeting visualization")]
@@ -197,6 +199,9 @@ public class WeaponSystem : MonoBehaviour
 
     private void Update()
     {
+        // Don't update weapons when game is paused
+        if (IsGamePaused()) return;
+        
         if (playerTransform == null)
         {
             FindPlayer();
@@ -258,6 +263,26 @@ public class WeaponSystem : MonoBehaviour
             Gizmos.color = Color.cyan;
             Gizmos.DrawWireSphere(transform.position, detectionRange);
         }
+
+        // Draw targeting visualization in Scene view for Standoff mode
+        if (isInStandoffMode && enableTargetingVisualization)
+        {
+            Vector3 startPos = transform.position;
+            Vector3 endPos = startPos + new Vector3(aimDir.x * maxRange, aimDir.y * maxRange, 0f);
+
+            // Perform raycast to find actual end point
+            RaycastHit2D hit = Physics2D.Raycast(startPos, aimDir, maxRange);
+            if (hit.collider != null)
+            {
+                endPos = new Vector3(hit.point.x, hit.point.y, startPos.z);
+            }
+
+            Gizmos.color = standoffLineColor;
+            Gizmos.DrawLine(startPos, endPos);
+            
+            // Draw small sphere at end point
+            Gizmos.DrawWireSphere(endPos, 0.1f);
+        }
     }
 
     #endregion
@@ -266,6 +291,9 @@ public class WeaponSystem : MonoBehaviour
 
     public void ManualFire()
     {
+        // Don't fire when game is paused
+        if (IsGamePaused()) return;
+        
         if (Time.time >= lastFireTime + GetAdjustedFireInterval())
         {
             Fire();
@@ -287,6 +315,8 @@ public class WeaponSystem : MonoBehaviour
                 if (lineRenderer != null)
                 {
                     lineRenderer.enabled = true;
+                    // Refresh line renderer settings when entering standoff mode
+                    RefreshLineRendererSettings();
                 }
             }
         }
@@ -296,6 +326,47 @@ public class WeaponSystem : MonoBehaviour
             {
                 lineRenderer.enabled = false;
             }
+        }
+    }
+
+    /// Refresh line renderer settings to ensure proper visibility
+    private void RefreshLineRendererSettings()
+    {
+        if (lineRenderer == null) return;
+        
+        // Find main camera for proper positioning
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) mainCamera = FindFirstObjectByType<Camera>();
+        
+        if (mainCamera != null)
+        {
+            // Adjust sorting order based on camera type
+            if (mainCamera.orthographic)
+            {
+                // For orthographic cameras, use high sorting order
+                lineRenderer.sortingOrder = 1000;
+            }
+            else
+            {
+                // For perspective cameras, position closer to camera
+                lineRenderer.sortingOrder = 100;
+            }
+        }
+        
+        // Ensure material and color settings are applied
+        if (lineRenderer.material != null)
+        {
+            lineRenderer.material.color = standoffLineColor;
+        }
+        
+        lineRenderer.startColor = standoffLineColor;
+        lineRenderer.endColor = standoffLineColor;
+        lineRenderer.startWidth = lineWidth;
+        lineRenderer.endWidth = lineWidth;
+        
+        if (showDebug)
+        {
+            Debug.Log($"[WeaponSystem] Refreshed line renderer settings - Sorting Order: {lineRenderer.sortingOrder}, Color: {standoffLineColor}");
         }
     }
 
@@ -327,6 +398,9 @@ public class WeaponSystem : MonoBehaviour
 
     public void FireChessMode()
     {
+        // Don't fire when game is paused
+        if (IsGamePaused()) return;
+        
         if (pawnController == null) return;
         if (pawnController.aiType == PawnController.AIType.Basic) return;
         Fire();
@@ -385,6 +459,61 @@ public class WeaponSystem : MonoBehaviour
         }
     }
 
+    // Public method to enable debug mode for testing direction calculations
+    public void EnableDebugMode(bool enable)
+    {
+        showDebug = enable;
+        if (showDebug) Debug.Log("[WeaponSystem] Debug mode enabled - direction calculations will be logged");
+    }
+
+    /// Public method to adjust targeting visualization settings at runtime
+    public void UpdateTargetingVisualizationSettings(Color newLineColor, float newLineWidth, Material newMaterial = null)
+    {
+        standoffLineColor = newLineColor;
+        lineWidth = newLineWidth;
+        
+        if (newMaterial != null)
+        {
+            lineMaterial = newMaterial;
+        }
+        
+        if (lineRenderer != null)
+        {
+            lineRenderer.startColor = standoffLineColor;
+            lineRenderer.endColor = standoffLineColor;
+            lineRenderer.startWidth = lineWidth;
+            lineRenderer.endWidth = lineWidth;
+            
+            if (newMaterial != null)
+            {
+                lineRenderer.material = newMaterial;
+            }
+            else if (lineRenderer.material != null)
+            {
+                lineRenderer.material.color = standoffLineColor;
+            }
+        }
+        
+        if (showDebug)
+        {
+            Debug.Log($"[WeaponSystem] Updated targeting visualization - Color: {newLineColor}, Width: {newLineWidth}");
+        }
+    }
+
+    #endregion
+
+    #region Private Methods - Pause Detection
+    
+    private bool IsGamePaused()
+    {
+        bool paused = Time.timeScale == 0f;
+        if (paused && showDebug)
+        {
+            Debug.Log("[WeaponSystem] Firing blocked - game is paused");
+        }
+        return paused;
+    }
+    
     #endregion
 
     #region Private Methods - Initialization
@@ -404,6 +533,9 @@ public class WeaponSystem : MonoBehaviour
 
     private void UpdateAimDirection()
     {
+        // Don't update aim direction when game is paused
+        if (IsGamePaused()) return;
+        
         if (playerTransform == null) return;
 
         if (isInStandoffMode)
@@ -431,6 +563,9 @@ public class WeaponSystem : MonoBehaviour
 
     private void UpdateStandoffAiming()
     {
+        // Don't update standoff aiming when game is paused
+        if (IsGamePaused()) return;
+        
         float adjustedInterval = GetAdjustedFireInterval();
         float adjustedDelay = GetAdjustedFiringDelay();
         float timeSinceIntervalStart = Time.time - intervalStartTime;
@@ -585,6 +720,7 @@ public class WeaponSystem : MonoBehaviour
         int bestIndex = 0;
         int bestScore = -1;
 
+        // Calculate scores for all directions
         for (int dirIndex = 0; dirIndex < 6; dirIndex++)
         {
             int score = 0;
@@ -615,9 +751,51 @@ public class WeaponSystem : MonoBehaviour
             }
         }
 
+        // Debug mode: Calculate direction twice to help identify issues
         if (showDebug)
         {
-            Debug.Log($"[WeaponSystem] Best hex direction: {bestIndex} with score {bestScore}");
+            Debug.Log($"[WeaponSystem] First calculation - Best hex direction: {bestIndex} with score {bestScore}");
+            
+            // Second calculation for debug verification
+            int secondBestIndex = 0;
+            int secondBestScore = -1;
+            
+            for (int dirIndex = 0; dirIndex < 6; dirIndex++)
+            {
+                int score = 0;
+                int currentQ = pawnQ;
+                int currentR = pawnR;
+
+                for (int step = 1; step <= 999; step++)
+                {
+                    currentQ += PlayerController.HEX_DIR_Q[dirIndex];
+                    currentR += PlayerController.HEX_DIR_R[dirIndex];
+                    Vector2Int currentTile = new Vector2Int(currentQ, currentR);
+
+                    if (playerArea.Contains(currentTile))
+                    {
+                        score += (1000 - step);
+                    }
+                }
+
+                if (score > secondBestScore)
+                {
+                    secondBestScore = score;
+                    secondBestIndex = dirIndex;
+                }
+            }
+            
+            Debug.Log($"[WeaponSystem] Second calculation - Best hex direction: {secondBestIndex} with score {secondBestScore}");
+            
+            if (bestIndex != secondBestIndex)
+            {
+                Debug.LogWarning($"[WeaponSystem] Direction calculation mismatch! First: {bestIndex}, Second: {secondBestIndex}");
+            }
+        }
+
+        if (showDebug)
+        {
+            Debug.Log($"[WeaponSystem] Final result - Best hex direction: {bestIndex} with score {bestScore}");
         }
 
         return bestIndex;
@@ -629,6 +807,9 @@ public class WeaponSystem : MonoBehaviour
 
     private void HandleFireModes()
     {
+        // Don't handle fire modes when game is paused
+        if (IsGamePaused()) return;
+        
         switch (fireMode)
         {
             case FireMode.Timed:
@@ -680,6 +861,9 @@ public class WeaponSystem : MonoBehaviour
 
     private void Fire()
     {
+        // Don't fire when game is paused
+        if (IsGamePaused()) return;
+        
         lastFireTime = Time.time;
         lastShotTime = Time.time;
 
@@ -895,16 +1079,56 @@ public class WeaponSystem : MonoBehaviour
         lineRenderer.startColor = standoffLineColor;
         lineRenderer.endColor = standoffLineColor;
         lineRenderer.enabled = false;
-        lineRenderer.sortingOrder = 10;
+        
+        // Set sorting layer and order to ensure visibility
+        lineRenderer.sortingLayerName = "Default";
+        lineRenderer.sortingOrder = 100; // High sorting order to render on top
+        
+        // Use world space and set to render closer to camera
+        lineRenderer.useWorldSpace = true;
+        
+        // Find main camera to position line closer
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) mainCamera = FindFirstObjectByType<Camera>();
+        
+        if (mainCamera != null)
+        {
+            // Position the line slightly closer to the camera than other objects
+            float cameraZ = mainCamera.transform.position.z;
+            float lineZ = cameraZ + 1f; // Move 1 unit closer to camera
+            
+            // Store the Z position for use in UpdateStandoffVisualization
+            lineRenderer.transform.position = new Vector3(0, 0, lineZ);
+        }
     }
 
     private Material CreateDefaultLineMaterial()
     {
+        // Try to find a suitable shader for line rendering
         Shader shader = Shader.Find("Sprites/Default");
         if (shader == null) shader = Shader.Find("Unlit/Color");
+        if (shader == null) shader = Shader.Find("Legacy Shaders/Unlit/Color");
+        if (shader == null) shader = Shader.Find("Standard");
 
         Material mat = new Material(shader);
         mat.color = standoffLineColor;
+        
+        // Set rendering properties to ensure visibility
+        mat.SetInt("_ZWrite", 0); // Disable depth writing
+        mat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always); // Always render on top
+        
+        // Enable transparency if the color has alpha
+        if (standoffLineColor.a < 1f)
+        {
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetInt("_ZWrite", 0);
+            mat.DisableKeyword("_ALPHATEST_ON");
+            mat.DisableKeyword("_ALPHABLEND_ON");
+            mat.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+            mat.renderQueue = 3000;
+        }
+        
         return mat;
     }
 
@@ -1120,20 +1344,82 @@ public class WeaponSystem : MonoBehaviour
 
     private void UpdateStandoffVisualization()
     {
-        if (lineRenderer == null || !lineRenderer.enabled) return;
+        if (lineRenderer == null || !lineRenderer.enabled) 
+        {
+            // If LineRenderer is not available, use Debug.DrawLine as fallback
+            if (useDebugLineFallback)
+            {
+                DrawDebugTargetingLine();
+            }
+            return;
+        }
 
+        // Get camera reference for proper Z positioning
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null) mainCamera = FindFirstObjectByType<Camera>();
+        
+        float lineZ = 0f; // Default Z position
+        if (mainCamera != null)
+        {
+            // Position line closer to camera than other objects
+            lineZ = mainCamera.transform.position.z + 1f;
+        }
+
+        Vector3 startPos = new Vector3(transform.position.x, transform.position.y, lineZ);
+        Vector2 aimDir = GetAimDirectionVector();
+        Vector3 endPos = startPos + new Vector3(aimDir.x * maxRange, aimDir.y * maxRange, 0f);
+
+        // Perform raycast to find actual end point (obstacles, walls, etc.)
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, aimDir, maxRange);
+        if (hit.collider != null)
+        {
+            endPos = new Vector3(hit.point.x, hit.point.y, lineZ);
+        }
+
+        // Set line positions
+        lineRenderer.SetPosition(0, startPos);
+        lineRenderer.SetPosition(1, endPos);
+        
+        // Ensure line renderer properties are maintained
+        lineRenderer.startColor = standoffLineColor;
+        lineRenderer.endColor = standoffLineColor;
+        lineRenderer.startWidth = lineWidth;
+        lineRenderer.endWidth = lineWidth;
+        
+        // Debug visualization (can be removed in production)
+        if (showDebug)
+        {
+            Debug.DrawLine(startPos, endPos, standoffLineColor, 0.1f);
+        }
+        
+        // Additional fallback debug line if enabled
+        if (useDebugLineFallback)
+        {
+            DrawDebugTargetingLine();
+        }
+    }
+
+    /// Draw targeting line using Debug.DrawLine as a fallback visualization method
+    private void DrawDebugTargetingLine()
+    {
         Vector3 startPos = transform.position;
         Vector2 aimDir = GetAimDirectionVector();
-        Vector3 endPos = startPos + (Vector3)(aimDir.normalized * maxRange);
+        Vector3 endPos = startPos + new Vector3(aimDir.x * maxRange, aimDir.y * maxRange, 0f);
 
+        // Perform raycast to find actual end point
         RaycastHit2D hit = Physics2D.Raycast(startPos, aimDir, maxRange);
         if (hit.collider != null)
         {
-            endPos = hit.point;
+            endPos = new Vector3(hit.point.x, hit.point.y, startPos.z);
         }
 
-        lineRenderer.SetPosition(0, startPos);
-        lineRenderer.SetPosition(1, endPos);
+        // Draw the line (visible in Scene view and with Gizmos enabled)
+        Debug.DrawLine(startPos, endPos, standoffLineColor, 0.1f);
+        
+        if (showDebug)
+        {
+            Debug.Log($"[WeaponSystem] Debug targeting line: {startPos} -> {endPos}");
+        }
     }
 
     #endregion

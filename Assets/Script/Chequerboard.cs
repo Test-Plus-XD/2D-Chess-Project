@@ -19,6 +19,14 @@ public class Checkerboard : MonoBehaviour
     public float opponentMoveDelay = 0.12f;
     // If true the Checkerboard will automatically discover pawns at Start.
     public bool autoDiscover = true;
+    
+    [Header("Debug")]
+    [Tooltip("Show debug information")]
+    // Enable debug logging for turn management.
+    [SerializeField] private bool showDebug = false;
+    
+    // Track when opponent turn started for failsafe timeout
+    private float lastOpponentTurnStart = 0f;
 
     private void Awake()
     {
@@ -30,6 +38,32 @@ public class Checkerboard : MonoBehaviour
     {
         if (autoDiscover) RefreshOpponents();
         if (playerController == null) playerController = FindFirstObjectByType<PlayerController>();
+    }
+
+    private void Update()
+    {
+        // Failsafe: If player turn has been false for too long without any opponent movement, restore it
+        // This helps recover from edge cases where the turn system gets stuck
+        if (!playerTurn)
+        {
+            bool anyOpponentMoving = false;
+            foreach (var opp in opponents)
+            {
+                if (opp != null && !opp.Moved)
+                {
+                    anyOpponentMoving = true;
+                    break;
+                }
+            }
+            
+            // If no opponents are moving and it's been a while, restore player turn
+            if (!anyOpponentMoving && Time.time > lastOpponentTurnStart + 5f) // 5 second timeout
+            {
+                if (showDebug) Debug.LogWarning("[Checkerboard] Failsafe: Restoring player turn after timeout");
+                playerTurn = true;
+                if (UIManager.Instance != null) UIManager.Instance.SetTurnIndicator(true);
+            }
+        }
     }
 
     // Refresh the cached opponent list (call after spawning new opponent pawns).
@@ -65,7 +99,13 @@ public class Checkerboard : MonoBehaviour
     public void OnPlayerMoved()
     {
         // Prevent re-triggering opponents' turn if they're already taking their turn
-        if (!playerTurn) return;
+        if (!playerTurn) 
+        {
+            if (showDebug) Debug.Log("[Checkerboard] OnPlayerMoved called but not player's turn - ignoring");
+            return;
+        }
+        
+        if (showDebug) Debug.Log("[Checkerboard] Starting opponent turn sequence");
         // Start the opponent turn sequence as a coroutine
         StartCoroutine(OpponentsTurnRoutine());
     }
@@ -77,6 +117,8 @@ public class Checkerboard : MonoBehaviour
     {
         // Lock player input while opponents are moving
         playerTurn = false;
+        lastOpponentTurnStart = Time.time; // Track when opponent turn started
+        
         // Update turn indicator to show opponent's turn
         if (UIManager.Instance != null) UIManager.Instance.SetTurnIndicator(false);
         // Ensure opponent list is fresh (in case pawns were spawned since last refresh)
@@ -104,6 +146,12 @@ public class Checkerboard : MonoBehaviour
         {
             if (opp == null) continue;
 
+            // Check if game is paused before each opponent action
+            while (Time.timeScale == 0f)
+            {
+                yield return null; // Wait until game is unpaused
+            }
+
             // Step 1: Fire weapon at turn start (shoots in the direction calculated in step 3 of previous turn)
             WeaponSystem weaponSystem = opp.GetComponent<WeaponSystem>();
             if (weaponSystem != null && opp.aiType != PawnController.AIType.Basic)
@@ -119,6 +167,12 @@ public class Checkerboard : MonoBehaviour
 
             for (int moveIndex = 0; moveIndex < movesThisTurn; moveIndex++)
             {
+                // Check if game is paused before each move
+                while (Time.timeScale == 0f)
+                {
+                    yield return null; // Wait until game is unpaused
+                }
+
                 // Free current pawn position so it can rechoose or move to a new tile
                 occupied.Remove(new Vector2Int(opp.q, opp.r));
                 // Ask pawn AI to choose best move target while respecting occupied tiles
@@ -185,6 +239,8 @@ public class Checkerboard : MonoBehaviour
         // Update turn indicator to show player's turn
         if (UIManager.Instance != null) UIManager.Instance.SetTurnIndicator(true);
 
+        if (showDebug) Debug.Log("[Checkerboard] Player turn restored - input should now work");
+
         // Clear all opponent targeting visualizations when player's turn starts
         for (int i = opponents.Count - 1; i >= 0; i--)
         {
@@ -245,5 +301,18 @@ public class Checkerboard : MonoBehaviour
             }
         }
         return Vector2Int.zero;
+    }
+
+    // Public method to enable debug mode for testing
+    public void EnableDebugMode(bool enable)
+    {
+        showDebug = enable;
+        if (showDebug) Debug.Log("[Checkerboard] Debug mode enabled");
+    }
+
+    // Public method to check current turn state
+    public string GetTurnState()
+    {
+        return $"PlayerTurn: {playerTurn}, OpponentCount: {opponents.Count}, LastOpponentTurnStart: {lastOpponentTurnStart}";
     }
 }

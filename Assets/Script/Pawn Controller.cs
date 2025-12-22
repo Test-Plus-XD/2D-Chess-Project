@@ -118,11 +118,17 @@ public class PawnController : MonoBehaviour
 
     private void Update()
     {
+        // Don't update pawns when game is paused
+        if (Time.timeScale == 0f) return;
+        
         if(isStandoffMode) UpdateStandoffMode();
     }
 
     private void FixedUpdate()
     {
+        // Don't update pawns when game is paused
+        if (Time.timeScale == 0f) return;
+        
         if(isStandoffMode) FixedUpdateStandoffMode();
     }
 
@@ -225,8 +231,15 @@ public class PawnController : MonoBehaviour
             // Basic AI: Simple aggressive approach (always move toward player).
             if(distance > 1.5f)
             {
-                currentMoveDirection = Mathf.Sign(toPlayer.x);
-                TryJumpIfObstacle();
+                float desiredDirection = Mathf.Sign(toPlayer.x);
+                if(IsLedgeAhead(desiredDirection))
+                {
+                    currentMoveDirection = 0f; // Stop if ledge detected
+                } else
+                {
+                    currentMoveDirection = desiredDirection;
+                    TryJumpIfObstacle();
+                }
             } else currentMoveDirection = 0f;
             return;
         }
@@ -244,8 +257,15 @@ public class PawnController : MonoBehaviour
                 // Aggressive: Always move toward player (matches Chess mode behaviour).
                 if(distance > maxDistance)
                 {
-                    currentMoveDirection = Mathf.Sign(toPlayer.x);
-                    TryJumpIfObstacle();
+                    float desiredDirection = Mathf.Sign(toPlayer.x);
+                    if(IsLedgeAhead(desiredDirection))
+                    {
+                        currentMoveDirection = 0f; // Stop if ledge detected
+                    } else
+                    {
+                        currentMoveDirection = desiredDirection;
+                        TryJumpIfObstacle();
+                    }
                 } else currentMoveDirection = 0f;
                 break;
 
@@ -254,13 +274,27 @@ public class PawnController : MonoBehaviour
                 if(distance > maxDistance)
                 {
                     // Too far, move closer.
-                    currentMoveDirection = Mathf.Sign(toPlayer.x);
-                    TryJumpIfObstacle();
+                    float desiredDirection = Mathf.Sign(toPlayer.x);
+                    if(IsLedgeAhead(desiredDirection))
+                    {
+                        currentMoveDirection = 0f; // Stop if ledge detected
+                    } else
+                    {
+                        currentMoveDirection = desiredDirection;
+                        TryJumpIfObstacle();
+                    }
                 } else if(distance < minDistance)
                 {
                     // Too close, back up.
-                    currentMoveDirection = -Mathf.Sign(toPlayer.x);
-                    TryJumpIfObstacle();
+                    float desiredDirection = -Mathf.Sign(toPlayer.x);
+                    if(IsLedgeAhead(desiredDirection))
+                    {
+                        currentMoveDirection = 0f; // Stop if ledge detected
+                    } else
+                    {
+                        currentMoveDirection = desiredDirection;
+                        TryJumpIfObstacle();
+                    }
                 } else currentMoveDirection = 0f;
                 break;
 
@@ -269,8 +303,15 @@ public class PawnController : MonoBehaviour
                 if(distance < minDistance)
                 {
                     // Too close, retreat.
-                    currentMoveDirection = -Mathf.Sign(toPlayer.x);
-                    TryJumpIfObstacle();
+                    float desiredDirection = -Mathf.Sign(toPlayer.x);
+                    if(IsLedgeAhead(desiredDirection))
+                    {
+                        currentMoveDirection = 0f; // Stop if ledge detected
+                    } else
+                    {
+                        currentMoveDirection = desiredDirection;
+                        TryJumpIfObstacle();
+                    }
                 } else currentMoveDirection = 0f;
                 break;
         }
@@ -341,6 +382,49 @@ public class PawnController : MonoBehaviour
                 rigidBody.linearVelocity = new Vector2(rigidBody.linearVelocity.x, jumpForceValue);
             } else currentMoveDirection = 0f;
         }
+    }
+
+    /// Check if there's a ledge ahead in the specified direction to prevent falling off edges.
+    private bool IsLedgeAhead(float direction)
+    {
+        if(!isGrounded || Mathf.Abs(direction) < 0.1f) return false;
+
+        // Get ledge detection parameters from customiser or use defaults.
+        float ledgeCheckDistance = 0.8f; // How far ahead to check
+        float ledgeCheckDepth = 1.5f; // How far down to raycast
+        float ledgeCheckOffset = 0.3f; // Vertical offset from pawn center
+
+        if(pawnCustomiser != null)
+        {
+            ledgeCheckDistance = pawnCustomiser.platformerMovement.edgeCheckOffset;
+            ledgeCheckDepth = pawnCustomiser.platformerMovement.edgeRaycastDistance;
+            ledgeCheckOffset = pawnCustomiser.platformerMovement.edgeCheckVerticalOffset;
+        }
+
+        Vector2 pawnPosition = transform.position;
+        
+        // Cast two rays: one at the bottom-left and one at the bottom-right of where the pawn would step
+        Vector2 leftRayStart = pawnPosition + new Vector2(direction * ledgeCheckDistance - 0.2f, -ledgeCheckOffset);
+        Vector2 rightRayStart = pawnPosition + new Vector2(direction * ledgeCheckDistance + 0.2f, -ledgeCheckOffset);
+
+        RaycastHit2D leftHit = Physics2D.Raycast(leftRayStart, Vector2.down, ledgeCheckDepth, groundLayer);
+        RaycastHit2D rightHit = Physics2D.Raycast(rightRayStart, Vector2.down, ledgeCheckDepth, groundLayer);
+
+        // If either ray doesn't hit ground, there's a ledge
+        bool isLedge = (leftHit.collider == null || rightHit.collider == null);
+
+        // Debug visualization (optional - can be removed in production)
+        if(isLedge)
+        {
+            Debug.DrawRay(leftRayStart, Vector2.down * ledgeCheckDepth, Color.red, 0.1f);
+            Debug.DrawRay(rightRayStart, Vector2.down * ledgeCheckDepth, Color.red, 0.1f);
+        } else
+        {
+            Debug.DrawRay(leftRayStart, Vector2.down * ledgeCheckDepth, Color.green, 0.1f);
+            Debug.DrawRay(rightRayStart, Vector2.down * ledgeCheckDepth, Color.green, 0.1f);
+        }
+
+        return isLedge;
     }
 
     #endregion

@@ -145,4 +145,42 @@ public class InputSystem : MonoBehaviour
             Debug.Log("Jump button pressed");
         }
     }
+
+    /// Reset input system state - useful after level load or pause/resume
+    public void ResetInputState()
+    {
+        jumpInputThisFrame = false;
+        
+        // Ensure mobile controls are properly configured
+        if (autoDetectPlatform)
+        {
+#if UNITY_ANDROID || UNITY_IOS
+            enableMobileControls = true;
+#else
+            enableMobileControls = Application.isMobilePlatform;
+#endif
+        }
+        
+        SetMobileControlsVisibility(enableMobileControls);
+        
+        if (showDebug)
+        {
+            Debug.Log($"[InputSystem] Input state reset - Mobile controls: {enableMobileControls}");
+        }
+    }
+
+    /// Force refresh of input system state
+    public void RefreshInputSystem()
+    {
+        // Re-setup mobile controls
+        SetMobileControlsVisibility(enableMobileControls);
+        
+        // Reset any stuck input states
+        jumpInputThisFrame = false;
+        
+        if (showDebug)
+        {
+            Debug.Log("[InputSystem] Input system refreshed");
+        }
+    }
 }
